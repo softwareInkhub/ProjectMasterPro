@@ -24,11 +24,8 @@ function App() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/">
-        <Layout>
-          <Dashboard />
-        </Layout>
-      </Route>
+      
+      {/* Project routes in correct order - most specific first */}
       <Route path="/projects/new">
         <Layout>
           <NewProjectPage />
@@ -44,11 +41,8 @@ function App() {
           <ProjectsPage />
         </Layout>
       </Route>
-      <Route path="/tasks">
-        <Layout>
-          <TasksPage />
-        </Layout>
-      </Route>
+      
+      {/* Epic routes in correct order */}
       <Route path="/epics/new">
         <Layout>
           <NewEpicPage />
@@ -64,6 +58,8 @@ function App() {
           <EpicsPage />
         </Layout>
       </Route>
+      
+      {/* Story routes in correct order */}
       <Route path="/stories/new">
         <Layout>
           <NewStoryPage />
@@ -77,6 +73,13 @@ function App() {
       <Route path="/stories">
         <Layout>
           <StoriesPage />
+        </Layout>
+      </Route>
+      
+      {/* Other routes */}
+      <Route path="/tasks">
+        <Layout>
+          <TasksPage />
         </Layout>
       </Route>
       <Route path="/companies">
@@ -104,6 +107,15 @@ function App() {
           <ReportsPage />
         </Layout>
       </Route>
+      
+      {/* Home route - this should always be after all specific routes */}
+      <Route path="/">
+        <Layout>
+          <Dashboard />
+        </Layout>
+      </Route>
+      
+      {/* Not found route - this should always be last */}
       <Route>
         <Layout>
           <NotFound />
