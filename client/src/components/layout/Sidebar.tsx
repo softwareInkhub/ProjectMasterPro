@@ -11,7 +11,8 @@ import {
   SettingsIcon,
   UsersIcon,
   MenuIcon,
-  XIcon
+  XIcon,
+  UserIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { name: "Companies", href: "/companies", icon: LandmarkIcon },
   { name: "Departments", href: "/departments", icon: FolderIcon },
   { name: "Teams", href: "/teams", icon: UsersIcon },
+  { name: "Users", href: "/users", icon: UserIcon },
   { name: "Reports", href: "/reports", icon: BarChart3Icon },
   { name: "Settings", href: "/settings", icon: SettingsIcon },
 ];

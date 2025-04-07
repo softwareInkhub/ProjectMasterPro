@@ -1,751 +1,297 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { userApi, companyApi, departmentApi } from "@/lib/api";
-import { User, Company, Department } from "@/types";
-import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash } from "lucide-react";
-import { format } from "date-fns";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Form } from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  PlusIcon, 
+  SearchIcon, 
+  SortAscIcon, 
+  UserIcon, 
+  MailIcon,
+  PhoneIcon,
+  BuildingIcon,
+  BriefcaseIcon
+} from "lucide-react";
+import { useLocation } from "wouter";
+import { useState } from "react";
 
-export default function Users() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
+export default function UsersPage() {
+  const [, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch users
-  const { data: users = [], isLoading } = useQuery<User[]>({
-    queryKey: ['/api/users'],
-  });
-
-  // Fetch companies for dropdown
-  const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ['/api/companies'],
-  });
-
-  // Fetch departments for dropdown
-  const { data: departments = [] } = useQuery<Department[]>({
-    queryKey: ['/api/departments'],
-  });
-
-  // Form schema for user creation
-  const createFormSchema = z.object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    role: z.enum(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER", "VIEWER"]),
-    companyId: z.string().min(1, "Company is required"),
-    departmentId: z.string().optional(),
-    status: z.enum(["ACTIVE", "INACTIVE", "PENDING"]).default("ACTIVE"),
-  });
-
-  // Form schema for user edit
-  const editFormSchema = z.object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email address"),
-    role: z.enum(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER", "VIEWER"]),
-    companyId: z.string().min(1, "Company is required"),
-    departmentId: z.string().optional(),
-    status: z.enum(["ACTIVE", "INACTIVE", "PENDING"]),
-  });
-
-  // Form setup for create
-  const createForm = useForm<z.infer<typeof createFormSchema>>({
-    resolver: zodResolver(createFormSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      role: "DEVELOPER",
-      companyId: currentUser?.companyId || "",
-      departmentId: undefined,
-      status: "ACTIVE",
+  // Sample users data - this would come from an API in the real application
+  const users = [
+    {
+      id: 1,
+      name: "John Smith",
+      email: "john.smith@acmecorp.example",
+      phone: "+1 (555) 123-4567",
+      role: "Developer",
+      department: "Engineering",
+      departmentId: 1,
+      team: "Frontend Development",
+      teamId: 1,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "JS",
+      status: "Active"
     },
-  });
-
-  // Form setup for edit
-  const editForm = useForm<z.infer<typeof editFormSchema>>({
-    resolver: zodResolver(editFormSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      role: "DEVELOPER",
-      companyId: "",
-      departmentId: undefined,
-      status: "ACTIVE",
+    {
+      id: 2,
+      name: "Emily Johnson",
+      email: "emily.johnson@acmecorp.example",
+      phone: "+1 (555) 234-5678",
+      role: "Manager",
+      department: "Marketing",
+      departmentId: 2,
+      team: "Digital Marketing",
+      teamId: 5,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "EJ",
+      status: "Active"
     },
-  });
-
-  // Create user mutation
-  const createUser = useMutation({
-    mutationFn: async (data: z.infer<typeof createFormSchema>) => {
-      const response = await userApi.create(data);
-      return response.json();
+    {
+      id: 3,
+      name: "Michael Wilson",
+      email: "michael.wilson@acmecorp.example",
+      phone: "+1 (555) 345-6789",
+      role: "Manager",
+      department: "Finance",
+      departmentId: 3,
+      team: "Financial Planning",
+      teamId: 7,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "MW",
+      status: "Active"
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({
-        title: "User created",
-        description: "The user has been created successfully",
-      });
-      setIsCreateDialogOpen(false);
-      createForm.reset({
-        firstName: "",
-        lastName: "",
-        email: "",
-        password: "",
-        role: "DEVELOPER",
-        companyId: currentUser?.companyId || "",
-        departmentId: undefined,
-        status: "ACTIVE",
-      });
+    {
+      id: 4,
+      name: "Sarah Brown",
+      email: "sarah.brown@acmecorp.example",
+      phone: "+1 (555) 456-7890",
+      role: "Manager",
+      department: "Human Resources",
+      departmentId: 4,
+      team: "Recruitment",
+      teamId: 9,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "SB",
+      status: "Active"
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create user. Please try again.",
-        variant: "destructive",
-      });
+    {
+      id: 5,
+      name: "Alice Chen",
+      email: "alice.chen@acmecorp.example",
+      phone: "+1 (555) 567-8901",
+      role: "Team Lead",
+      department: "Engineering",
+      departmentId: 1,
+      team: "Frontend Development",
+      teamId: 1,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "AC",
+      status: "Active"
     },
-  });
-
-  // Update user mutation
-  const updateUser = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof editFormSchema> }) => {
-      const response = await userApi.update(id, data);
-      return response.json();
+    {
+      id: 6,
+      name: "David Lee",
+      email: "david.lee@globex.example",
+      phone: "+1 (555) 678-9012",
+      role: "Manager",
+      department: "Research & Development",
+      departmentId: 5,
+      team: "Product Innovation",
+      teamId: 12,
+      company: "Globex Industries",
+      companyId: 2,
+      avatar: "DL",
+      status: "Active"
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({
-        title: "User updated",
-        description: "The user has been updated successfully",
-      });
-      setIsEditDialogOpen(false);
-      setSelectedUser(null);
+    {
+      id: 7,
+      name: "Emma Wilson",
+      email: "emma.wilson@acmecorp.example",
+      phone: "+1 (555) 789-0123",
+      role: "Developer",
+      department: "Engineering",
+      departmentId: 1,
+      team: "Backend Development",
+      teamId: 2,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "EW",
+      status: "Inactive"
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update user. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Delete user mutation
-  const deleteUser = useMutation({
-    mutationFn: async (id: string) => {
-      await userApi.delete(id);
-      return id;
-    },
-    onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({
-        title: "User deleted",
-        description: "The user has been deleted successfully",
-      });
-      setSelectedUser(null);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete user. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Handle create form submission
-  const onCreateSubmit = (values: z.infer<typeof createFormSchema>) => {
-    createUser.mutate(values);
-  };
-
-  // Handle edit form submission
-  const onEditSubmit = (values: z.infer<typeof editFormSchema>) => {
-    if (selectedUser) {
-      updateUser.mutate({ id: selectedUser.id, data: values });
+    {
+      id: 8,
+      name: "Bob Jackson",
+      email: "bob.jackson@acmecorp.example",
+      phone: "+1 (555) 890-1234",
+      role: "Team Lead",
+      department: "Engineering",
+      departmentId: 1,
+      team: "Backend Development",
+      teamId: 2,
+      company: "Acme Corporation",
+      companyId: 1,
+      avatar: "BJ",
+      status: "Active"
     }
-  };
-
-  // Handle edit dialog open
-  const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    editForm.reset({
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      companyId: user.companyId,
-      departmentId: user.departmentId,
-      status: user.status,
-    });
-    setIsEditDialogOpen(true);
-  };
-
-  // Handle delete confirmation
-  const handleDeleteUser = (user: User) => {
-    setSelectedUser(user);
-  };
-
-  // Confirm delete
-  const confirmDelete = () => {
-    if (selectedUser) {
-      deleteUser.mutate(selectedUser.id);
-    }
-  };
-
-  // Find company name
-  const getCompanyName = (companyId: string) => {
-    const company = companies.find(company => company.id === companyId);
-    return company ? company.name : "Unknown";
-  };
-
-  // Find department name
-  const getDepartmentName = (departmentId?: string) => {
-    if (!departmentId) return "Not assigned";
-    const department = departments.find(dept => dept.id === departmentId);
-    return department ? department.name : "Unknown";
-  };
-
-  // Get user initials
-  const getUserInitials = (user: User) => {
-    return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
-  };
-
-  // Get color based on role
-  const getRoleBadgeVariant = (role: User['role']) => {
-    switch (role) {
-      case "ADMIN":
-        return "destructive";
-      case "MANAGER":
-        return "default";
-      case "TEAM_LEAD":
-        return "secondary";
-      case "DEVELOPER":
-        return "outline";
-      case "VIEWER":
-        return "outline";
-      default:
-        return "outline";
-    }
-  };
-
-  // Get color based on status
-  const getStatusBadgeVariant = (status: User['status']) => {
-    switch (status) {
-      case "ACTIVE":
-        return "success";
-      case "INACTIVE":
-        return "destructive";
-      case "PENDING":
-        return "warning";
-      default:
-        return "secondary";
-    }
-  };
-
-  // Create custom Badge components
-  const StatusBadge = ({ status }: { status: User['status'] }) => {
-    const colorMap = {
-      "ACTIVE": "bg-green-100 text-green-800 border-green-200",
-      "INACTIVE": "bg-red-100 text-red-800 border-red-200",
-      "PENDING": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    };
-    
-    return (
-      <Badge 
-        variant="outline" 
-        className={`${colorMap[status]}`}
-      >
-        {status}
-      </Badge>
-    );
-  };
-
-  // Table columns configuration
-  const columns = [
-    {
-      header: "User",
-      accessorKey: "name",
-      cell: (user: User) => (
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback>
-              {getUserInitials(user)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium">{user.firstName} {user.lastName}</p>
-            <p className="text-xs text-gray-500">{user.email}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: "Role",
-      accessorKey: "role" as keyof User,
-      cell: (user: User) => (
-        <Badge variant={getRoleBadgeVariant(user.role)}>
-          {user.role.replace('_', ' ')}
-        </Badge>
-      ),
-    },
-    {
-      header: "Status",
-      accessorKey: "status" as keyof User,
-      cell: (user: User) => <StatusBadge status={user.status} />,
-    },
-    {
-      header: "Department",
-      accessorKey: "departmentId" as keyof User,
-      cell: (user: User) => getDepartmentName(user.departmentId),
-    },
-    {
-      header: "Company",
-      accessorKey: "companyId" as keyof User,
-      cell: (user: User) => getCompanyName(user.companyId),
-    },
-    {
-      header: "Actions",
-      cell: (user: User) => (
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditUser(user);
-            }}
-            disabled={currentUser?.role !== "ADMIN" && currentUser?.id !== user.id}
-          >
-            <Edit className="h-4 w-4" />
-            <span className="sr-only">Edit user</span>
-          </Button>
-          
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteUser(user);
-                }}
-                disabled={currentUser?.role !== "ADMIN" || currentUser?.id === user.id}
-              >
-                <Trash className="h-4 w-4 text-destructive" />
-                <span className="sr-only">Delete user</span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete {selectedUser?.firstName} {selectedUser?.lastName}? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={confirmDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      ),
-    },
   ];
 
-  // Check if user has required permissions
-  const canManageUsers = currentUser?.role === "ADMIN";
-
-  // Filter departments by company
-  const filteredDepartments = departments.filter(
-    department => department.companyId === createForm.watch("companyId")
+  // Filter users based on search query
+  const filteredUsers = users.filter(user => 
+    searchQuery === "" || 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.team.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter departments for editing
-  const filteredEditDepartments = departments.filter(
-    department => department.companyId === editForm.watch("companyId")
-  );
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+
+  // Get random color for avatar background
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      "bg-blue-500", "bg-green-500", "bg-yellow-500", 
+      "bg-red-500", "bg-purple-500", "bg-pink-500", 
+      "bg-indigo-500", "bg-teal-500"
+    ];
+    
+    // Simple hash function to get consistent color for a name
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Users</h1>
-        
-        {canManageUsers && (
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New User
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
-              </DialogHeader>
-              
-              <Form {...createForm}>
-                <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">First Name</label>
-                      <Input
-                        {...createForm.register("firstName")}
-                        placeholder="Enter first name"
-                      />
-                      {createForm.formState.errors.firstName && (
-                        <p className="text-sm text-red-600">{createForm.formState.errors.firstName.message}</p>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Last Name</label>
-                      <Input
-                        {...createForm.register("lastName")}
-                        placeholder="Enter last name"
-                      />
-                      {createForm.formState.errors.lastName && (
-                        <p className="text-sm text-red-600">{createForm.formState.errors.lastName.message}</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Email</label>
-                    <Input
-                      {...createForm.register("email")}
-                      type="email"
-                      placeholder="Enter email address"
-                    />
-                    {createForm.formState.errors.email && (
-                      <p className="text-sm text-red-600">{createForm.formState.errors.email.message}</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Password</label>
-                    <Input
-                      {...createForm.register("password")}
-                      type="password"
-                      placeholder="Enter password"
-                    />
-                    {createForm.formState.errors.password && (
-                      <p className="text-sm text-red-600">{createForm.formState.errors.password.message}</p>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Role</label>
-                      <Select
-                        onValueChange={(value) => createForm.setValue("role", value as any)}
-                        defaultValue="DEVELOPER"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ADMIN">Admin</SelectItem>
-                          <SelectItem value="MANAGER">Manager</SelectItem>
-                          <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
-                          <SelectItem value="DEVELOPER">Developer</SelectItem>
-                          <SelectItem value="VIEWER">Viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {createForm.formState.errors.role && (
-                        <p className="text-sm text-red-600">{createForm.formState.errors.role.message}</p>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Status</label>
-                      <Select
-                        onValueChange={(value) => createForm.setValue("status", value as any)}
-                        defaultValue="ACTIVE"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="INACTIVE">Inactive</SelectItem>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {createForm.formState.errors.status && (
-                        <p className="text-sm text-red-600">{createForm.formState.errors.status.message}</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Company</label>
-                      <Select
-                        onValueChange={(value) => createForm.setValue("companyId", value)}
-                        defaultValue={currentUser?.companyId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select company" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {createForm.formState.errors.companyId && (
-                        <p className="text-sm text-red-600">{createForm.formState.errors.companyId.message}</p>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Department (Optional)</label>
-                      <Select
-                        onValueChange={(value) => createForm.setValue("departmentId", value)}
-                        defaultValue=""
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {filteredDepartments.map((department) => (
-                            <SelectItem key={department.id} value={department.id}>
-                              {department.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={createUser.isPending}>
-                      {createUser.isPending ? "Creating..." : "Create User"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        )}
+    <div>
+      {/* Header */}
+      <header className="mb-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Users</h1>
+            <p className="text-gray-600 mt-1">Manage user accounts and team assignments</p>
+          </div>
+          <Button onClick={() => setLocation('/users/new')}>
+            <PlusIcon className="mr-2 h-4 w-4" /> Add User
+          </Button>
+        </div>
+      </header>
+      
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+        <div className="relative w-full md:w-72">
+          <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            className="pl-9"
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <SortAscIcon className="mr-2 h-4 w-4" /> Sort
+          </Button>
+          <Button variant="outline" size="sm">
+            Active
+          </Button>
+          <Button variant="outline" size="sm">
+            All
+          </Button>
+        </div>
       </div>
       
-      {/* Edit user dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-          </DialogHeader>
-          
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">First Name</label>
-                  <Input
-                    {...editForm.register("firstName")}
-                    placeholder="Enter first name"
-                  />
-                  {editForm.formState.errors.firstName && (
-                    <p className="text-sm text-red-600">{editForm.formState.errors.firstName.message}</p>
-                  )}
+      {/* Users List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredUsers.map((user) => (
+          <Card 
+            key={user.id} 
+            className={`hover:shadow-md transition-shadow cursor-pointer ${user.status === "Inactive" ? "opacity-70" : ""}`}
+            onClick={() => setLocation(`/users/${user.id}`)}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 h-12 w-12 rounded-full ${getAvatarColor(user.name)} flex items-center justify-center text-white font-semibold text-lg`}>
+                  {user.avatar || getInitials(user.name)}
                 </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Last Name</label>
-                  <Input
-                    {...editForm.register("lastName")}
-                    placeholder="Enter last name"
-                  />
-                  {editForm.formState.errors.lastName && (
-                    <p className="text-sm text-red-600">{editForm.formState.errors.lastName.message}</p>
-                  )}
+                <div>
+                  <CardTitle>{user.name}</CardTitle>
+                  <CardDescription>{user.role}</CardDescription>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  {...editForm.register("email")}
-                  type="email"
-                  placeholder="Enter email address"
-                />
-                {editForm.formState.errors.email && (
-                  <p className="text-sm text-red-600">{editForm.formState.errors.email.message}</p>
+                {user.status === "Inactive" && (
+                  <span className="ml-auto px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                    Inactive
+                  </span>
                 )}
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Role</label>
-                  <Select
-                    onValueChange={(value) => editForm.setValue("role", value as any)}
-                    defaultValue={selectedUser?.role}
-                    disabled={currentUser?.role !== "ADMIN"}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
-                      <SelectItem value="MANAGER">Manager</SelectItem>
-                      <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
-                      <SelectItem value="DEVELOPER">Developer</SelectItem>
-                      <SelectItem value="VIEWER">Viewer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {editForm.formState.errors.role && (
-                    <p className="text-sm text-red-600">{editForm.formState.errors.role.message}</p>
-                  )}
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <MailIcon className="h-4 w-4 text-gray-500" />
+                  <span className="text-gray-600">{user.email}</span>
                 </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <Select
-                    onValueChange={(value) => editForm.setValue("status", value as any)}
-                    defaultValue={selectedUser?.status}
-                    disabled={currentUser?.role !== "ADMIN"}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                      <SelectItem value="PENDING">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {editForm.formState.errors.status && (
-                    <p className="text-sm text-red-600">{editForm.formState.errors.status.message}</p>
-                  )}
+                <div className="flex items-center gap-2 text-sm">
+                  <PhoneIcon className="h-4 w-4 text-gray-500" />
+                  <span className="text-gray-600">{user.phone}</span>
+                </div>
+                <div className="pt-2 border-t mt-2 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <BuildingIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">Department:</span>
+                    <span 
+                      className="font-medium cursor-pointer hover:text-primary-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLocation(`/departments/${user.departmentId}`);
+                      }}
+                    >
+                      {user.department}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <BriefcaseIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">Team:</span>
+                    <span 
+                      className="font-medium cursor-pointer hover:text-primary-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLocation(`/teams/${user.teamId}`);
+                      }}
+                    >
+                      {user.team}
+                    </span>
+                  </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Company</label>
-                  <Select
-                    onValueChange={(value) => editForm.setValue("companyId", value)}
-                    defaultValue={selectedUser?.companyId}
-                    disabled={currentUser?.role !== "ADMIN"}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {editForm.formState.errors.companyId && (
-                    <p className="text-sm text-red-600">{editForm.formState.errors.companyId.message}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Department (Optional)</label>
-                  <Select
-                    onValueChange={(value) => editForm.setValue("departmentId", value)}
-                    defaultValue={selectedUser?.departmentId || ""}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      {filteredEditDepartments.map((department) => (
-                        <SelectItem key={department.id} value={department.id}>
-                          {department.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateUser.isPending}>
-                  {updateUser.isPending ? "Saving..." : "Save Changes"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">Loading users...</div>
-      ) : (
-        <DataTable
-          data={users}
-          columns={columns}
-          searchKey="firstName"
-          searchPlaceholder="Search users..."
-        />
-      )}
+            </CardContent>
+            <CardFooter className="flex justify-end pt-0">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLocation(`/users/${user.id}/edit`);
+                }}
+              >
+                Edit
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
