@@ -221,99 +221,62 @@ export default function ProjectsPage() {
   
   // Render project grid view
   const renderGridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {filteredProjects.map((project) => (
         <Card 
           key={project.id} 
-          className="hover:shadow-md transition-shadow cursor-pointer"
+          className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
           onClick={() => setLocation(`/projects/${project.id}`)}
         >
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="mb-1">{project.name}</CardTitle>
-                <CardDescription>{project.description}</CardDescription>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+          <div className="p-4 pb-2">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-medium text-sm truncate flex-1">{project.name}</h3>
+              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(project.status)}`}>
                 {project.status}
               </span>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Progress</span>
-                  <span>{project.progress}%</span>
-                </div>
-                <Progress value={project.progress} className="h-2" />
+            
+            <p className="text-xs text-gray-500 line-clamp-2 h-8 mb-2">{project.description}</p>
+            
+            <div className="flex justify-between text-xs mb-1 mt-3">
+              <span>Progress</span>
+              <span>{project.progress}%</span>
+            </div>
+            <Progress value={project.progress} className="h-1.5 mb-3" />
+            
+            <div className="flex justify-between text-xs text-gray-500 py-1">
+              <div className="flex items-center">
+                <CalendarIcon className="h-3 w-3 mr-1" />
+                <span>{formatDate(project.endDate).split(',')[0]}</span>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-gray-500" />
-                  <div>
-                    <p className="text-gray-500">Due Date</p>
-                    <p className="font-medium">{formatDate(project.endDate)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <UsersIcon className="h-4 w-4 text-gray-500" />
-                  <div>
-                    <p className="text-gray-500">Team</p>
-                    <p className="font-medium">{project.members} members</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm">
-                <FolderIcon className="h-4 w-4 text-gray-500" />
-                <span className="text-gray-600">Department:</span>
-                <span 
-                  className="font-medium cursor-pointer hover:text-primary-600"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLocation(`/departments/${project.departmentId}`);
-                  }}
-                >
-                  {project.department}
-                </span>
-              </div>
-              
-              <div className="flex flex-wrap gap-1 mt-2">
-                {project.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
+              <div className="flex items-center">
+                <UsersIcon className="h-3 w-3 mr-1" />
+                <span>{project.members}</span>
               </div>
             </div>
-          </CardContent>
-          <CardFooter className="border-t pt-4 flex justify-between">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={(e) => {
-                e.stopPropagation();
-                setLocation(`/projects/${project.id}/tasks`);
-              }}
-            >
-              View Tasks
-            </Button>
-            <div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mr-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocation(`/projects/${project.id}/edit`);
-                }}
-              >
-                Edit
-              </Button>
+            
+            <div className="flex flex-wrap gap-1 mt-2">
+              {project.tags.slice(0, 2).map((tag, index) => (
+                <Badge key={index} variant="outline" className="text-[10px] px-1 py-0 h-4">
+                  {tag}
+                </Badge>
+              ))}
+              {project.tags.length > 2 && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                  +{project.tags.length - 2}
+                </Badge>
+              )}
             </div>
-          </CardFooter>
+          </div>
+          
+          <div className="px-4 py-2 bg-gray-50 flex justify-between items-center border-t">
+            <span className="text-xs text-gray-600 truncate">
+              {project.team}
+            </span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}>
+              {project.priority}
+            </span>
+          </div>
         </Card>
       ))}
     </div>
@@ -321,107 +284,68 @@ export default function ProjectsPage() {
   
   // Render project list view
   const renderListView = () => (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {filteredProjects.map((project) => (
         <Card 
           key={project.id} 
-          className="hover:shadow-md transition-shadow cursor-pointer"
+          className="hover:shadow-sm transition-shadow cursor-pointer overflow-hidden"
           onClick={() => setLocation(`/projects/${project.id}`)}
         >
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex-1">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-primary-100 rounded-lg">
-                    <BriefcaseIcon className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">{project.name}</h3>
-                    <p className="text-sm text-gray-600">{project.description}</p>
-                  </div>
-                </div>
+          <div className="p-3">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-primary-50 rounded">
+                <BriefcaseIcon className="h-4 w-4 text-primary-600" />
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500 flex items-center gap-1">
-                    <ClockIcon className="h-3 w-3" /> Status
-                  </p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-sm truncate">{project.name}</h3>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(project.status)}`}>
                     {project.status}
                   </span>
                 </div>
-                
-                <div>
-                  <p className="text-gray-500 flex items-center gap-1">
-                    <UsersIcon className="h-3 w-3" /> Team
-                  </p>
-                  <p className="font-medium">{project.team}</p>
-                </div>
-                
-                <div>
-                  <p className="text-gray-500 flex items-center gap-1">
-                    <CalendarIcon className="h-3 w-3" /> Due Date
-                  </p>
-                  <p className="font-medium">{formatDate(project.endDate)}</p>
-                </div>
-                
-                <div>
-                  <p className="text-gray-500 flex items-center gap-1">
-                    <TagIcon className="h-3 w-3" /> Priority
-                  </p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
-                    {project.priority}
-                  </span>
-                </div>
+                <p className="text-xs text-gray-500 truncate">{project.description}</p>
               </div>
               
-              <div className="flex md:flex-col items-center justify-between gap-4">
-                <div className="w-24 flex flex-col items-center">
-                  <div className="flex justify-between w-full text-xs mb-1">
-                    <span>Progress</span>
-                    <span>{project.progress}%</span>
+              <div className="flex items-center gap-6 ml-4">
+                <div className="hidden md:flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <UsersIcon className="h-3 w-3 text-gray-400" />
+                    <span className="text-xs">{project.members}</span>
                   </div>
-                  <Progress value={project.progress} className="h-2 w-full" />
+                  
+                  <div className="flex items-center gap-1">
+                    <CalendarIcon className="h-3 w-3 text-gray-400" />
+                    <span className="text-xs">{formatDate(project.endDate).split(',')[0]}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <TagIcon className="h-3 w-3 text-gray-400" />
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getPriorityColor(project.priority)}`}>
+                      {project.priority}
+                    </span>
+                  </div>
                 </div>
                 
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="rounded-full p-0 h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (project.status === "In Progress") {
-                        // Logic to pause project
-                      } else if (project.status === "On Hold") {
-                        // Logic to resume project
-                      }
-                    }}
-                  >
-                    {project.status === "In Progress" ? (
-                      <PauseCircleIcon className="h-5 w-5 text-yellow-600" />
-                    ) : project.status === "On Hold" ? (
-                      <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <MoreHorizontalIcon className="h-5 w-5" />
-                    )}
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLocation(`/projects/${project.id}/edit`);
-                    }}
-                  >
-                    Edit
-                  </Button>
+                <div className="flex items-center gap-2">
+                  <Progress value={project.progress} className="h-1.5 w-12" />
+                  <span className="text-xs text-gray-500">{project.progress}%</span>
                 </div>
+                
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-0 h-6 w-6"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLocation(`/projects/${project.id}/edit`);
+                  }}
+                >
+                  <MoreHorizontalIcon className="h-4 w-4 text-gray-400" />
+                </Button>
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
       ))}
     </div>
