@@ -8,6 +8,10 @@ import DepartmentsPage from "@/pages/departments";
 import TeamsPage from "@/pages/teams";
 import UsersPage from "@/pages/users";
 import ReportsPage from "@/pages/reports";
+import EpicsPage from "@/pages/epics";
+import EpicDetailPage from "@/pages/epics/[id]";
+import StoriesPage from "@/pages/stories";
+import StoryDetailPage from "@/pages/stories/[id]";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
 
@@ -29,6 +33,26 @@ function App() {
       <Route path="/tasks">
         <Layout>
           <TasksPage />
+        </Layout>
+      </Route>
+      <Route path="/epics/:id">
+        <Layout>
+          <EpicDetailPage />
+        </Layout>
+      </Route>
+      <Route path="/epics">
+        <Layout>
+          <EpicsPage />
+        </Layout>
+      </Route>
+      <Route path="/stories/:id">
+        <Layout>
+          <StoryDetailPage />
+        </Layout>
+      </Route>
+      <Route path="/stories">
+        <Layout>
+          <StoriesPage />
         </Layout>
       </Route>
       <Route path="/companies">
