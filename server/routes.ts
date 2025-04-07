@@ -6,7 +6,7 @@ import {
   insertDepartmentSchema, insertGroupSchema, insertTeamSchema,
   insertProjectSchema, insertEpicSchema, insertStorySchema,
   insertTaskSchema, insertCommentSchema, insertAttachmentSchema,
-  insertNotificationSchema
+  insertNotificationSchema, registerUserSchema, InsertUser
 } from "@shared/schema";
 import { generateToken, authenticateJwt, AuthRequest, authorize } from "./auth";
 import { z } from "zod";
@@ -50,7 +50,9 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   apiRouter.post("/auth/register", async (req: Request, res: Response) => {
     try {
       const { companyName, ...userData } = req.body;
-      const validatedData = insertUserSchema.parse(userData);
+      
+      // Use our dedicated registration schema
+      const validatedData = registerUserSchema.parse(req.body);
       
       // Check if email already exists
       const existingUser = await storage.getUserByEmail(validatedData.email);
@@ -65,15 +67,21 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           name: companyName,
           description: `${companyName} - Organization`,
         });
-        validatedData.companyId = company.id;
       }
       
-      // Set user as admin for new registrations
-      if (!validatedData.role) {
-        validatedData.role = "ADMIN";
-      }
+      // Prepare user data for storage
+      const userToCreate: InsertUser = {
+        email: validatedData.email,
+        password: validatedData.password,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        role: validatedData.role || "ADMIN", // Default to ADMIN for first user
+        companyId: company ? company.id : "", // Required field
+        status: "ACTIVE"
+      };
       
-      const user = await storage.createUser(validatedData);
+      // Create the user
+      const user = await storage.createUser(userToCreate);
       
       // Generate JWT token
       const token = generateToken(user);
@@ -89,6 +97,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Validation error:", error.errors);
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       console.error("Registration error:", error);

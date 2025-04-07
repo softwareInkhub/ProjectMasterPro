@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
+import { LoginUser, RegisterUser } from "@shared/schema";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,14 +16,26 @@ export default function Login() {
   const [lastName, setLastName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("login");
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/auth/login", credentials);
-      return await res.json();
+    mutationFn: async (credentials: LoginUser) => {
+      try {
+        const res = await apiRequest("POST", "/api/auth/login", credentials);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Login failed");
+        }
+        return await res.json();
+      } catch (err) {
+        if (err instanceof Error) {
+          throw err;
+        }
+        throw new Error("Login failed. Please try again.");
+      }
     },
     onSuccess: (data) => {
       // Store token in localStorage
@@ -36,16 +49,28 @@ export default function Login() {
 
   // Register mutation
   const registerMutation = useMutation({
-    mutationFn: async (userData: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-      companyName: string;
-    }) => {
-      // Send registration request with company name directly
-      const res = await apiRequest("POST", "/api/auth/register", userData);
-      return await res.json();
+    mutationFn: async (userData: RegisterUser) => {
+      try {
+        const res = await apiRequest("POST", "/api/auth/register", userData);
+        if (!res.ok) {
+          const errorData = await res.json();
+          if (errorData.errors) {
+            // Handle validation errors
+            const validationErrors: Record<string, string> = {};
+            errorData.errors.forEach((err: any) => {
+              validationErrors[err.path[0]] = err.message;
+            });
+            setValidationErrors(validationErrors);
+          }
+          throw new Error(errorData.message || "Registration failed");
+        }
+        return await res.json();
+      } catch (err) {
+        if (err instanceof Error) {
+          throw err;
+        }
+        throw new Error("Registration failed. Please try again.");
+      }
     },
     onSuccess: (data) => {
       // Store token in localStorage
@@ -61,6 +86,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setValidationErrors({});
     loginMutation.mutate({ email, password });
   };
 
@@ -68,6 +94,22 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setValidationErrors({});
+    
+    // Validate the form
+    if (password.length < 6) {
+      setValidationErrors({ password: "Password must be at least 6 characters" });
+      return;
+    }
+    
+    if (!firstName || !lastName) {
+      setValidationErrors({
+        ...validationErrors,
+        ...(firstName ? {} : { firstName: "First name is required" }),
+        ...(lastName ? {} : { lastName: "Last name is required" }),
+      });
+      return;
+    }
     
     registerMutation.mutate({
       email,
@@ -157,7 +199,11 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isPending}
+                    className={validationErrors.email ? "border-red-500" : ""}
                   />
+                  {validationErrors.email && (
+                    <p className="text-sm text-red-600 mt-1">{validationErrors.email}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -169,7 +215,11 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isPending}
+                    className={validationErrors.password ? "border-red-500" : ""}
                   />
+                  {validationErrors.password && (
+                    <p className="text-sm text-red-600 mt-1">{validationErrors.password}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -181,7 +231,11 @@ export default function Login() {
                     onChange={(e) => setFirstName(e.target.value)}
                     required
                     disabled={isPending}
+                    className={validationErrors.firstName ? "border-red-500" : ""}
                   />
+                  {validationErrors.firstName && (
+                    <p className="text-sm text-red-600 mt-1">{validationErrors.firstName}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -193,7 +247,11 @@ export default function Login() {
                     onChange={(e) => setLastName(e.target.value)}
                     required
                     disabled={isPending}
+                    className={validationErrors.lastName ? "border-red-500" : ""}
                   />
+                  {validationErrors.lastName && (
+                    <p className="text-sm text-red-600 mt-1">{validationErrors.lastName}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -205,7 +263,11 @@ export default function Login() {
                     onChange={(e) => setCompanyName(e.target.value)}
                     required
                     disabled={isPending}
+                    className={validationErrors.companyName ? "border-red-500" : ""}
                   />
+                  {validationErrors.companyName && (
+                    <p className="text-sm text-red-600 mt-1">{validationErrors.companyName}</p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isPending}>

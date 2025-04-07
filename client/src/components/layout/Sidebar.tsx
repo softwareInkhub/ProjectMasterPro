@@ -18,6 +18,7 @@ import {
   LogOutIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+// Import useAuth from App
 import { useAuth } from "@/App";
 
 type NavItem = {
