@@ -397,10 +397,18 @@ export default function StoriesPage() {
               <CardContent className="p-4">
                 <div className="flex items-start gap-2">
                   <Checkbox 
+                    id={`story-${story.id}`}
                     checked={story.status === "DONE" || story.status === "COMPLETED"}
+                    onCheckedChange={(checked) => {
+                      // Stop propagation to prevent the card click
+                      const e = window.event;
+                      if (e) e.stopPropagation();
+                      // Logic to toggle story completion would go here
+                      console.log(`Story ${story.id} checked: ${checked}`);
+                      // In a real implementation, we would call an API to update the story status
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Logic to toggle story completion would go here
                     }}
                     className="mt-0.5"
                   />

@@ -272,10 +272,18 @@ export default function TasksPage() {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex items-start gap-3 flex-1">
                 <Checkbox 
+                  id={`task-${task.id}`}
                   checked={task.status === "Completed"}
+                  onCheckedChange={(checked) => {
+                    // Stop propagation to prevent the card click
+                    const e = window.event;
+                    if (e) e.stopPropagation();
+                    // Logic to toggle task completion would go here
+                    console.log(`Task ${task.id} checked: ${checked}`);
+                    // In a real implementation, we would call an API to update the task status
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Logic to toggle task completion would go here
                   }}
                 />
                 <div>
@@ -394,7 +402,23 @@ export default function TasksPage() {
                     <CardContent className="p-3">
                       <div className="space-y-2">
                         <div className="flex justify-between items-start">
-                          <div className="flex-1">
+                          <div className="flex-1 flex items-start gap-2">
+                            <Checkbox 
+                              id={`task-board-${task.id}`}
+                              checked={task.status === "Completed"}
+                              onCheckedChange={(checked) => {
+                                // Stop propagation to prevent the card click
+                                const e = window.event;
+                                if (e) e.stopPropagation();
+                                // Logic to toggle task completion would go here
+                                console.log(`Task ${task.id} checked: ${checked}`);
+                                // In a real implementation, we would call an API to update the task status
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                              className="mt-0.5"
+                            />
                             <h4 className={`font-medium ${task.status === "Completed" ? "line-through text-gray-500" : ""}`}>
                               {task.title}
                             </h4>
