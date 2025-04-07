@@ -8,6 +8,9 @@ import NewProjectPage from "@/pages/projects/new";
 import TasksPage from "@/pages/tasks";
 import CompaniesPage from "@/pages/companies";
 import DepartmentsPage from "@/pages/departments";
+import DepartmentDetailPage from "@/pages/departments/[id]";
+import EditDepartmentPage from "@/pages/departments/edit/[id]";
+import NewDepartmentPage from "@/pages/departments/new";
 import TeamsPage from "@/pages/teams";
 import UsersPage from "@/pages/users";
 import ReportsPage from "@/pages/reports";
@@ -148,6 +151,28 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <CompaniesPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        {/* Department routes in correct order */}
+        <Route path="/departments/new">
+          <ProtectedRoute>
+            <Layout>
+              <NewDepartmentPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/departments/edit/:id">
+          <ProtectedRoute>
+            <Layout>
+              <EditDepartmentPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/departments/:id">
+          <ProtectedRoute>
+            <Layout>
+              <DepartmentDetailPage />
             </Layout>
           </ProtectedRoute>
         </Route>
