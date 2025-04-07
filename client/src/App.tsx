@@ -6,6 +6,7 @@ import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
 import TasksPage from "@/pages/tasks";
+import TaskDetailPage from "@/pages/tasks/[id]";
 import CompaniesPage from "@/pages/companies";
 import DepartmentsPage from "@/pages/departments";
 import DepartmentDetailPage from "@/pages/departments/[id]";
@@ -142,7 +143,14 @@ function App() {
           </ProtectedRoute>
         </Route>
         
-        {/* Other routes */}
+        {/* Task routes in correct order */}
+        <Route path="/tasks/:id">
+          <ProtectedRoute>
+            <Layout>
+              <TaskDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
         <Route path="/tasks">
           <ProtectedRoute>
             <Layout>
