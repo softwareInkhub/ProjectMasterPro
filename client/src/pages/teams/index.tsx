@@ -54,7 +54,7 @@ export default function TeamsPage() {
   const filteredTeams = teams.filter(team => {
     const matchesSearch = team.name.toLowerCase().includes(search.toLowerCase()) || 
                          (team.description && team.description.toLowerCase().includes(search.toLowerCase()));
-    const matchesDepartment = departmentFilter ? team.departmentId === departmentFilter : true;
+    const matchesDepartment = departmentFilter && departmentFilter !== 'all' ? team.departmentId === departmentFilter : true;
     return matchesSearch && matchesDepartment;
   });
 
@@ -137,7 +137,7 @@ export default function TeamsPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Departments</SelectItem>
+                  <SelectItem value="all">All Departments</SelectItem>
                   {departments.map(department => (
                     <SelectItem key={department.id} value={department.id}>
                       {department.name}

@@ -55,7 +55,7 @@ export default function DepartmentsPage() {
   const filteredDepartments = departments.filter(department => {
     const matchesSearch = department.name.toLowerCase().includes(search.toLowerCase()) || 
                          (department.description && department.description.toLowerCase().includes(search.toLowerCase()));
-    const matchesCompany = companyFilter ? department.companyId === companyFilter : true;
+    const matchesCompany = companyFilter && companyFilter !== 'all' ? department.companyId === companyFilter : true;
     return matchesSearch && matchesCompany;
   });
 
@@ -138,7 +138,7 @@ export default function DepartmentsPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Companies</SelectItem>
+                  <SelectItem value="all">All Companies</SelectItem>
                   {companies.map(company => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.name}
