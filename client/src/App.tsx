@@ -12,6 +12,9 @@ import DepartmentDetailPage from "@/pages/departments/[id]";
 import EditDepartmentPage from "@/pages/departments/edit/[id]";
 import NewDepartmentPage from "@/pages/departments/new";
 import TeamsPage from "@/pages/teams";
+import TeamDetailPage from "@/pages/teams/[id]";
+import EditTeamPage from "@/pages/teams/edit/[id]";
+import NewTeamPage from "@/pages/teams/new";
 import UsersPage from "@/pages/users";
 import ReportsPage from "@/pages/reports";
 import EpicsPage from "@/pages/epics";
@@ -180,6 +183,28 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <DepartmentsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        {/* Team routes in correct order */}
+        <Route path="/teams/new">
+          <ProtectedRoute>
+            <Layout>
+              <NewTeamPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/teams/edit/:id">
+          <ProtectedRoute>
+            <Layout>
+              <EditTeamPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/teams/:id">
+          <ProtectedRoute>
+            <Layout>
+              <TeamDetailPage />
             </Layout>
           </ProtectedRoute>
         </Route>

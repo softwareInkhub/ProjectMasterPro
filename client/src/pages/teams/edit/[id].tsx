@@ -16,19 +16,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
-// Department type
-interface Department {
+// Team type
+interface Team {
   id: string;
   name: string;
   description: string | null;
-  companyId: string;
-  parentDepartmentId: string | null;
+  departmentId: string;
+  leadId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-// Company type for dropdown
-interface Company {
+// User type for team lead selection
+interface User {
+  id: string;
+  name: string;
+}
+
+// Department type for dropdown
+interface Department {
   id: string;
   name: string;
 }
@@ -36,34 +42,34 @@ interface Company {
 // Define schema for form validation
 const formSchema = z.object({
   name: z.string()
-    .min(1, { message: 'Department name is required' })
-    .max(100, { message: 'Department name cannot exceed 100 characters' }),
+    .min(1, { message: 'Team name is required' })
+    .max(100, { message: 'Team name cannot exceed 100 characters' }),
   description: z.string().nullable().optional(),
-  companyId: z.string().min(1, { message: 'Company is required' }),
-  parentDepartmentId: z.string().nullable().optional(),
+  departmentId: z.string().min(1, { message: 'Department is required' }),
+  leadId: z.string().nullable().optional(),
 });
 
-export default function EditDepartmentPage() {
-  const [, params] = useRoute('/departments/edit/:id');
+export default function EditTeamPage() {
+  const [, params] = useRoute('/teams/edit/:id');
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const departmentId = params?.id || '';
+  const teamId = params?.id || '';
   const queryClient = useQueryClient();
 
-  // Fetch companies for dropdown
-  const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ['/api/companies'],
-  });
-
-  // Fetch departments for parent department dropdown
+  // Fetch departments for dropdown
   const { data: departments = [] } = useQuery<Department[]>({
     queryKey: ['/api/departments'],
   });
 
-  // Fetch current department data
-  const { data: department, isLoading, error } = useQuery<Department>({
-    queryKey: ['/api/departments', departmentId],
-    enabled: !!departmentId,
+  // Fetch users for team lead dropdown
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
+
+  // Fetch current team data
+  const { data: team, isLoading, error } = useQuery<Team>({
+    queryKey: ['/api/teams', teamId],
+    enabled: !!teamId,
   });
 
   // Setup form with validation
@@ -72,41 +78,41 @@ export default function EditDepartmentPage() {
     defaultValues: {
       name: '',
       description: '',
-      companyId: '',
-      parentDepartmentId: null,
+      departmentId: '',
+      leadId: null,
     },
   });
 
-  // Update form values when department data is loaded
+  // Update form values when team data is loaded
   useEffect(() => {
-    if (department) {
+    if (team) {
       form.reset({
-        name: department.name,
-        description: department.description || '',
-        companyId: department.companyId,
-        parentDepartmentId: department.parentDepartmentId,
+        name: team.name,
+        description: team.description || '',
+        departmentId: team.departmentId,
+        leadId: team.leadId,
       });
     }
-  }, [department, form]);
+  }, [team, form]);
 
-  // Mutation for updating the department
+  // Mutation for updating the team
   const updateMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await apiRequest('PUT', `/api/departments/${departmentId}`, values);
+      const response = await apiRequest('PUT', `/api/teams/${teamId}`, values);
       return await response.json();
     },
     onSuccess: () => {
       toast({
-        title: 'Department updated',
-        description: 'The department has been updated successfully.',
+        title: 'Team updated',
+        description: 'The team has been updated successfully.',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/departments'] });
-      setLocation(`/departments/${departmentId}`);
+      queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
+      setLocation(`/teams/${teamId}`);
     },
     onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update department.',
+        description: error.message || 'Failed to update team.',
         variant: 'destructive',
       });
     },
@@ -117,18 +123,15 @@ export default function EditDepartmentPage() {
     updateMutation.mutate(values);
   };
 
-  // Filter out current department from parent department options to prevent circular references
-  const parentDepartmentOptions = departments.filter(dept => dept.id !== departmentId);
-
   if (error) {
     return (
       <div className="p-8 text-center">
-        <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Department</h2>
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Team</h2>
         <p className="text-gray-600 mb-6">
-          We couldn't load the department details. Please try again later.
+          We couldn't load the team details. Please try again later.
         </p>
-        <Button onClick={() => setLocation('/departments')}>
-          <ArrowLeftIcon className="mr-2 h-4 w-4" /> Back to Departments
+        <Button onClick={() => setLocation('/teams')}>
+          <ArrowLeftIcon className="mr-2 h-4 w-4" /> Back to Teams
         </Button>
       </div>
     );
@@ -142,14 +145,14 @@ export default function EditDepartmentPage() {
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setLocation(`/departments/${departmentId}`)}
+            onClick={() => setLocation(`/teams/${teamId}`)}
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
             Back
           </Button>
           <div className="h-6 border-l border-gray-300"></div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {isLoading ? <Skeleton className="h-8 w-40" /> : `Edit Department: ${department?.name}`}
+            {isLoading ? <Skeleton className="h-8 w-40" /> : `Edit Team: ${team?.name}`}
           </h1>
         </div>
       </header>
@@ -157,7 +160,7 @@ export default function EditDepartmentPage() {
       <div className="max-w-3xl">
         <Card>
           <CardHeader>
-            <CardTitle>Department Information</CardTitle>
+            <CardTitle>Team Information</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -175,12 +178,12 @@ export default function EditDepartmentPage() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department Name</FormLabel>
+                        <FormLabel>Team Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter department name" {...field} />
+                          <Input placeholder="Enter team name" {...field} />
                         </FormControl>
                         <FormDescription>
-                          The official name of the department within the organization.
+                          The name of the team within the organization.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -195,14 +198,14 @@ export default function EditDepartmentPage() {
                         <FormLabel>Description</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Enter department description" 
+                            placeholder="Enter team description" 
                             {...field} 
                             value={field.value || ''}
                             rows={4}
                           />
                         </FormControl>
                         <FormDescription>
-                          A brief description of the department's purpose and responsibilities.
+                          A brief description of the team's purpose and responsibilities.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -212,29 +215,29 @@ export default function EditDepartmentPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
-                      name="companyId"
+                      name="departmentId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Company</FormLabel>
+                          <FormLabel>Department</FormLabel>
                           <Select
                             value={field.value}
                             onValueChange={field.onChange}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select a company" />
+                                <SelectValue placeholder="Select a department" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {companies.map((company) => (
-                                <SelectItem key={company.id} value={company.id}>
-                                  {company.name}
+                              {departments.map((department) => (
+                                <SelectItem key={department.id} value={department.id}>
+                                  {department.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            The company this department belongs to.
+                            The department this team belongs to.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -243,30 +246,30 @@ export default function EditDepartmentPage() {
 
                     <FormField
                       control={form.control}
-                      name="parentDepartmentId"
+                      name="leadId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Parent Department (Optional)</FormLabel>
+                          <FormLabel>Team Lead (Optional)</FormLabel>
                           <Select
                             value={field.value || ''}
                             onValueChange={(value) => field.onChange(value === 'null' ? null : value)}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select a parent department" />
+                                <SelectValue placeholder="Select a team lead" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="null">None</SelectItem>
-                              {parentDepartmentOptions.map((dept) => (
-                                <SelectItem key={dept.id} value={dept.id}>
-                                  {dept.name}
+                              {users.map((user) => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {user.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            If this is a sub-department, select its parent.
+                            The person who leads this team.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -278,7 +281,7 @@ export default function EditDepartmentPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setLocation(`/departments/${departmentId}`)}
+                      onClick={() => setLocation(`/teams/${teamId}`)}
                     >
                       Cancel
                     </Button>

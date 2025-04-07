@@ -14,19 +14,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
-// Department type
+// Department type for dropdown
 interface Department {
   id: string;
   name: string;
-  description: string | null;
-  companyId: string;
-  parentDepartmentId: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
-// Company type for dropdown
-interface Company {
+// User type for team lead selection
+interface User {
   id: string;
   name: string;
 }
@@ -34,26 +29,26 @@ interface Company {
 // Define schema for form validation
 const formSchema = z.object({
   name: z.string()
-    .min(1, { message: 'Department name is required' })
-    .max(100, { message: 'Department name cannot exceed 100 characters' }),
+    .min(1, { message: 'Team name is required' })
+    .max(100, { message: 'Team name cannot exceed 100 characters' }),
   description: z.string().nullable().optional(),
-  companyId: z.string().min(1, { message: 'Company is required' }),
-  parentDepartmentId: z.string().nullable().optional(),
+  departmentId: z.string().min(1, { message: 'Department is required' }),
+  leadId: z.string().nullable().optional(),
 });
 
-export default function NewDepartmentPage() {
+export default function NewTeamPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch companies for dropdown
-  const { data: companies = [] } = useQuery<Company[]>({
-    queryKey: ['/api/companies'],
-  });
-
-  // Fetch departments for parent department dropdown
+  // Fetch departments for dropdown
   const { data: departments = [] } = useQuery<Department[]>({
     queryKey: ['/api/departments'],
+  });
+
+  // Fetch users for team lead dropdown
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
   });
 
   // Setup form with validation
@@ -62,29 +57,29 @@ export default function NewDepartmentPage() {
     defaultValues: {
       name: '',
       description: '',
-      companyId: '',
-      parentDepartmentId: null,
+      departmentId: '',
+      leadId: null,
     },
   });
 
-  // Mutation for creating a new department
+  // Mutation for creating a new team
   const createMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await apiRequest('POST', '/api/departments', values);
+      const response = await apiRequest('POST', '/api/teams', values);
       return await response.json();
     },
-    onSuccess: (data: Department) => {
+    onSuccess: (data) => {
       toast({
-        title: 'Department created',
-        description: 'The department has been created successfully.',
+        title: 'Team created',
+        description: 'The team has been created successfully.',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/departments'] });
-      setLocation(`/departments/${data.id}`);
+      queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
+      setLocation(`/teams/${data.id}`);
     },
     onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create department.',
+        description: error.message || 'Failed to create team.',
         variant: 'destructive',
       });
     },
@@ -103,20 +98,20 @@ export default function NewDepartmentPage() {
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => setLocation('/departments')}
+            onClick={() => setLocation('/teams')}
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
             Back
           </Button>
           <div className="h-6 border-l border-gray-300"></div>
-          <h1 className="text-2xl font-bold text-gray-900">Create New Department</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Create New Team</h1>
         </div>
       </header>
 
       <div className="max-w-3xl">
         <Card>
           <CardHeader>
-            <CardTitle>Department Information</CardTitle>
+            <CardTitle>Team Information</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -126,12 +121,12 @@ export default function NewDepartmentPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Department Name</FormLabel>
+                      <FormLabel>Team Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter department name" {...field} />
+                        <Input placeholder="Enter team name" {...field} />
                       </FormControl>
                       <FormDescription>
-                        The official name of the department within the organization.
+                        The name of the team within the organization.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -146,14 +141,14 @@ export default function NewDepartmentPage() {
                       <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Enter department description" 
+                          placeholder="Enter team description" 
                           {...field} 
                           value={field.value || ''}
                           rows={4}
                         />
                       </FormControl>
                       <FormDescription>
-                        A brief description of the department's purpose and responsibilities.
+                        A brief description of the team's purpose and responsibilities.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -163,29 +158,29 @@ export default function NewDepartmentPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="companyId"
+                    name="departmentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company</FormLabel>
+                        <FormLabel>Department</FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a company" />
+                              <SelectValue placeholder="Select a department" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {companies.map((company) => (
-                              <SelectItem key={company.id} value={company.id}>
-                                {company.name}
+                            {departments.map((department) => (
+                              <SelectItem key={department.id} value={department.id}>
+                                {department.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          The company this department belongs to.
+                          The department this team belongs to.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -194,30 +189,30 @@ export default function NewDepartmentPage() {
 
                   <FormField
                     control={form.control}
-                    name="parentDepartmentId"
+                    name="leadId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Parent Department (Optional)</FormLabel>
+                        <FormLabel>Team Lead (Optional)</FormLabel>
                         <Select
                           value={field.value || ''}
                           onValueChange={(value) => field.onChange(value === 'null' ? null : value)}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a parent department" />
+                              <SelectValue placeholder="Select a team lead" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="null">None</SelectItem>
-                            {departments.map((dept) => (
-                              <SelectItem key={dept.id} value={dept.id}>
-                                {dept.name}
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          If this is a sub-department, select its parent.
+                          The person who leads this team.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -229,7 +224,7 @@ export default function NewDepartmentPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setLocation('/departments')}
+                    onClick={() => setLocation('/teams')}
                   >
                     Cancel
                   </Button>
@@ -241,7 +236,7 @@ export default function NewDepartmentPage() {
                       <>Creating...</>
                     ) : (
                       <>
-                        <PlusIcon className="mr-2 h-4 w-4" /> Create Department
+                        <PlusIcon className="mr-2 h-4 w-4" /> Create Team
                       </>
                     )}
                   </Button>

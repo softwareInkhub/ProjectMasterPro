@@ -1,282 +1,327 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { useState } from 'react';
+import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   PlusIcon, 
+  SearchIcon, 
   FilterIcon, 
-  SortAscIcon, 
-  UsersIcon, 
-  BriefcaseIcon, 
-  FolderIcon,
-  UserIcon,
-  ClipboardListIcon
-} from "lucide-react";
-import { useLocation } from "wouter";
+  ArrowUpDownIcon,
+  TrashIcon,
+  PencilIcon,
+  EyeIcon,
+  UsersIcon 
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { IndeterminateCheckbox } from '@/components/ui/indeterminate-checkbox';
+import { useToast } from '@/hooks/use-toast';
 
-// Helper function to get search params from URL
-function useQueryParams() {
-  // Extract the search part of the URL
-  const searchParams = typeof window !== 'undefined' 
-    ? new URLSearchParams(window.location.search)
-    : new URLSearchParams('');
-  
-  return {
-    get: (param: string) => searchParams.get(param)
-  };
+// Team type
+interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  departmentId: string;
+  leadId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function TeamsPage() {
   const [, setLocation] = useLocation();
-  const params = useQueryParams();
-  const departmentId = params.get("departmentId");
+  const [search, setSearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const { toast } = useToast();
 
-  // Sample teams data - this would come from an API in the real application
-  const teams = [
-    {
-      id: 1,
-      name: "Frontend Development",
-      description: "Web application UI/UX and client-side functionality",
-      departmentId: 1,
-      departmentName: "Engineering",
-      companyId: 1,
-      companyName: "Acme Corporation",
-      teamLead: "Alice Chen",
-      teamLeadId: 5,
-      members: 8,
-      projects: 3,
-      activeTasks: 24
-    },
-    {
-      id: 2,
-      name: "Backend Development",
-      description: "API development and server-side functionality",
-      departmentId: 1,
-      departmentName: "Engineering",
-      companyId: 1,
-      companyName: "Acme Corporation",
-      teamLead: "Bob Jackson",
-      teamLeadId: 8,
-      members: 6,
-      projects: 2,
-      activeTasks: 18
-    },
-    {
-      id: 3,
-      name: "DevOps",
-      description: "Infrastructure management and deployment",
-      departmentId: 1,
-      departmentName: "Engineering",
-      companyId: 1,
-      companyName: "Acme Corporation",
-      teamLead: "Charlie Martinez",
-      teamLeadId: 12,
-      members: 4,
-      projects: 1,
-      activeTasks: 11
-    },
-    {
-      id: 4,
-      name: "QA",
-      description: "Quality assurance and testing",
-      departmentId: 1,
-      departmentName: "Engineering",
-      companyId: 1,
-      companyName: "Acme Corporation",
-      teamLead: "Diana Kim",
-      teamLeadId: 15,
-      members: 5,
-      projects: 2,
-      activeTasks: 17
-    },
-    {
-      id: 5,
-      name: "Digital Marketing",
-      description: "Online marketing strategies and campaigns",
-      departmentId: 2,
-      departmentName: "Marketing",
-      companyId: 1,
-      companyName: "Acme Corporation",
-      teamLead: "Eric Thompson",
-      teamLeadId: 21,
-      members: 6,
-      projects: 2,
-      activeTasks: 14
-    },
-    {
-      id: 6,
-      name: "Brand Management",
-      description: "Brand identity and strategy",
-      departmentId: 2,
-      departmentName: "Marketing",
-      companyId: 1,
-      companyName: "Acme Corporation",
-      teamLead: "Fiona Rodriguez",
-      teamLeadId: 24,
-      members: 4,
-      projects: 1,
-      activeTasks: 9
+  // Fetch teams
+  const { data: teams = [], isLoading, error } = useQuery<Team[]>({
+    queryKey: ['/api/teams'],
+  });
+
+  // Fetch departments for filter
+  const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/departments'],
+  });
+
+  // Filter teams based on search and department filter
+  const filteredTeams = teams.filter(team => {
+    const matchesSearch = team.name.toLowerCase().includes(search.toLowerCase()) || 
+                         (team.description && team.description.toLowerCase().includes(search.toLowerCase()));
+    const matchesDepartment = departmentFilter ? team.departmentId === departmentFilter : true;
+    return matchesSearch && matchesDepartment;
+  });
+
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  // Get department name helper
+  const getDepartmentName = (departmentId: string) => {
+    const department = departments.find(d => d.id === departmentId);
+    return department ? department.name : 'Unknown';
+  };
+
+  // Handle checkbox selection
+  const handleSelect = (teamId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedTeams(prev => [...prev, teamId]);
+    } else {
+      setSelectedTeams(prev => prev.filter(id => id !== teamId));
     }
-  ];
+  };
 
-  // Filter teams by department if departmentId is provided
-  const filteredTeams = departmentId
-    ? teams.filter(team => team.departmentId === parseInt(departmentId))
-    : teams;
+  // Handle select all
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedTeams(filteredTeams.map(t => t.id));
+    } else {
+      setSelectedTeams([]);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Teams</h2>
+        <p className="text-gray-600 mb-6">
+          We couldn't load the teams. Please try again later.
+        </p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div>
       {/* Header */}
-      <header className="mb-8">
+      <header className="mb-6">
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {departmentId ? `${filteredTeams[0]?.departmentName} Teams` : 'All Teams'}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {departmentId 
-                ? `Teams under ${filteredTeams[0]?.departmentName} department` 
-                : 'Manage your organization teams across all departments'}
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <UsersIcon className="h-6 w-6 text-primary-600" />
+            Teams
+          </h1>
           <Button onClick={() => setLocation('/teams/new')}>
-            <PlusIcon className="mr-2 h-4 w-4" /> Create Team
+            <PlusIcon className="mr-2 h-4 w-4" /> New Team
           </Button>
         </div>
       </header>
-      
-      {/* Filter and Sort Controls */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" size="sm">
-            <FilterIcon className="mr-2 h-4 w-4" /> Filter
-          </Button>
-          <Button variant="outline" size="sm">
-            <SortAscIcon className="mr-2 h-4 w-4" /> Sort
-          </Button>
-        </div>
-        {!departmentId && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Department:</span>
-            <Button variant="outline" size="sm" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
-              All Departments
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search teams..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-64">
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger>
+                  <div className="flex items-center">
+                    <FilterIcon className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Filter by department" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Departments</SelectItem>
+                  {departments.map(department => (
+                    <SelectItem key={department.id} value={department.id}>
+                      {department.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Batch actions */}
+      {selectedTeams.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 p-3 bg-muted rounded-md">
+          <span className="text-sm font-medium">
+            {selectedTeams.length} team{selectedTeams.length !== 1 ? 's' : ''} selected
+          </span>
+          <div className="ml-auto flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // This would be a batch delete in a real app
+                toast({
+                  title: 'Batch delete',
+                  description: `${selectedTeams.length} teams would be deleted`,
+                });
+                setSelectedTeams([]);
+              }}
+            >
+              <TrashIcon className="mr-2 h-4 w-4" /> Delete Selected
             </Button>
-            <Button variant="outline" size="sm">
-              Engineering
-            </Button>
-            <Button variant="outline" size="sm">
-              Marketing
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedTeams([])}
+            >
+              Cancel
             </Button>
           </div>
-        )}
-      </div>
-      
-      {/* Teams List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredTeams.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-gray-500">No teams found for this department.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredTeams.map((team) => (
-            <Card 
-              key={team.id} 
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-primary-100 rounded-lg">
-                      <UsersIcon className="h-6 w-6 text-primary-600" />
-                    </div>
-                    <div>
-                      <CardTitle>{team.name}</CardTitle>
-                      <CardDescription>{team.description}</CardDescription>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <FolderIcon className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Department:</span>
-                      <span 
-                        className="font-medium cursor-pointer hover:text-primary-600"
-                        onClick={() => setLocation(`/departments/${team.departmentId}`)}
-                      >
-                        {team.departmentName}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <UserIcon className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Team Lead:</span>
-                      <span className="font-medium">{team.teamLead}</span>
-                    </div>
-                  </div>
-                
-                  <div className="grid grid-cols-3 gap-3 mt-2">
-                    <div className="p-3 bg-gray-50 rounded-lg text-center">
-                      <div className="flex items-center justify-center mb-1">
-                        <UserIcon className="h-4 w-4 text-gray-600 mr-1" />
-                        <span className="text-sm text-gray-600">Members</span>
-                      </div>
-                      <p className="text-lg font-bold">{team.members}</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-lg text-center">
-                      <div className="flex items-center justify-center mb-1">
-                        <BriefcaseIcon className="h-4 w-4 text-gray-600 mr-1" />
-                        <span className="text-sm text-gray-600">Projects</span>
-                      </div>
-                      <p className="text-lg font-bold">{team.projects}</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-lg text-center">
-                      <div className="flex items-center justify-center mb-1">
-                        <ClipboardListIcon className="h-4 w-4 text-gray-600 mr-1" />
-                        <span className="text-sm text-gray-600">Tasks</span>
-                      </div>
-                      <p className="text-lg font-bold">{team.activeTasks}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between border-t pt-4">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setLocation(`/teams/${team.id}/members`)}
-                >
-                  Team Members
+        </div>
+      )}
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : filteredTeams.length === 0 ? (
+            <div className="p-12 text-center">
+              <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900">No teams found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {search || departmentFilter ? (
+                  "No teams match your search criteria."
+                ) : (
+                  "Get started by creating a new team."
+                )}
+              </p>
+              <div className="mt-6">
+                <Button onClick={() => setLocation('/teams/new')}>
+                  <PlusIcon className="mr-2 h-4 w-4" /> New Team
                 </Button>
-                <div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mr-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLocation(`/teams/${team.id}/edit`);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLocation(`/teams/${team.id}`);
-                    }}
-                  >
-                    Details
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ))
-        )}
-      </div>
+              </div>
+            </div>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <IndeterminateCheckbox
+                        checked={selectedTeams.length === filteredTeams.length && filteredTeams.length > 0}
+                        indeterminate={selectedTeams.length > 0 && selectedTeams.length < filteredTeams.length}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all teams"
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="font-medium">
+                        Name <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">Department</TableHead>
+                    <TableHead className="hidden md:table-cell">Members</TableHead>
+                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+                    <TableHead className="w-20 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTeams.map((team) => (
+                    <TableRow key={team.id} className="hover:bg-muted/50 cursor-pointer">
+                      <TableCell className="p-2">
+                        <IndeterminateCheckbox
+                          checked={selectedTeams.includes(team.id)}
+                          onCheckedChange={(checked) => handleSelect(team.id, !!checked)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${team.name}`}
+                        />
+                      </TableCell>
+                      <TableCell 
+                        className="font-medium"
+                        onClick={() => setLocation(`/teams/${team.id}`)}
+                      >
+                        <div className="flex flex-col">
+                          <span className="hover:text-primary truncate">{team.name}</span>
+                          {team.description && (
+                            <span className="text-xs text-muted-foreground truncate max-w-xs">
+                              {team.description}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell 
+                        className="hidden md:table-cell"
+                        onClick={() => setLocation(`/teams/${team.id}`)}
+                      >
+                        <Badge variant="outline" className="hover:bg-secondary">
+                          {getDepartmentName(team.departmentId)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell 
+                        className="hidden md:table-cell"
+                        onClick={() => setLocation(`/teams/${team.id}`)}
+                      >
+                        <Badge variant="secondary" className="px-2 py-1 rounded-lg">
+                          {Math.floor(Math.random() * 10) + 1} {/* In a real app, this would be actual data */}
+                        </Badge>
+                      </TableCell>
+                      <TableCell 
+                        className="hidden lg:table-cell text-muted-foreground"
+                        onClick={() => setLocation(`/teams/${team.id}`)}
+                      >
+                        {formatDate(team.createdAt)}
+                      </TableCell>
+                      <TableCell className="p-2 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <span className="sr-only">Open menu</span>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" className="h-4 w-4">
+                                <path d="M4 8C4 8.53043 3.78929 9.03914 3.41421 9.41421C3.03914 9.78929 2.53043 10 2 10C1.46957 10 0.960859 9.78929 0.585786 9.41421C0.210714 9.03914 0 8.53043 0 8C0 7.46957 0.210714 6.96086 0.585786 6.58579C0.960859 6.21071 1.46957 6 2 6C2.53043 6 3.03914 6.21071 3.41421 6.58579C3.78929 6.96086 4 7.46957 4 8ZM10 8C10 8.53043 9.78929 9.03914 9.41421 9.41421C9.03914 9.78929 8.53043 10 8 10C7.46957 10 6.96086 9.78929 6.58579 9.41421C6.21071 9.03914 6 8.53043 6 8C6 7.46957 6.21071 6.96086 6.58579 6.58579C6.96086 6.21071 7.46957 6 8 6C8.53043 6 9.03914 6.21071 9.41421 6.58579C9.78929 6.96086 10 7.46957 10 8ZM16 8C16 8.53043 15.7893 9.03914 15.4142 9.41421C15.0391 9.78929 14.5304 10 14 10C13.4696 10 12.9609 9.78929 12.5858 9.41421C12.2107 9.03914 12 8.53043 12 8C12 7.46957 12.2107 6.96086 12.5858 6.58579C12.9609 6.21071 13.4696 6 14 6C14.5304 6 15.0391 6.21071 15.4142 6.58579C15.7893 6.96086 16 7.46957 16 8Z" fill="currentColor"/>
+                              </svg>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setLocation(`/teams/${team.id}`)}>
+                              <EyeIcon className="mr-2 h-4 w-4" /> View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setLocation(`/teams/edit/${team.id}`)}>
+                              <PencilIcon className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => {
+                                toast({
+                                  title: 'Delete team',
+                                  description: `You would delete ${team.name}`,
+                                  variant: 'destructive',
+                                });
+                              }}
+                            >
+                              <TrashIcon className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
