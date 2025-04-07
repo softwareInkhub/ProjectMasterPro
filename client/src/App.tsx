@@ -2,6 +2,7 @@ import { Route, Switch } from "wouter";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import ProjectsPage from "@/pages/projects";
+import ProjectDetailPage from "@/pages/projects/[id]";
 import TasksPage from "@/pages/tasks";
 import CompaniesPage from "@/pages/companies";
 import DepartmentsPage from "@/pages/departments";
@@ -23,6 +24,11 @@ function App() {
       <Route path="/">
         <Layout>
           <Dashboard />
+        </Layout>
+      </Route>
+      <Route path="/projects/:id">
+        <Layout>
+          <ProjectDetailPage />
         </Layout>
       </Route>
       <Route path="/projects">
