@@ -72,10 +72,14 @@ export function KanbanBoard({
   // Handle form submission
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const response = await taskApi.create({
+      // Process assigneeId - convert "unassigned" to null
+      const processedValues = {
         ...values,
+        assigneeId: values.assigneeId === "unassigned" ? null : values.assigneeId,
         status: "TODO",
-      });
+      };
+      
+      const response = await taskApi.create(processedValues);
       
       const newTask = await response.json();
       
@@ -206,7 +210,7 @@ export function KanbanBoard({
                         <SelectValue placeholder="Select assignee" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.firstName} {user.lastName}

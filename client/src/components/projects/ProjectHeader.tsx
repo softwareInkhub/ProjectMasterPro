@@ -303,7 +303,7 @@ export function ProjectHeader({
                         <SelectValue placeholder="Select project manager" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="unassigned">None</SelectItem>
                         {users.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.firstName} {user.lastName}

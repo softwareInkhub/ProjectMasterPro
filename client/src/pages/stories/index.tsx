@@ -610,7 +610,7 @@ export default function StoriesPage() {
                     <SelectValue placeholder="Assign to" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     <SelectItem value="5">Alice Chen</SelectItem>
                     <SelectItem value="8">Bob Jackson</SelectItem>
                     <SelectItem value="12">Charlie Martinez</SelectItem>

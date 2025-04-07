@@ -327,7 +327,7 @@ export default function StoryDetailPage() {
       description: newTask.description,
       status: newTask.status,
       priority: newTask.priority,
-      assignee: newTask.assigneeId ? { id: parseInt(newTask.assigneeId), name: "New Assignee", avatar: "NA" } : null,
+      assignee: newTask.assigneeId && newTask.assigneeId !== "unassigned" ? { id: parseInt(newTask.assigneeId), name: "New Assignee", avatar: "NA" } : null,
       estimatedHours: newTask.estimatedHours,
       actualHours: "0",
       startDate: newTask.startDate,
@@ -404,7 +404,7 @@ export default function StoryDetailPage() {
             description: editTask.description,
             status: editTask.status,
             priority: editTask.priority,
-            assignee: editTask.assigneeId ? 
+            assignee: editTask.assigneeId && editTask.assigneeId !== "unassigned" ? 
               { id: parseInt(editTask.assigneeId), name: "Updated Assignee", avatar: "UA" } : 
               null,
             estimatedHours: editTask.estimatedHours,
@@ -885,7 +885,7 @@ export default function StoryDetailPage() {
                     <SelectValue placeholder="Assign to" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     <SelectItem value="5">Alice Chen</SelectItem>
                     <SelectItem value="8">Bob Jackson</SelectItem>
                     <SelectItem value="12">Charlie Martinez</SelectItem>
@@ -1046,7 +1046,7 @@ export default function StoryDetailPage() {
                     <SelectValue placeholder="Assign to" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     <SelectItem value="5">Alice Chen</SelectItem>
                     <SelectItem value="8">Bob Jackson</SelectItem>
                     <SelectItem value="12">Charlie Martinez</SelectItem>
@@ -1171,7 +1171,7 @@ export default function StoryDetailPage() {
                     <SelectValue placeholder="Assign to" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     <SelectItem value="5">Alice Chen</SelectItem>
                     <SelectItem value="8">Bob Jackson</SelectItem>
                     <SelectItem value="12">Charlie Martinez</SelectItem>
