@@ -16,6 +16,24 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   CalendarIcon,
   Clock,
@@ -29,6 +47,8 @@ import {
   Tag,
   Briefcase,
   Clipboard,
+  Trash2,
+  Copy,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,7 +71,22 @@ export default function TaskDetailPage() {
   const taskId = params?.id;
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddCommentDialogOpen, setIsAddCommentDialogOpen] = useState(false);
+  const [isAddSubtaskDialogOpen, setIsAddSubtaskDialogOpen] = useState(false);
+  const [isChangeAssigneeDialogOpen, setIsChangeAssigneeDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [newSubtaskText, setNewSubtaskText] = useState("");
+  const [selectedAssignee, setSelectedAssignee] = useState<{id: string, name: string, avatar: string} | null>(null);
+  const [taskData, setTaskData] = useState<any | null>(null);
+
+  // Sample users for assignee dropdown
+  const users = [
+    { id: "5", name: "Alice Chen", avatar: "AC" },
+    { id: "8", name: "Bob Jackson", avatar: "BJ" },
+    { id: "12", name: "Charlie Martinez", avatar: "CM" },
+    { id: "21", name: "Eric Thompson", avatar: "ET" },
+    { id: "24", name: "Fiona Rodriguez", avatar: "FR" }
+  ];
 
   // Find task based on ID
   // In a real application, this would be fetched from an API
@@ -388,11 +423,78 @@ export default function TaskDetailPage() {
   // Handle checklist item toggle
   const toggleChecklistItem = (itemId: string) => {
     // In a real app, this would call an API to update the task
+    const updatedTask = { ...task };
+    const item = updatedTask.checklist.items.find(item => item.id === itemId);
+    
+    if (item) {
+      item.completed = !item.completed;
+      
+      // Update completed count
+      updatedTask.checklist.completed = updatedTask.checklist.items.filter(item => item.completed).length;
+      
+      // Update progress percentage
+      updatedTask.progress = Math.round((updatedTask.checklist.completed / updatedTask.checklist.total) * 100);
+    }
+    
     console.log(`Toggle checklist item ${itemId}`);
     toast({
       title: "Checklist updated",
       description: "Changes would be saved to the server in a real app.",
     });
+  };
+  
+  // Handle adding a subtask
+  const handleAddSubtask = () => {
+    if (!newSubtaskText.trim()) {
+      toast({
+        title: "Subtask text cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // In a real app, this would call an API to add the subtask
+    console.log(`Add subtask: ${newSubtaskText}`);
+    toast({
+      title: "Subtask added",
+      description: "Your subtask would be saved in a real app.",
+    });
+    
+    setNewSubtaskText("");
+    setIsAddSubtaskDialogOpen(false);
+  };
+  
+  // Handle changing assignee
+  const handleChangeAssignee = () => {
+    if (!selectedAssignee) {
+      toast({
+        title: "No assignee selected",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // In a real app, this would call an API to update the assignee
+    console.log(`Change assignee to: ${selectedAssignee.name}`);
+    toast({
+      title: "Assignee updated",
+      description: `Task assigned to ${selectedAssignee.name}.`,
+    });
+    
+    setIsChangeAssigneeDialogOpen(false);
+  };
+  
+  // Handle deleting task
+  const handleDeleteTask = () => {
+    // In a real app, this would call an API to delete the task
+    console.log(`Delete task: ${task.id}`);
+    toast({
+      title: "Task deleted",
+      description: "The task has been deleted.",
+    });
+    
+    setIsDeleteConfirmOpen(false);
+    setLocation("/tasks");
   };
   
   // Handle adding a comment
@@ -495,7 +597,7 @@ export default function TaskDetailPage() {
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-center">
                     <CardTitle>Subtasks</CardTitle>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => setIsAddSubtaskDialogOpen(true)}>
                       <PlusIcon className="h-4 w-4 mr-2" />
                       Add Item
                     </Button>
@@ -645,28 +747,34 @@ export default function TaskDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast({
+                      title: "Link copied",
+                      description: "Task link copied to clipboard.",
+                    });
+                  }}
+                >
                   <Link2 className="h-4 w-4 mr-2" />
                   Copy Task Link
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start" 
+                  onClick={() => setIsChangeAssigneeDialogOpen(true)}
+                >
                   <User className="h-4 w-4 mr-2" />
                   Change Assignee
                 </Button>
                 <Button 
                   variant="destructive" 
                   className="w-full justify-start"
-                  onClick={() => {
-                    toast({
-                      title: "Task deleted",
-                      description: "The task would be deleted in a real app.",
-                      variant: "destructive",
-                    });
-                    setTimeout(() => {
-                      setLocation("/tasks");
-                    }, 1500);
-                  }}
+                  onClick={() => setIsDeleteConfirmOpen(true)}
                 >
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Delete Task
                 </Button>
               </div>
@@ -808,6 +916,94 @@ export default function TaskDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Add Subtask Dialog */}
+      <Dialog open={isAddSubtaskDialogOpen} onOpenChange={setIsAddSubtaskDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Subtask</DialogTitle>
+            <DialogDescription>
+              Add a new subtask to this task.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="subtaskText">Subtask Description</Label>
+              <Input
+                id="subtaskText"
+                placeholder="What needs to be done?"
+                value={newSubtaskText}
+                onChange={(e) => setNewSubtaskText(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddSubtaskDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddSubtask}>
+              Add Subtask
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Change Assignee Dialog */}
+      <Dialog open={isChangeAssigneeDialogOpen} onOpenChange={setIsChangeAssigneeDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Change Assignee</DialogTitle>
+            <DialogDescription>
+              Select a new assignee for this task.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="assigneeSelect">Assignee</Label>
+              <select
+                id="assigneeSelect"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                defaultValue={task.assigneeId}
+                onChange={(e) => {
+                  const user = users.find(u => u.id === e.target.value);
+                  setSelectedAssignee(user || null);
+                }}
+              >
+                <option value="" disabled>Select an assignee</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChangeAssigneeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleChangeAssignee}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Task Confirmation */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the task and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
