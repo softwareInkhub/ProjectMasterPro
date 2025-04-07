@@ -1,24 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { BriefcaseIcon, CheckCircleIcon, ClipboardListIcon, UsersIcon, FolderIcon, ArrowLeftIcon } from "lucide-react";
+import { BriefcaseIcon, ClipboardListIcon, UsersIcon, FolderIcon } from "lucide-react";
 
 // Simple temporary dashboard that doesn't rely on Auth context or API calls
 export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 p-4 md:p-8">
+    <div>
       {/* Header */}
       <header className="mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Project Management Dashboard</h1>
-            <p className="text-gray-600 mt-1">Welcome back, Admin!</p>
-          </div>
-          <Button variant="outline" onClick={() => setLocation('/login')}>
-            <ArrowLeftIcon className="mr-2 h-4 w-4" /> Logout
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Project Management Dashboard</h1>
+          <p className="text-gray-600 mt-1">Welcome back, Admin!</p>
         </div>
       </header>
 
