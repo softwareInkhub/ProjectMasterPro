@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   PlusIcon, 
   SearchIcon, 
@@ -14,7 +15,12 @@ import {
   CheckSquareIcon,
   BriefcaseIcon,
   Tag,
-  MoreHorizontalIcon
+  MoreHorizontalIcon,
+  Trash2Icon,
+  ArchiveIcon,
+  CopyIcon,
+  EditIcon,
+  ChevronDownIcon
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -35,6 +41,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 
 export default function EpicsPage() {
   const [, setLocation] = useLocation();
@@ -43,6 +58,7 @@ export default function EpicsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedEpic, setSelectedEpic] = useState<any>(null);
+  const [selectedEpics, setSelectedEpics] = useState<number[]>([]);
   
   // Sample epic data - this would come from an API in the real application
   const epics = [
@@ -268,6 +284,52 @@ export default function EpicsPage() {
     });
     setIsEditDialogOpen(true);
   };
+  
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectedEpics.length === filteredEpics.length) {
+      setSelectedEpics([]);
+    } else {
+      setSelectedEpics(filteredEpics.map(e => e.id));
+    }
+  };
+
+  // Batch operations
+  const handleDeleteSelected = () => {
+    toast({
+      title: "Deleting epics",
+      description: `${selectedEpics.length} epics would be deleted.`,
+    });
+    // In a real application, this would call API to delete epics
+    setSelectedEpics([]);
+  };
+
+  const handleArchiveSelected = () => {
+    toast({
+      title: "Archiving epics",
+      description: `${selectedEpics.length} epics would be archived.`,
+    });
+    // In a real application, this would call API to archive epics
+    setSelectedEpics([]);
+  };
+
+  const handleDuplicateSelected = () => {
+    toast({
+      title: "Duplicating epics",
+      description: `${selectedEpics.length} epics would be duplicated.`,
+    });
+    // In a real application, this would call API to duplicate epics
+    setSelectedEpics([]);
+  };
+
+  const handleChangeStatusSelected = (status: string) => {
+    toast({
+      title: "Updating status",
+      description: `${selectedEpics.length} epics would be updated to "${status}".`,
+    });
+    // In a real application, this would call API to update epic status
+    setSelectedEpics([]);
+  };
 
   return (
     <div>
@@ -283,6 +345,56 @@ export default function EpicsPage() {
           </Button>
         </div>
       </header>
+      
+      {/* Batch Actions */}
+      {selectedEpics.length > 0 && (
+        <div className="bg-gray-50 border rounded-md p-2 mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={selectedEpics.length === filteredEpics.length}
+              onCheckedChange={handleSelectAll}
+              className="data-[state=checked]:bg-primary"
+            />
+            <span className="text-sm font-medium">Selected {selectedEpics.length} of {filteredEpics.length}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Change Status <ChevronDownIcon className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleChangeStatusSelected("BACKLOG")}>
+                  <div className="h-2 w-2 rounded-full bg-gray-500 mr-2"></div>
+                  Backlog
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleChangeStatusSelected("IN_PROGRESS")}>
+                  <div className="h-2 w-2 rounded-full bg-blue-500 mr-2"></div>
+                  In Progress
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleChangeStatusSelected("COMPLETED")}>
+                  <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
+                  Completed
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button variant="outline" size="sm" onClick={handleDuplicateSelected}>
+              <CopyIcon className="mr-1 h-4 w-4" /> Duplicate
+            </Button>
+            
+            <Button variant="outline" size="sm" onClick={handleArchiveSelected}>
+              <ArchiveIcon className="mr-1 h-4 w-4" /> Archive
+            </Button>
+            
+            <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="text-red-600 hover:bg-red-50 hover:text-red-700">
+              <Trash2Icon className="mr-1 h-4 w-4" /> Delete
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Search and Filter Controls */}
       <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
@@ -344,10 +456,30 @@ export default function EpicsPage() {
           {filteredEpics.map((epic) => (
             <Card 
               key={epic.id} 
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => setLocation(`/epics/${epic.id}`)}
+              className="hover:shadow-md transition-shadow relative"
             >
-              <CardContent className="p-4">
+              {/* Checkbox for selection */}
+              <div 
+                className="absolute top-2 left-2 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedEpics(prev => 
+                    prev.includes(epic.id) 
+                      ? prev.filter(id => id !== epic.id)
+                      : [...prev, epic.id]
+                  );
+                }}
+              >
+                <Checkbox
+                  checked={selectedEpics.includes(epic.id)}
+                  className="data-[state=checked]:bg-primary border-gray-300"
+                />
+              </div>
+              
+              <CardContent 
+                className="p-4 pl-9 cursor-pointer"
+                onClick={() => setLocation(`/epics/${epic.id}`)}
+              >
                 <div className="flex justify-between items-start">
                   <h3 className="text-base font-semibold text-gray-900 truncate">{epic.name}</h3>
                   <div className="flex gap-1">
