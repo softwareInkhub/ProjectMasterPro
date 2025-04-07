@@ -18,8 +18,8 @@ import {
   LogOutIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-// Import useAuth from App
-import { useAuth } from "@/App";
+// Use direct localStorage manipulation for logout
+// Remove the AuthContext dependency for now
 
 type NavItem = {
   name: string;
@@ -44,14 +44,14 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { logout } = useAuth();
-
   // User initials
   const userInitials = 'U'; // This could be dynamic based on the logged-in user
   
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
-    logout();
+    // Simple logout - remove token and redirect to login
+    localStorage.removeItem('authToken');
+    window.location.href = '/login';
     setIsMobileMenuOpen(false);
   };
 

@@ -21,54 +21,27 @@ import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
 import { Loader2 } from "lucide-react";
 
-// Create Auth Context
-type AuthContextType = {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  logout: () => void;
-};
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-// Auth Provider component
+// Simple Auth Provider - we'll make it a pass-through since we've updated all components
+// to not rely on the auth context
 function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    // Check if we have a token in localStorage
-    const token = localStorage.getItem("authToken");
-    setIsAuthenticated(!!token);
-    setIsLoading(false);
-  }, []);
-
-  const logout = () => {
-    localStorage.removeItem("authToken");
-    setIsAuthenticated(false);
-    setLocation("/login");
-  };
-
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-// Hook to use Auth Context
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  // Simple pass-through provider
+  return <>{children}</>;
 }
 
 // Protected Route component
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [location] = useLocation();
+
+  useEffect(() => {
+    // Check for token
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      setIsAuthenticated(true);
+    }
+    setIsLoading(false);
+  }, []);
 
   if (isLoading) {
     return (
@@ -90,7 +63,9 @@ function App() {
   return (
     <AuthProvider>
       <Switch>
+        {/* Auth routes */}
         <Route path="/login" component={Login} />
+        <Route path="/auth" component={Login} />
         
         {/* Project routes in correct order - most specific first */}
         <Route path="/projects/new">
