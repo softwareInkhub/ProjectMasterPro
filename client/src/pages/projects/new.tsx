@@ -206,11 +206,15 @@ export default function NewProjectPage() {
                     } />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredTeams.map(team => (
-                      <SelectItem key={team.id} value={team.id.toString()}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
+                    {filteredTeams.length > 0 ? (
+                      filteredTeams.map(team => (
+                        <SelectItem key={team.id} value={team.id.toString()}>
+                          {team.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-teams">No teams available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -232,11 +236,15 @@ export default function NewProjectPage() {
                     } />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredUsers.map(user => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map(user => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-users">No users available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

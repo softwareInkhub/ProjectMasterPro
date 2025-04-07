@@ -124,11 +124,15 @@ export default function NewEpicPage() {
                     <SelectValue placeholder="Select project" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map(project => (
-                      <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
+                    {projects.length > 0 ? (
+                      projects.map(project => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-projects">No projects available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

@@ -151,11 +151,15 @@ export default function NewStoryPage() {
                     <SelectValue placeholder="Select epic" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredEpics.map(epic => (
-                      <SelectItem key={epic.id} value={epic.id.toString()}>
-                        {epic.name}
-                      </SelectItem>
-                    ))}
+                    {filteredEpics.length > 0 ? (
+                      filteredEpics.map(epic => (
+                        <SelectItem key={epic.id} value={epic.id.toString()}>
+                          {epic.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-epics">No epics available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -230,12 +234,16 @@ export default function NewStoryPage() {
                     <SelectValue placeholder="Assign to" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
-                    {users.map(user => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {users.length > 0 ? (
+                      users.map(user => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-users">No users available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -249,11 +257,15 @@ export default function NewStoryPage() {
                     <SelectValue placeholder="Select reporter" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map(user => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
+                    {users.length > 0 ? (
+                      users.map(user => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-users-reporter">No users available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
