@@ -346,19 +346,19 @@ export default function ProjectDetailPage() {
       </header>
       
       {/* Project details */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
         {/* Progress card */}
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <div>
+            <div className="mb-4">
               <div className="flex justify-between text-sm mb-1">
                 <span>Project completion</span>
                 <span>{project.progress}%</span>
               </div>
-              <Progress value={project.progress} className="h-2 mb-4" />
+              <Progress value={project.progress} className="h-2" />
             </div>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -378,7 +378,7 @@ export default function ProjectDetailPage() {
         </Card>
         
         {/* Details card */}
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Details</CardTitle>
           </CardHeader>
@@ -394,74 +394,44 @@ export default function ProjectDetailPage() {
                   <div className="font-medium">{formatDate(project.endDate)}</div>
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-gray-500">Department</div>
-                <div 
-                  className="font-medium cursor-pointer text-primary-600 hover:underline"
-                  onClick={() => setLocation(`/departments/${project.departmentId}`)}
-                >
-                  {project.department}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Team</div>
-                <div 
-                  className="font-medium cursor-pointer text-primary-600 hover:underline"
-                  onClick={() => setLocation(`/teams/${project.teamId}`)}
-                >
-                  {project.team}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Project Manager</div>
-                <div className="font-medium">{project.teamLead}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Client</div>
-                <div className="font-medium">{project.client}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Budget</div>
-                <div className="font-medium">${project.budget.toLocaleString()}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Dates and creation info */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Timeline</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                  <CalendarIcon className="h-5 w-5 text-blue-600" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-gray-500">Department</div>
+                  <div 
+                    className="font-medium cursor-pointer text-primary-600 hover:underline"
+                    onClick={() => setLocation(`/departments/${project.departmentId}`)}
+                  >
+                    {project.department}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Duration</div>
-                  <div className="font-medium">
-                    {formatDate(project.startDate)} - {formatDate(project.endDate)}
+                  <div className="text-sm text-gray-500">Team</div>
+                  <div 
+                    className="font-medium cursor-pointer text-primary-600 hover:underline"
+                    onClick={() => setLocation(`/teams/${project.teamId}`)}
+                  >
+                    {project.team}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                  <ClockIcon className="h-5 w-5 text-green-600" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-gray-500">Project Manager</div>
+                  <div className="font-medium">{project.teamLead}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Client</div>
+                  <div className="font-medium">{project.client}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-gray-500">Budget</div>
+                  <div className="font-medium">${project.budget.toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Created</div>
                   <div className="font-medium">{formatDate(project.createdAt)}</div>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                  <ClockIcon className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Last Updated</div>
-                  <div className="font-medium">{formatDate(project.updatedAt)}</div>
                 </div>
               </div>
             </div>

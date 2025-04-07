@@ -225,57 +225,58 @@ export default function ProjectsPage() {
       {filteredProjects.map((project) => (
         <Card 
           key={project.id} 
-          className="hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+          className="hover:shadow-sm transition-shadow cursor-pointer overflow-hidden"
           onClick={() => setLocation(`/projects/${project.id}`)}
         >
-          <div className="p-4 pb-2">
-            <div className="flex justify-between items-start mb-2">
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="font-medium text-sm truncate flex-1">{project.name}</h3>
-              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(project.status)}`}>
+              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${getStatusColor(project.status)}`}>
                 {project.status}
               </span>
             </div>
             
             <p className="text-xs text-gray-500 line-clamp-2 h-8 mb-2">{project.description}</p>
             
-            <div className="flex justify-between text-xs mb-1 mt-3">
-              <span>Progress</span>
-              <span>{project.progress}%</span>
-            </div>
-            <Progress value={project.progress} className="h-1.5 mb-3" />
-            
-            <div className="flex justify-between text-xs text-gray-500 py-1">
+            <div className="grid grid-cols-2 gap-2 mb-2 text-xs text-gray-500">
               <div className="flex items-center">
-                <CalendarIcon className="h-3 w-3 mr-1" />
+                <div className="w-5 flex-shrink-0">
+                  <CalendarIcon className="h-3 w-3" />
+                </div>
                 <span>{formatDate(project.endDate).split(',')[0]}</span>
               </div>
               <div className="flex items-center">
-                <UsersIcon className="h-3 w-3 mr-1" />
+                <div className="w-5 flex-shrink-0">
+                  <UsersIcon className="h-3 w-3" />
+                </div>
                 <span>{project.members}</span>
               </div>
             </div>
             
-            <div className="flex flex-wrap gap-1 mt-2">
-              {project.tags.slice(0, 2).map((tag, index) => (
-                <Badge key={index} variant="outline" className="text-[10px] px-1 py-0 h-4">
-                  {tag}
-                </Badge>
-              ))}
-              {project.tags.length > 2 && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                  +{project.tags.length - 2}
-                </Badge>
-              )}
+            <div className="grid grid-cols-2 gap-2 mb-2 text-xs text-gray-500">
+              <div className="flex items-center">
+                <div className="w-5 flex-shrink-0">
+                  <BriefcaseIcon className="h-3 w-3" />
+                </div>
+                <span className="truncate">{project.team}</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-5 flex-shrink-0">
+                  <TagIcon className="h-3 w-3" />
+                </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getPriorityColor(project.priority)}`}>
+                  {project.priority}
+                </span>
+              </div>
             </div>
-          </div>
-          
-          <div className="px-4 py-2 bg-gray-50 flex justify-between items-center border-t">
-            <span className="text-xs text-gray-600 truncate">
-              {project.team}
-            </span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}>
-              {project.priority}
-            </span>
+            
+            <div className="pt-1">
+              <div className="flex justify-between text-xs mb-1">
+                <span>Progress</span>
+                <span>{project.progress}%</span>
+              </div>
+              <Progress value={project.progress} className="h-1.5" />
+            </div>
           </div>
         </Card>
       ))}
@@ -292,44 +293,37 @@ export default function ProjectsPage() {
           onClick={() => setLocation(`/projects/${project.id}`)}
         >
           <div className="p-3">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-primary-50 rounded">
-                <BriefcaseIcon className="h-4 w-4 text-primary-600" />
-              </div>
-              
+            <div className="flex items-center gap-2">              
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-sm truncate">{project.name}</h3>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(project.status)}`}>
                     {project.status}
                   </span>
+                  <span className={`hidden sm:inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}>
+                    {project.priority}
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 truncate">{project.description}</p>
+                <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                  <span className="flex items-center gap-1">
+                    <CalendarIcon className="h-3 w-3" />
+                    {formatDate(project.endDate).split(',')[0]}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <UsersIcon className="h-3 w-3" />
+                    {project.members}
+                  </span>
+                  <span className="hidden sm:flex items-center gap-1">
+                    <BriefcaseIcon className="h-3 w-3" />
+                    {project.team}
+                  </span>
+                </div>
               </div>
               
-              <div className="flex items-center gap-6 ml-4">
-                <div className="hidden md:flex items-center gap-3">
-                  <div className="flex items-center gap-1">
-                    <UsersIcon className="h-3 w-3 text-gray-400" />
-                    <span className="text-xs">{project.members}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <CalendarIcon className="h-3 w-3 text-gray-400" />
-                    <span className="text-xs">{formatDate(project.endDate).split(',')[0]}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <TagIcon className="h-3 w-3 text-gray-400" />
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getPriorityColor(project.priority)}`}>
-                      {project.priority}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Progress value={project.progress} className="h-1.5 w-12" />
-                  <span className="text-xs text-gray-500">{project.progress}%</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <Progress value={project.progress} className="h-1.5 w-16" />
+                  <span className="text-xs text-gray-500 whitespace-nowrap">{project.progress}%</span>
                 </div>
                 
                 <Button 
