@@ -15,6 +15,9 @@ import { ZodError } from "zod-validation-error";
 export async function registerRoutes(app: express.Express): Promise<Server> {
   const apiRouter = Router();
   
+  // Mount the API router on /api path
+  app.use('/api', apiRouter);
+  
   // Auth routes
   apiRouter.post("/auth/login", async (req: Request, res: Response) => {
     try {
@@ -46,12 +49,28 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.post("/auth/register", async (req: Request, res: Response) => {
     try {
-      const validatedData = insertUserSchema.parse(req.body);
+      const { companyName, ...userData } = req.body;
+      const validatedData = insertUserSchema.parse(userData);
       
       // Check if email already exists
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
         return res.status(409).json({ message: "Email already in use" });
+      }
+
+      // Create a company if companyName is provided
+      let company = null;
+      if (companyName) {
+        company = await storage.createCompany({
+          name: companyName,
+          description: `${companyName} - Organization`,
+        });
+        validatedData.companyId = company.id;
+      }
+      
+      // Set user as admin for new registrations
+      if (!validatedData.role) {
+        validatedData.role = "ADMIN";
       }
       
       const user = await storage.createUser(validatedData);
@@ -65,12 +84,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       return res.status(201).json({
         token,
         user: userWithoutPassword,
+        company: company,
         expiresIn: 24 * 60 * 60 // 24 hours in seconds
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      console.error("Registration error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

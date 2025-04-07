@@ -22,10 +22,6 @@ export default function Login() {
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
       const res = await apiRequest("POST", "/api/auth/login", credentials);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to login");
-      }
       return await res.json();
     },
     onSuccess: (data) => {
@@ -45,31 +41,10 @@ export default function Login() {
       password: string;
       firstName: string;
       lastName: string;
-      companyId: string;
-      role: string;
+      companyName: string;
     }) => {
-      // First create a company if needed
-      if (!userData.companyId) {
-        const companyRes = await apiRequest("POST", "/api/companies", {
-          name: companyName,
-          description: `${companyName} - Organization`,
-        });
-        
-        if (!companyRes.ok) {
-          const companyError = await companyRes.json();
-          throw new Error(companyError.message || "Failed to create company");
-        }
-        
-        const companyData = await companyRes.json();
-        userData.companyId = companyData.id;
-      }
-      
-      // Then register the user
+      // Send registration request with company name directly
       const res = await apiRequest("POST", "/api/auth/register", userData);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to register");
-      }
       return await res.json();
     },
     onSuccess: (data) => {
@@ -99,8 +74,7 @@ export default function Login() {
       password,
       firstName,
       lastName,
-      companyId: "",  // Will be set in mutation function
-      role: "ADMIN",  // First user is admin by default
+      companyName,
     });
   };
 
