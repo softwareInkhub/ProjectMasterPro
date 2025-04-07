@@ -340,102 +340,52 @@ export default function EpicsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredEpics.map((epic) => (
             <Card 
               key={epic.id} 
               className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => setLocation(`/epics/${epic.id}`)}
             >
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">{epic.name}</h3>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{epic.description}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs px-2 py-1 ${getStatusColor(epic.status)}`}
-                        >
-                          {epic.status === "IN_PROGRESS" ? "In Progress" : epic.status === "BACKLOG" ? "Backlog" : "Completed"}
-                        </Badge>
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs px-2 py-1 ${getPriorityColor(epic.priority)}`}
-                        >
-                          {epic.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Progress</span>
-                        <span>{epic.progress}% ({epic.completedStories}/{epic.storyCount} stories)</span>
-                      </div>
-                      <Progress value={epic.progress} className="h-2" />
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-4 mt-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <BriefcaseIcon className="h-4 w-4 text-gray-500" />
-                        <span 
-                          className="font-medium cursor-pointer hover:text-primary-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/projects/${epic.projectId}`);
-                          }}
-                        >
-                          {epic.projectName}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">{formatDate(epic.startDate)} - {formatDate(epic.endDate)}</span>
-                      </div>
-                    </div>
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <h3 className="text-base font-semibold text-gray-900 truncate">{epic.name}</h3>
+                  <div className="flex gap-1">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs px-1.5 py-0.5 ${getStatusColor(epic.status)}`}
+                    >
+                      {epic.status === "IN_PROGRESS" ? "In Progress" : epic.status === "BACKLOG" ? "Backlog" : "Completed"}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="mt-2 text-xs text-gray-600 line-clamp-2">{epic.description}</div>
+                
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Progress</span>
+                    <span>{epic.progress}% ({epic.completedStories}/{epic.storyCount})</span>
+                  </div>
+                  <Progress value={epic.progress} className="h-1.5" />
+                </div>
+                
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center text-xs text-gray-500">
+                    <BriefcaseIcon className="h-3 w-3 mr-1" />
+                    <span className="truncate">{epic.projectName}</span>
                   </div>
                   
-                  <div className="flex flex-col justify-between">
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {epic.assignees.map((assignee) => (
-                        <div 
-                          key={assignee.id}
-                          title={assignee.name}
-                          className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(assignee.name)} flex items-center justify-center text-white font-medium text-sm`}
-                        >
-                          {assignee.avatar}
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="flex justify-end gap-2 mt-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLocation(`/epics/${epic.id}/stories`);
-                        }}
+                  <div className="flex -space-x-2">
+                    {epic.assignees.map((assignee) => (
+                      <div 
+                        key={assignee.id}
+                        title={assignee.name}
+                        className={`flex-shrink-0 h-6 w-6 rounded-full ${getAvatarColor(assignee.name)} flex items-center justify-center text-white font-medium text-xs border border-white`}
                       >
-                        <BookOpenIcon className="h-4 w-4 mr-1" />
-                        Stories
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(epic);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                    </div>
+                        {assignee.avatar}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>

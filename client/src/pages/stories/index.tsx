@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { 
   PlusIcon, 
   SearchIcon, 
@@ -279,6 +280,14 @@ export default function StoriesPage() {
     return colors[hash % colors.length];
   };
 
+  // Get initials from name
+  const getInitials = (name: string) => {
+    if (!name) return "";
+    return name.split(' ')
+      .map(part => part.charAt(0).toUpperCase())
+      .join('');
+  };
+
   // Handle creating a new story
   const handleCreateStory = () => {
     // API call would go here
@@ -378,7 +387,7 @@ export default function StoriesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredStories.map((story) => (
             <Card 
               key={story.id} 
@@ -386,105 +395,75 @@ export default function StoriesPage() {
               onClick={() => setLocation(`/stories/${story.id}`)}
             >
               <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start gap-3">
-                      <Checkbox 
-                        checked={story.status === "DONE" || story.status === "COMPLETED"}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Logic to toggle story completion would go here
-                        }}
-                      />
-                      <div>
-                        <h3 className={`text-lg font-bold text-gray-900 ${(story.status === "DONE" || story.status === "COMPLETED") ? "line-through" : ""}`}>
-                          {story.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{story.description}</p>
-                        
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs px-2 py-1 ${getStatusColor(story.status)}`}
-                          >
-                            {story.status}
-                          </Badge>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs px-2 py-1 ${getPriorityColor(story.priority)}`}
-                          >
-                            {story.priority}
-                          </Badge>
-                          {story.storyPoints && (
-                            <Badge variant="outline" className="text-xs">
-                              {story.storyPoints} points
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox 
+                    checked={story.status === "DONE" || story.status === "COMPLETED"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Logic to toggle story completion would go here
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h3 className={`text-base font-semibold text-gray-900 truncate ${(story.status === "DONE" || story.status === "COMPLETED") ? "line-through" : ""}`}>
+                        {story.name}
+                      </h3>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs px-1.5 py-0.5 ml-2 ${getStatusColor(story.status)}`}
+                      >
+                        {story.status}
+                      </Badge>
                     </div>
                     
-                    <div className="flex flex-wrap gap-4 mt-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <BriefcaseIcon className="h-4 w-4 text-gray-500" />
-                        <span 
-                          className="font-medium cursor-pointer hover:text-primary-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/projects/${story.projectId}`);
-                          }}
-                        >
-                          {story.projectName}
-                        </span>
+                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">{story.description}</p>
+                    
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <div className="flex items-center text-xs text-gray-500">
+                        <BookOpenIcon className="h-3 w-3 mr-1" />
+                        <span className="truncate">{story.epicName}</span>
                       </div>
                       
-                      <div className="flex items-center gap-2">
-                        <BookOpenIcon className="h-4 w-4 text-gray-500" />
-                        <span 
-                          className="font-medium cursor-pointer hover:text-primary-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/epics/${story.epicId}`);
-                          }}
-                        >
-                          {story.epicName}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">{formatDate(story.dueDate)}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <ClipboardListIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">{story.completedTasks}/{story.taskCount} tasks</span>
-                      </div>
+                      {story.storyPoints && (
+                        <Badge variant="outline" className="text-xs">
+                          {story.storyPoints} pts
+                        </Badge>
+                      )}
                     </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    {story.assignee ? (
-                      <div className="flex flex-col items-center" title={`Assigned to ${story.assignee.name}`}>
+                    
+                    {story.taskCount > 0 && (
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>Tasks</span>
+                          <span>{story.completedTasks}/{story.taskCount}</span>
+                        </div>
+                        <Progress 
+                          value={(story.completedTasks / story.taskCount) * 100} 
+                          className="h-1.5"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between mt-3">
+                      <div className="text-xs text-gray-500">
+                        {story.dueDate && (
+                          <div className="flex items-center">
+                            <CalendarIcon className="h-3 w-3 mr-1" />
+                            <span>{formatDate(story.dueDate).split(',')[0]}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {story.assignee && (
                         <div 
-                          className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(story.assignee.name)} flex items-center justify-center text-white font-medium text-sm`}
+                          title={story.assignee.name}
+                          className={`flex-shrink-0 h-6 w-6 rounded-full ${getAvatarColor(story.assignee.name)} flex items-center justify-center text-white font-medium text-xs border border-white`}
                         >
                           {story.assignee.avatar}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">Assignee</div>
-                      </div>
-                    ) : (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Assign functionality would go here
-                        }}
-                      >
-                        Assign
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
