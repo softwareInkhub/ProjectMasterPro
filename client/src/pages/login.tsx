@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { LoginUser, RegisterUser } from "@shared/schema";
 
 export default function Login() {
@@ -177,6 +178,47 @@ export default function Login() {
                     </>
                   ) : (
                     "Login"
+                  )}
+                </Button>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t"></span>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-500">Or</span>
+                  </div>
+                </div>
+                
+                <Alert className="border-blue-100 bg-blue-50">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-xs text-blue-700">
+                    For demo purposes, you can use our test account
+                  </AlertDescription>
+                </Alert>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+                  disabled={isPending}
+                  onClick={() => {
+                    setEmail("admin@example.com");
+                    setPassword("password123");
+                    // Login automatically with demo account
+                    loginMutation.mutate({ 
+                      email: "admin@example.com", 
+                      password: "password123" 
+                    });
+                  }}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    "Login with Demo Account"
                   )}
                 </Button>
               </form>
