@@ -362,7 +362,7 @@ export default function EpicsPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  Change Status <ChevronDownIcon className="ml-1 h-4 w-4" />
+                  Change Status <span className="ml-1">▼</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -460,19 +460,18 @@ export default function EpicsPage() {
             >
               {/* Checkbox for selection */}
               <div 
-                className="absolute top-2 left-2 z-10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEpics(prev => 
-                    prev.includes(epic.id) 
-                      ? prev.filter(id => id !== epic.id)
-                      : [...prev, epic.id]
-                  );
-                }}
-              >
+                className="absolute top-2 left-2 z-10">
                 <Checkbox
                   checked={selectedEpics.includes(epic.id)}
                   className="data-[state=checked]:bg-primary border-gray-300"
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedEpics(prev => [...prev, epic.id]);
+                    } else {
+                      setSelectedEpics(prev => prev.filter(id => id !== epic.id));
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
               

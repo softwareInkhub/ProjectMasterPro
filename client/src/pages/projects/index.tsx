@@ -23,7 +23,8 @@ import {
   Trash2Icon,
   ArchiveIcon,
   CopyIcon,
-  EditIcon
+  EditIcon,
+  ChevronDownIcon
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -634,7 +635,7 @@ export default function ProjectsPage() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  Change Status <ChevronDownIcon className="ml-1 h-4 w-4" />
+                  Change Status <span className="ml-1">▼</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
