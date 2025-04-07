@@ -298,29 +298,28 @@ export default function ProjectsPage() {
       {filteredProjects.map((project) => (
         <Card 
           key={project.id} 
-          className={`hover:shadow-sm transition-shadow overflow-hidden ${
+          className={`hover:shadow-sm transition-shadow overflow-hidden cursor-pointer ${
             selectedProjects.includes(project.id) ? "border-primary ring-1 ring-primary" : ""
           }`}
+          onClick={() => setLocation(`/projects/${project.id}`)}
         >
           <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                <Checkbox 
-                  checked={selectedProjects.includes(project.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedProjects(prev => [...prev, project.id]);
-                    } else {
-                      setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="data-[state=checked]:bg-primary"
-                />
-                <h3 
-                  className="font-medium text-sm truncate cursor-pointer hover:text-primary"
-                  onClick={() => setLocation(`/projects/${project.id}`)}
-                >
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Checkbox 
+                    checked={selectedProjects.includes(project.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedProjects(prev => [...prev, project.id]);
+                      } else {
+                        setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                      }
+                    }}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+                <h3 className="font-medium text-sm truncate hover:text-primary">
                   {project.name}
                 </h3>
               </div>
@@ -445,28 +444,27 @@ export default function ProjectsPage() {
       {filteredProjects.map((project) => (
         <Card 
           key={project.id} 
-          className={`hover:shadow-sm transition-shadow overflow-hidden ${
+          className={`hover:shadow-sm transition-shadow overflow-hidden cursor-pointer ${
             selectedProjects.includes(project.id) ? "border-primary ring-1 ring-primary" : ""
           }`}
+          onClick={() => setLocation(`/projects/${project.id}`)}
         >
           <div className="p-3">
             <div className="flex items-center gap-2">
-              <Checkbox 
-                checked={selectedProjects.includes(project.id)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setSelectedProjects(prev => [...prev, project.id]);
-                  } else {
-                    setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="data-[state=checked]:bg-primary"
-              />
-              <div 
-                className="flex-1 min-w-0 cursor-pointer"
-                onClick={() => setLocation(`/projects/${project.id}`)}
-              >
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox 
+                  checked={selectedProjects.includes(project.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedProjects(prev => [...prev, project.id]);
+                    } else {
+                      setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                    }
+                  }}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-sm truncate hover:text-primary">{project.name}</h3>
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(project.status)}`}>
