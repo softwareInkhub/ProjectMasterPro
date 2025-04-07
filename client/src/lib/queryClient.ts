@@ -7,6 +7,27 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Helper to get the auth token from localStorage
+function getAuthToken(): string | null {
+  return localStorage.getItem("authToken");
+}
+
+// Helper to create headers with auth token if available
+function createHeaders(contentType = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  
+  if (contentType) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -14,10 +35,17 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: createHeaders(!!data),
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
+
+  // Handle unauthorized error (could redirect to login page)
+  if (res.status === 401) {
+    // If token is invalid or expired, clear it
+    localStorage.removeItem("authToken");
+    // Could redirect to login here
+    // window.location.href = "/login";
+  }
 
   await throwIfResNotOk(res);
   return res;
@@ -30,11 +58,19 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
+      headers: createHeaders(),
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    if (res.status === 401) {
+      // If token is invalid or expired, clear it
+      localStorage.removeItem("authToken");
+      
+      // Return null or throw based on the behavior parameter
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
+      
+      throw new Error("Unauthorized: Please log in to continue");
     }
 
     await throwIfResNotOk(res);

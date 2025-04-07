@@ -14,9 +14,11 @@ import {
   XIcon,
   UserIcon,
   BookOpenIcon,
-  BookIcon
+  BookIcon,
+  LogOutIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/App";
 
 type NavItem = {
   name: string;
@@ -41,6 +43,16 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { logout } = useAuth();
+
+  // User initials
+  const userInitials = 'U'; // This could be dynamic based on the logged-in user
+  
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    logout();
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <>
@@ -96,18 +108,26 @@ export default function Sidebar() {
             </nav>
           </div>
           <div className="flex-shrink-0 flex border-t p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-500 flex items-center justify-center text-white font-medium">
-                  A
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-500 flex items-center justify-center text-white font-medium">
+                    {userInitials}
+                  </div>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-900">User</p>
                 </div>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">Admin User</p>
-                <Link href="/login" className="text-xs font-medium text-gray-500 hover:text-gray-700">
-                  Log out
-                </Link>
-              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center text-sm text-gray-500 hover:text-gray-700"
+                onClick={handleLogout}
+              >
+                <LogOutIcon className="h-4 w-4 mr-1" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -167,22 +187,26 @@ export default function Sidebar() {
             })}
           </nav>
           <div className="flex-shrink-0 flex border-t p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-500 flex items-center justify-center text-white font-medium">
-                  A
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-500 flex items-center justify-center text-white font-medium">
+                    {userInitials}
+                  </div>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-900">User</p>
                 </div>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">Admin User</p>
-                <Link 
-                  href="/login" 
-                  className="text-xs font-medium text-gray-500 hover:text-gray-700"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Log out
-                </Link>
-              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center text-sm text-gray-500 hover:text-gray-700"
+                onClick={handleLogout}
+              >
+                <LogOutIcon className="h-4 w-4 mr-1" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
