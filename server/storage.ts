@@ -128,6 +128,138 @@ export class MemStorage implements IStorage {
     this.attachments = new Map();
     this.notifications = new Map();
     
+    // Initialize with sample data
+    this.initializeSampleData();
+  }
+  
+  private initializeSampleData() {
+    // Create a sample company
+    const company: Company = {
+      id: "1",
+      name: "Acme Corporation",
+      description: "A fictional company for sample data",
+      website: "https://example.com",
+      industry: "Technology",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    this.companies.set(company.id, company);
+    
+    // Create sample departments
+    const departments: Department[] = [
+      {
+        id: "1",
+        name: "Engineering",
+        description: "Software development and engineering department",
+        companyId: "1",
+        parentDepartmentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "2",
+        name: "Marketing",
+        description: "Marketing and communications department",
+        companyId: "1",
+        parentDepartmentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "3",
+        name: "Product",
+        description: "Product management department",
+        companyId: "1",
+        parentDepartmentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "4",
+        name: "Frontend Development",
+        description: "Frontend development team",
+        companyId: "1",
+        parentDepartmentId: "1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "5",
+        name: "Backend Development",
+        description: "Backend development and infrastructure team",
+        companyId: "1",
+        parentDepartmentId: "1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    
+    departments.forEach(dept => {
+      this.departments.set(dept.id, dept);
+    });
+    
+    // Create sample teams
+    const teams: Team[] = [
+      {
+        id: "1",
+        name: "Alpha Team",
+        description: "Core product development team",
+        departmentId: "1",
+        companyId: "1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "2",
+        name: "Beta Team",
+        description: "Frontend specialists",
+        departmentId: "4",
+        companyId: "1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "3",
+        name: "Gamma Team",
+        description: "Backend infrastructure team",
+        departmentId: "5",
+        companyId: "1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "4",
+        name: "Marketing Team",
+        description: "Digital marketing specialists",
+        departmentId: "2",
+        companyId: "1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    
+    teams.forEach(team => {
+      this.teams.set(team.id, team);
+      this.teamMembers.set(team.id, new Set());
+    });
+    
+    // Create demo admin user
+    const adminUser: User = {
+      id: "1",
+      email: "admin@example.com",
+      password: "$2b$10$8r5YLdRJxQi7R.2CrQHgDuux1S9LCDQo3QhNBNctKpQqvmvMQkGJq", // "password"
+      firstName: "Admin",
+      lastName: "User",
+      role: "ADMIN",
+      status: "ACTIVE",
+      companyId: "1",
+      departmentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    this.users.set(adminUser.id, adminUser);
+    
     // No mock data initialization
   }
 
