@@ -3,6 +3,7 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
+import NewProjectPage from "@/pages/projects/new";
 import TasksPage from "@/pages/tasks";
 import CompaniesPage from "@/pages/companies";
 import DepartmentsPage from "@/pages/departments";
@@ -11,8 +12,10 @@ import UsersPage from "@/pages/users";
 import ReportsPage from "@/pages/reports";
 import EpicsPage from "@/pages/epics";
 import EpicDetailPage from "@/pages/epics/[id]";
+import NewEpicPage from "@/pages/epics/new";
 import StoriesPage from "@/pages/stories";
 import StoryDetailPage from "@/pages/stories/[id]";
+import NewStoryPage from "@/pages/stories/new";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
 
@@ -24,6 +27,11 @@ function App() {
       <Route path="/">
         <Layout>
           <Dashboard />
+        </Layout>
+      </Route>
+      <Route path="/projects/new">
+        <Layout>
+          <NewProjectPage />
         </Layout>
       </Route>
       <Route path="/projects/:id">
@@ -41,6 +49,11 @@ function App() {
           <TasksPage />
         </Layout>
       </Route>
+      <Route path="/epics/new">
+        <Layout>
+          <NewEpicPage />
+        </Layout>
+      </Route>
       <Route path="/epics/:id">
         <Layout>
           <EpicDetailPage />
@@ -49,6 +62,11 @@ function App() {
       <Route path="/epics">
         <Layout>
           <EpicsPage />
+        </Layout>
+      </Route>
+      <Route path="/stories/new">
+        <Layout>
+          <NewStoryPage />
         </Layout>
       </Route>
       <Route path="/stories/:id">
