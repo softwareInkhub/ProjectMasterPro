@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeftIcon } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -13,216 +13,263 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
+import { Epic, InsertEpic } from "@shared/schema";
 
-export default function NewEpicPage() {
+export default function NewEpic() {
   const [, setLocation] = useLocation();
-  
-  // Extract projectId from query string if provided
-  // It will be provided when creating an epic from a project page
-  const searchParams = new URLSearchParams(window.location.search);
-  const projectIdFromQuery = searchParams.get("projectId");
-  
-  // New epic form state
-  const [newEpic, setNewEpic] = useState({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<InsertEpic>>({
     name: "",
     description: "",
-    status: "BACKLOG",
-    priority: "MEDIUM", 
-    projectId: projectIdFromQuery || "",
-    startDate: "",
-    endDate: ""
+    status: "PLANNING",
+    priority: "MEDIUM"
   });
-  
-  // Sample projects data
-  const projects = [
-    { id: 1, name: "Website Redesign" },
-    { id: 2, name: "CRM Integration" },
-    { id: 3, name: "Q4 Marketing Campaign" },
-    { id: 4, name: "Infrastructure Migration" },
-    { id: 5, name: "Mobile App Development" }
-  ];
-  
-  // Handle creating a new epic
-  const handleCreateEpic = () => {
-    // API call would go here
-    console.log("Creating new epic:", newEpic);
-    
-    // Check if we should return to a specific project page
-    if (projectIdFromQuery) {
-      setLocation(`/projects/${projectIdFromQuery}`);
-    } else {
-      // Navigate to epics list
-      setLocation("/epics");
+
+  // Fetch projects for the select field
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
+    queryKey: ['/api/projects'],
+    queryFn: getQueryFn()
+  });
+
+  // Create epic mutation
+  const createEpicMutation = useMutation({
+    mutationFn: async (data: InsertEpic) => {
+      const res = await apiRequest('POST', '/api/epics', data);
+      const result = await res.json();
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+      setIsSubmitting(false);
+      toast({
+        title: "Epic created",
+        description: "The epic has been created successfully."
+      });
+      setLocation(`/epics/${data.id}`);
+    },
+    onError: (error: Error) => {
+      setIsSubmitting(false);
+      toast({
+        title: "Failed to create epic",
+        description: error.message,
+        variant: "destructive"
+      });
     }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name) {
+      toast({
+        title: "Missing required field",
+        description: "Epic name is required.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!formData.projectId) {
+      toast({
+        title: "Missing required field",
+        description: "Project is required.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Set default progress if not provided
+    const dataToSubmit = {
+      ...formData,
+      progress: 0,
+    } as InsertEpic;
+    
+    createEpicMutation.mutate(dataToSubmit);
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div>
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-center mb-4">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => 
-              projectIdFromQuery 
-                ? setLocation(`/projects/${projectIdFromQuery}`) 
-                : setLocation("/epics")
-            }
-            className="mr-2"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            {projectIdFromQuery ? "Back to Project" : "Back to Epics"}
-          </Button>
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900">Create New Epic</h1>
-        <p className="text-gray-600 mt-1">Define a new epic to organize related user stories</p>
-      </header>
+    <div className="container mx-auto py-6 max-w-5xl">
+      <Button 
+        variant="ghost" 
+        className="mb-6"
+        onClick={() => setLocation("/epics")}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Epics
+      </Button>
       
-      {/* Epic creation form */}
-      <Card className="max-w-4xl mx-auto">
+      <Card>
         <CardHeader>
-          <CardTitle>Epic Details</CardTitle>
-          <CardDescription>
-            Enter the details for this new epic.
-          </CardDescription>
+          <CardTitle className="text-2xl">Create New Epic</CardTitle>
+          <CardDescription>Add a new epic to track large features or initiatives</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Epic Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter epic name"
-                  value={newEpic.name}
-                  onChange={(e) => setNewEpic({...newEpic, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Enter epic description"
-                  rows={4}
-                  value={newEpic.description}
-                  onChange={(e) => setNewEpic({...newEpic, description: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="project">Project *</Label>
-                <Select 
-                  value={newEpic.projectId}
-                  onValueChange={(value) => setNewEpic({...newEpic, projectId: value})}
-                  disabled={!!projectIdFromQuery} // Disable if projectId is provided in the URL
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.length > 0 ? (
-                      projects.map(project => (
-                        <SelectItem key={project.id} value={project.id.toString()}>
-                          {project.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-projects">No projects available</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status *</Label>
-                <Select 
-                  value={newEpic.status}
-                  onValueChange={(value) => setNewEpic({...newEpic, status: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BACKLOG">Backlog</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Epic Information</h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Epic Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="Enter epic name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Enter epic description"
+                    value={formData.description || ""}
+                    onChange={handleInputChange}
+                    rows={4}
+                  />
+                </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="priority">Priority *</Label>
-                <Select 
-                  value={newEpic.priority}
-                  onValueChange={(value) => setNewEpic({...newEpic, priority: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="CRITICAL">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
+            <Separator />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Project & Status</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="projectId">Project *</Label>
+                  <Select 
+                    name="projectId"
+                    onValueChange={(value) => handleSelectChange("projectId", value)}
+                    value={formData.projectId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingProjects ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading...
+                        </div>
+                      ) : (
+                        projects.map(project => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select 
+                    name="status"
+                    onValueChange={(value) => handleSelectChange("status", value)}
+                    value={formData.status || "PLANNING"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PLANNING">Planning</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="ON_HOLD">On Hold</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select 
+                    name="priority"
+                    onValueChange={(value) => handleSelectChange("priority", value)}
+                    value={formData.priority || "MEDIUM"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="CRITICAL">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="startDate">Start Date *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={newEpic.startDate}
-                  onChange={(e) => setNewEpic({...newEpic, startDate: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="endDate">End Date *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={newEpic.endDate}
-                  onChange={(e) => setNewEpic({...newEpic, endDate: e.target.value})}
-                  required
-                />
+            <Separator />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Timeline</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    name="startDate"
+                    type="date"
+                    value={formData.startDate || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">Due Date</Label>
+                  <Input
+                    id="endDate"
+                    name="endDate"
+                    type="date"
+                    value={formData.endDate || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => 
-              projectIdFromQuery 
-                ? setLocation(`/projects/${projectIdFromQuery}`) 
-                : setLocation("/epics")
-            }
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleCreateEpic}
-            disabled={
-              !newEpic.name || 
-              !newEpic.status || 
-              !newEpic.priority || 
-              !newEpic.projectId || 
-              !newEpic.startDate || 
-              !newEpic.endDate
-            }
-          >
-            Create Epic
-          </Button>
-        </CardFooter>
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4 flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              type="button"
+              onClick={() => setLocation("/epics")}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Epic
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeftIcon } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -13,312 +13,354 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
+import { Project, InsertProject } from "@shared/schema";
 
-export default function NewProjectPage() {
+export default function NewProject() {
   const [, setLocation] = useLocation();
-  
-  // New project form state
-  const [newProject, setNewProject] = useState({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<InsertProject>>({
     name: "",
     description: "",
-    status: "Planning",
-    priority: "Medium",
-    departmentId: "",
-    teamId: "",
-    teamLeadId: "",
-    startDate: "",
-    endDate: "",
-    client: "",
-    budget: ""
+    status: "PLANNING",
+    priority: "MEDIUM"
   });
-  
-  // Sample departments data
-  const departments = [
-    { id: 1, name: "Engineering" },
-    { id: 2, name: "Marketing" },
-    { id: 3, name: "Finance" },
-    { id: 4, name: "Human Resources" }
-  ];
-  
-  // Sample teams data
-  const teams = [
-    { id: 1, name: "Frontend Development", departmentId: 1 },
-    { id: 2, name: "Backend Development", departmentId: 1 },
-    { id: 3, name: "DevOps", departmentId: 1 },
-    { id: 4, name: "QA", departmentId: 1 },
-    { id: 5, name: "Social Media", departmentId: 2 },
-    { id: 6, name: "Content Creation", departmentId: 2 }
-  ];
-  
-  // Sample users data
-  const users = [
-    { id: 5, name: "Alice Chen", departmentId: 1 },
-    { id: 8, name: "Bob Jackson", departmentId: 1 },
-    { id: 12, name: "Charlie Martinez", departmentId: 1 },
-    { id: 15, name: "Diana Kim", departmentId: 1 },
-    { id: 18, name: "Eric Thompson", departmentId: 2 }
-  ];
-  
-  // Filter teams based on selected department
-  const filteredTeams = newProject.departmentId 
-    ? teams.filter(team => team.departmentId === parseInt(newProject.departmentId))
-    : [];
+
+  // Fetch data for select fields
+  const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
+    queryKey: ['/api/companies'],
+    queryFn: getQueryFn()
+  });
+
+  const { data: teams = [], isLoading: isLoadingTeams } = useQuery({
+    queryKey: ['/api/teams'],
+    queryFn: getQueryFn()
+  });
+
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: getQueryFn()
+  });
+
+  // Create project mutation
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: InsertProject) => {
+      const res = await apiRequest('POST', '/api/projects', data);
+      const result = await res.json();
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      setIsSubmitting(false);
+      toast({
+        title: "Project created",
+        description: "The project has been created successfully."
+      });
+      setLocation(`/projects/${data.id}`);
+    },
+    onError: (error: Error) => {
+      setIsSubmitting(false);
+      toast({
+        title: "Failed to create project",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name) {
+      toast({
+        title: "Missing required field",
+        description: "Project name is required.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-  // Filter users based on selected department
-  const filteredUsers = newProject.departmentId 
-    ? users.filter(user => user.departmentId === parseInt(newProject.departmentId))
-    : [];
+    if (!formData.companyId) {
+      toast({
+        title: "Missing required field",
+        description: "Company is required.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-  // Handle creating a new project
-  const handleCreateProject = () => {
-    // API call would go here
-    console.log("Creating new project:", newProject);
+    if (!formData.teamId) {
+      toast({
+        title: "Missing required field",
+        description: "Team is required.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Navigate to projects list with success message
-    setLocation("/projects");
+    setIsSubmitting(true);
+    
+    // Set default progress if not provided
+    const dataToSubmit = {
+      ...formData,
+      progress: { percentage: 0 },
+    } as InsertProject;
+    
+    createProjectMutation.mutate(dataToSubmit);
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div>
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-center mb-4">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setLocation("/projects")}
-            className="mr-2"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to Projects
-          </Button>
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900">Create New Project</h1>
-        <p className="text-gray-600 mt-1">Fill in the details to create a new project</p>
-      </header>
+    <div className="container mx-auto py-6 max-w-5xl">
+      <Button 
+        variant="ghost" 
+        className="mb-6"
+        onClick={() => setLocation("/projects")}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Projects
+      </Button>
       
-      {/* Project creation form */}
-      <Card className="max-w-4xl mx-auto">
+      <Card>
         <CardHeader>
-          <CardTitle>Project Details</CardTitle>
-          <CardDescription>
-            Enter the basic information to get started with your new project.
-          </CardDescription>
+          <CardTitle className="text-2xl">Create New Project</CardTitle>
+          <CardDescription>Add a new project to your organization</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Project Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter project name"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({...newProject, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Enter project description"
-                  rows={4}
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status *</Label>
-                <Select 
-                  value={newProject.status}
-                  onValueChange={(value) => setNewProject({...newProject, status: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Planning">Planning</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="On Hold">On Hold</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="priority">Priority *</Label>
-                <Select 
-                  value={newProject.priority}
-                  onValueChange={(value) => setNewProject({...newProject, priority: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                  </SelectContent>
-                </Select>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Project Information</h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Project Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="Enter project name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Enter project description"
+                    value={formData.description || ""}
+                    onChange={handleInputChange}
+                    rows={4}
+                  />
+                </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="department">Department *</Label>
-                <Select 
-                  value={newProject.departmentId}
-                  onValueChange={(value) => setNewProject({
-                    ...newProject, 
-                    departmentId: value,
-                    teamId: "", // Reset team when department changes
-                    teamLeadId: "" // Reset team lead when department changes
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept.id} value={dept.id.toString()}>
-                        {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="team">Team *</Label>
-                <Select 
-                  value={newProject.teamId}
-                  onValueChange={(value) => setNewProject({...newProject, teamId: value})}
-                  disabled={!newProject.departmentId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={
-                      !newProject.departmentId 
-                        ? "Select a department first" 
-                        : "Select team"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredTeams.length > 0 ? (
-                      filteredTeams.map(team => (
-                        <SelectItem key={team.id} value={team.id.toString()}>
-                          {team.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-teams">No teams available</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+            <Separator />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Organization</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyId">Company *</Label>
+                  <Select 
+                    name="companyId"
+                    onValueChange={(value) => handleSelectChange("companyId", value)}
+                    value={formData.companyId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingCompanies ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading...
+                        </div>
+                      ) : (
+                        companies.map(company => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="departmentId">Department</Label>
+                  <Select 
+                    name="departmentId"
+                    onValueChange={(value) => handleSelectChange("departmentId", value)}
+                    value={formData.departmentId || ""}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {/* Add departments here */}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="teamId">Team *</Label>
+                  <Select 
+                    name="teamId"
+                    onValueChange={(value) => handleSelectChange("teamId", value)}
+                    value={formData.teamId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingTeams ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading...
+                        </div>
+                      ) : (
+                        teams.map(team => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="projectManagerId">Project Manager</Label>
+                  <Select 
+                    name="projectManagerId"
+                    onValueChange={(value) => handleSelectChange("projectManagerId", value)}
+                    value={formData.projectManagerId || ""}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {isLoadingUsers ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading...
+                        </div>
+                      ) : (
+                        users.map(user => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.firstName} {user.lastName}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="teamLead">Project Manager *</Label>
-                <Select 
-                  value={newProject.teamLeadId}
-                  onValueChange={(value) => setNewProject({...newProject, teamLeadId: value})}
-                  disabled={!newProject.departmentId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={
-                      !newProject.departmentId 
-                        ? "Select a department first" 
-                        : "Select project manager"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredUsers.length > 0 ? (
-                      filteredUsers.map(user => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-users">No users available</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="client">Client</Label>
-                <Input
-                  id="client"
-                  placeholder="Enter client name"
-                  value={newProject.client}
-                  onChange={(e) => setNewProject({...newProject, client: e.target.value})}
-                />
-              </div>
-            </div>
+            <Separator />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="startDate">Start Date *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={newProject.startDate}
-                  onChange={(e) => setNewProject({...newProject, startDate: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="endDate">End Date *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={newProject.endDate}
-                  onChange={(e) => setNewProject({...newProject, endDate: e.target.value})}
-                  required
-                />
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Status & Scheduling</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select 
+                    name="status"
+                    onValueChange={(value) => handleSelectChange("status", value)}
+                    value={formData.status || "PLANNING"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PLANNING">Planning</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="ON_HOLD">On Hold</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select 
+                    name="priority"
+                    onValueChange={(value) => handleSelectChange("priority", value)}
+                    value={formData.priority || "MEDIUM"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="CRITICAL">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    name="startDate"
+                    type="date"
+                    value={formData.startDate || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    name="endDate"
+                    type="date"
+                    value={formData.endDate || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="budget">Budget ($)</Label>
-                <Input
-                  id="budget"
-                  type="number"
-                  placeholder="Enter budget amount"
-                  value={newProject.budget}
-                  onChange={(e) => setNewProject({...newProject, budget: e.target.value})}
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => setLocation("/projects")}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleCreateProject}
-            disabled={
-              !newProject.name || 
-              !newProject.status || 
-              !newProject.priority || 
-              !newProject.departmentId || 
-              !newProject.teamId || 
-              !newProject.teamLeadId || 
-              !newProject.startDate || 
-              !newProject.endDate
-            }
-          >
-            Create Project
-          </Button>
-        </CardFooter>
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4 flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              type="button"
+              onClick={() => setLocation("/projects")}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Project
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

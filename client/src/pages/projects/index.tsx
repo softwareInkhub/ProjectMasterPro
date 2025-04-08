@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   PlusIcon, 
   SearchIcon, 
@@ -24,7 +26,8 @@ import {
   ArchiveIcon,
   CopyIcon,
   EditIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,176 +38,80 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { Project } from "@shared/schema";
 
 export default function ProjectsPage() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedProjects, setSelectedProjects] = useState<number[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   
-  // Sample projects data - this would come from an API in the real application
-  const projects = [
-    {
-      id: 1,
-      name: "Website Redesign",
-      description: "Modernizing the corporate website with new design and features",
-      status: "In Progress",
-      progress: 65,
-      startDate: "2023-09-01",
-      endDate: "2023-12-31",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Frontend Development",
-      teamId: 1,
-      teamLead: "Alice Chen",
-      members: 6,
-      tasks: {
-        total: 34,
-        completed: 22,
-        inProgress: 8,
-        backlog: 4
-      },
-      priority: "High",
-      client: "Acme Corporation",
-      tags: ["web", "ui/ux", "responsive"]
+  // Fetch projects from API
+  const { data: projects = [], isLoading, error } = useQuery({
+    queryKey: ['/api/projects'],
+    queryFn: getQueryFn()
+  });
+
+  // Fetch departments and teams for display
+  const { data: departments = [] } = useQuery({
+    queryKey: ['/api/departments'],
+    queryFn: getQueryFn()
+  });
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ['/api/teams'],
+    queryFn: getQueryFn()
+  });
+
+  // Delete project mutation
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      const res = await apiRequest('DELETE', `/api/projects/${projectId}`);
+      return res.ok;
     },
-    {
-      id: 2,
-      name: "CRM Integration",
-      description: "Integrating the new customer relationship management system",
-      status: "In Progress",
-      progress: 40,
-      startDate: "2023-10-15",
-      endDate: "2024-01-15",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Backend Development",
-      teamId: 2,
-      teamLead: "Bob Jackson",
-      members: 5,
-      tasks: {
-        total: 28,
-        completed: 11,
-        inProgress: 10,
-        backlog: 7
-      },
-      priority: "High",
-      client: "Acme Corporation",
-      tags: ["api", "integration", "database"]
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({
+        title: "Project deleted",
+        description: "The project has been deleted successfully."
+      });
+      setSelectedProjects([]);
     },
-    {
-      id: 3,
-      name: "Q4 Marketing Campaign",
-      description: "End of year promotional campaign for key products",
-      status: "In Progress",
-      progress: 80,
-      startDate: "2023-11-01",
-      endDate: "2023-12-20",
-      department: "Marketing",
-      departmentId: 2,
-      team: "Digital Marketing",
-      teamId: 5,
-      teamLead: "Eric Thompson",
-      members: 4,
-      tasks: {
-        total: 22,
-        completed: 18,
-        inProgress: 4,
-        backlog: 0
-      },
-      priority: "Medium",
-      client: "Acme Corporation",
-      tags: ["marketing", "digital", "social-media"]
-    },
-    {
-      id: 4,
-      name: "Infrastructure Migration",
-      description: "Moving server infrastructure to cloud platform",
-      status: "On Hold",
-      progress: 25,
-      startDate: "2023-08-15",
-      endDate: "2024-02-28",
-      department: "Engineering",
-      departmentId: 1,
-      team: "DevOps",
-      teamId: 3,
-      teamLead: "Charlie Martinez",
-      members: 3,
-      tasks: {
-        total: 42,
-        completed: 10,
-        inProgress: 5,
-        backlog: 27
-      },
-      priority: "Medium",
-      client: "Acme Corporation",
-      tags: ["cloud", "infrastructure", "migration"]
-    },
-    {
-      id: 5,
-      name: "Mobile App Development",
-      description: "Creating a new mobile application for customers",
-      status: "Planning",
-      progress: 15,
-      startDate: "2023-12-01",
-      endDate: "2024-05-31",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Mobile Development",
-      teamId: 4,
-      teamLead: "Grace Wang",
-      members: 4,
-      tasks: {
-        total: 56,
-        completed: 8,
-        inProgress: 12,
-        backlog: 36
-      },
-      priority: "High",
-      client: "Acme Corporation",
-      tags: ["mobile", "ios", "android"]
-    },
-    {
-      id: 6,
-      name: "Brand Refresh",
-      description: "Updating brand guidelines and assets",
-      status: "Completed",
-      progress: 100,
-      startDate: "2023-07-01",
-      endDate: "2023-10-15",
-      department: "Marketing",
-      departmentId: 2,
-      team: "Brand Management",
-      teamId: 6,
-      teamLead: "Fiona Rodriguez",
-      members: 3,
-      tasks: {
-        total: 30,
-        completed: 30,
-        inProgress: 0,
-        backlog: 0
-      },
-      priority: "Medium",
-      client: "Acme Corporation",
-      tags: ["branding", "design", "marketing"]
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete project",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-  ];
+  });
+
+  // Function to get department name by ID
+  const getDepartmentName = (departmentId: string) => {
+    const department = departments.find(d => d.id === departmentId);
+    return department ? department.name : 'Unknown Department';
+  };
+
+  // Function to get team name by ID
+  const getTeamName = (teamId: string) => {
+    const team = teams.find(t => t.id === teamId);
+    return team ? team.name : 'Unknown Team';
+  };
 
   // Filter projects based on search query and status filter
   const filteredProjects = projects.filter(project => 
     (searchQuery === "" || 
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.team.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.teamLead.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      project.description?.toLowerCase().includes(searchQuery.toLowerCase())
     ) && 
     (statusFilter === "all" || project.status === statusFilter)
   );
   
   // Format date to more readable format
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "No date";
+    
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
@@ -216,11 +123,11 @@ export default function ProjectsPage() {
   // Helper to get status badge color
   const getStatusColor = (status: string) => {
     switch(status) {
-      case "In Progress": return "bg-blue-100 text-blue-800";
-      case "Completed": return "bg-green-100 text-green-800";
-      case "On Hold": return "bg-yellow-100 text-yellow-800";
-      case "Planning": return "bg-purple-100 text-purple-800";
-      case "Cancelled": return "bg-red-100 text-red-800";
+      case "IN_PROGRESS": return "bg-blue-100 text-blue-800";
+      case "COMPLETED": return "bg-green-100 text-green-800";
+      case "ON_HOLD": return "bg-yellow-100 text-yellow-800";
+      case "PLANNING": return "bg-purple-100 text-purple-800";
+      case "CANCELLED": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -228,15 +135,38 @@ export default function ProjectsPage() {
   // Helper to get priority badge color
   const getPriorityColor = (priority: string) => {
     switch(priority) {
-      case "High": return "bg-red-100 text-red-800";
-      case "Medium": return "bg-yellow-100 text-yellow-800";
-      case "Low": return "bg-green-100 text-green-800";
+      case "HIGH": return "bg-red-100 text-red-800";
+      case "MEDIUM": return "bg-yellow-100 text-yellow-800";
+      case "LOW": return "bg-green-100 text-green-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
 
+  // Display friendly status
+  const getStatusDisplay = (status: string) => {
+    switch(status) {
+      case "IN_PROGRESS": return "In Progress";
+      case "COMPLETED": return "Completed";
+      case "ON_HOLD": return "On Hold";
+      case "PLANNING": return "Planning";
+      case "CANCELLED": return "Cancelled";
+      default: return status;
+    }
+  };
+
+  // Display friendly priority
+  const getPriorityDisplay = (priority: string) => {
+    switch(priority) {
+      case "HIGH": return "High";
+      case "MEDIUM": return "Medium";
+      case "LOW": return "Low";
+      case "CRITICAL": return "Critical";
+      default: return priority;
+    }
+  };
+
   // Selection handlers
-  const handleToggleSelect = (e: React.MouseEvent, projectId: number) => {
+  const handleToggleSelect = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
     setSelectedProjects(prev => {
       if (prev.includes(projectId)) {
@@ -257,12 +187,12 @@ export default function ProjectsPage() {
 
   // Batch operations
   const handleDeleteSelected = () => {
-    toast({
-      title: "Deleting projects",
-      description: `${selectedProjects.length} projects would be deleted.`,
+    if (selectedProjects.length === 0) return;
+    
+    // For now, just delete one by one
+    selectedProjects.forEach(projectId => {
+      deleteProjectMutation.mutate(projectId);
     });
-    // In a real application, this would call API to delete projects
-    setSelectedProjects([]);
   };
 
   const handleArchiveSelected = () => {
@@ -292,211 +222,120 @@ export default function ProjectsPage() {
     setSelectedProjects([]);
   };
   
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p>Loading projects...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Projects</h2>
+        <p className="text-gray-600 mb-6">
+          {error instanceof Error ? error.message : "An unknown error occurred."}
+        </p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    );
+  }
+  
   // Render project grid view
   const renderGridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {filteredProjects.map((project) => (
-        <Card 
-          key={project.id} 
-          className={`hover:shadow-sm transition-shadow overflow-hidden cursor-pointer ${
-            selectedProjects.includes(project.id) ? "border-primary ring-1 ring-primary" : ""
-          }`}
-          onClick={() => setLocation(`/projects/${project.id}`)}
-        >
-          <div className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Checkbox 
-                    checked={selectedProjects.includes(project.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedProjects(prev => [...prev, project.id]);
-                      } else {
-                        setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                      }
-                    }}
-                    className="data-[state=checked]:bg-primary"
-                  />
+      {filteredProjects.length === 0 ? (
+        <div className="col-span-full text-center py-12">
+          <FolderIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-600 mb-2">No projects found</h3>
+          <p className="text-gray-500 mb-6">Try a different search or create a new project.</p>
+          <Button onClick={() => setLocation('/projects/new')}>
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Create New Project
+          </Button>
+        </div>
+      ) : (
+        filteredProjects.map((project) => (
+          <Card 
+            key={project.id} 
+            className={`hover:shadow-sm transition-shadow overflow-hidden cursor-pointer ${
+              selectedProjects.includes(project.id) ? "border-primary ring-1 ring-primary" : ""
+            }`}
+            onClick={() => setLocation(`/projects/${project.id}`)}
+          >
+            <div className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 flex-1 overflow-hidden">
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Checkbox 
+                      checked={selectedProjects.includes(project.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedProjects(prev => [...prev, project.id]);
+                        } else {
+                          setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                        }
+                      }}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                  <h3 className="font-medium text-sm truncate hover:text-primary">
+                    {project.name}
+                  </h3>
                 </div>
-                <h3 className="font-medium text-sm truncate hover:text-primary">
-                  {project.name}
-                </h3>
-              </div>
-              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${getStatusColor(project.status)}`}>
-                {project.status}
-              </span>
-            </div>
-            
-            <p className="text-xs text-gray-500 line-clamp-2 h-8 mb-2 pl-6">{project.description}</p>
-            
-            <div className="grid grid-cols-2 gap-2 mb-2 text-xs text-gray-500 pl-6">
-              <div className="flex items-center">
-                <div className="w-5 flex-shrink-0">
-                  <CalendarIcon className="h-3 w-3" />
-                </div>
-                <span>{formatDate(project.endDate).split(',')[0]}</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 flex-shrink-0">
-                  <UsersIcon className="h-3 w-3" />
-                </div>
-                <span>{project.members}</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2 mb-2 text-xs text-gray-500 pl-6">
-              <div className="flex items-center">
-                <div className="w-5 flex-shrink-0">
-                  <BriefcaseIcon className="h-3 w-3" />
-                </div>
-                <span className="truncate">{project.team}</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-5 flex-shrink-0">
-                  <TagIcon className="h-3 w-3" />
-                </div>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getPriorityColor(project.priority)}`}>
-                  {project.priority}
+                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${getStatusColor(project.status)}`}>
+                  {getStatusDisplay(project.status)}
                 </span>
               </div>
-            </div>
-            
-            <div className="pt-1 pl-6">
-              <div className="flex justify-between text-xs mb-1">
-                <span>Progress</span>
-                <span>{project.progress}%</span>
-              </div>
-              <Progress value={project.progress} className="h-1.5" />
-            </div>
-
-            {selectedProjects.includes(project.id) && (
-              <div className="mt-3 flex justify-between items-center border-t pt-2 pl-6">
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLocation(`/projects/${project.id}/edit`);
-                    }}
-                  >
-                    <EditIcon className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toast({
-                        title: "Duplicating project",
-                        description: `${project.name} would be duplicated.`,
-                      });
-                    }}
-                  >
-                    <CopyIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toast({
-                        title: "Archiving project",
-                        description: `${project.name} would be archived.`,
-                      });
-                    }}
-                  >
-                    <ArchiveIcon className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toast({
-                        title: "Deleting project",
-                        description: `${project.name} would be deleted.`,
-                        variant: "destructive",
-                      });
-                    }}
-                  >
-                    <Trash2Icon className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-  
-  // Render project list view
-  const renderListView = () => (
-    <div className="space-y-2">
-      {filteredProjects.map((project) => (
-        <Card 
-          key={project.id} 
-          className={`hover:shadow-sm transition-shadow overflow-hidden cursor-pointer ${
-            selectedProjects.includes(project.id) ? "border-primary ring-1 ring-primary" : ""
-          }`}
-          onClick={() => setLocation(`/projects/${project.id}`)}
-        >
-          <div className="p-3">
-            <div className="flex items-center gap-2">
-              <div onClick={(e) => e.stopPropagation()}>
-                <Checkbox 
-                  checked={selectedProjects.includes(project.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedProjects(prev => [...prev, project.id]);
-                    } else {
-                      setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                    }
-                  }}
-                  className="data-[state=checked]:bg-primary"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-sm truncate hover:text-primary">{project.name}</h3>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(project.status)}`}>
-                    {project.status}
-                  </span>
-                  <span className={`hidden sm:inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}>
-                    {project.priority}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
-                  <span className="flex items-center gap-1">
+              
+              <p className="text-xs text-gray-500 line-clamp-2 h-8 mb-2 pl-6">{project.description}</p>
+              
+              <div className="grid grid-cols-2 gap-2 mb-2 text-xs text-gray-500 pl-6">
+                <div className="flex items-center">
+                  <div className="w-5 flex-shrink-0">
                     <CalendarIcon className="h-3 w-3" />
-                    {formatDate(project.endDate).split(',')[0]}
-                  </span>
-                  <span className="flex items-center gap-1">
+                  </div>
+                  <span>{formatDate(project.endDate).split(',')[0]}</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 flex-shrink-0">
                     <UsersIcon className="h-3 w-3" />
-                    {project.members}
-                  </span>
-                  <span className="hidden sm:flex items-center gap-1">
+                  </div>
+                  <span>{project.teamId ? getTeamName(project.teamId) : 'No Team'}</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 mb-2 text-xs text-gray-500 pl-6">
+                <div className="flex items-center">
+                  <div className="w-5 flex-shrink-0">
                     <BriefcaseIcon className="h-3 w-3" />
-                    {project.team}
+                  </div>
+                  <span className="truncate">{project.companyId ? getDepartmentName(project.companyId) : 'No Company'}</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-5 flex-shrink-0">
+                    <TagIcon className="h-3 w-3" />
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getPriorityColor(project.priority)}`}>
+                    {getPriorityDisplay(project.priority)}
                   </span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <Progress value={project.progress} className="h-1.5 w-16" />
-                  <span className="text-xs text-gray-500 whitespace-nowrap">{project.progress}%</span>
+              <div className="pt-1 pl-6">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Progress</span>
+                  <span>{project.progress && project.progress.percentage ? project.progress.percentage : 0}%</span>
                 </div>
-                
-                {selectedProjects.includes(project.id) ? (
+                <Progress value={project.progress && project.progress.percentage ? project.progress.percentage : 0} className="h-1.5" />
+              </div>
+
+              {selectedProjects.includes(project.id) && (
+                <div className="mt-3 flex justify-between items-center border-t pt-2 pl-6">
                   <div className="flex gap-1">
                     <Button
                       variant="ghost"
@@ -523,6 +362,8 @@ export default function ProjectsPage() {
                     >
                       <CopyIcon className="h-3.5 w-3.5" />
                     </Button>
+                  </div>
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -543,232 +384,373 @@ export default function ProjectsPage() {
                       className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                       onClick={(e) => {
                         e.stopPropagation();
-                        toast({
-                          title: "Deleting project",
-                          description: `${project.name} would be deleted.`,
-                          variant: "destructive",
-                        });
+                        deleteProjectMutation.mutate(project.id);
                       }}
                     >
                       <Trash2Icon className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="p-0 h-6 w-6"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontalIcon className="h-4 w-4 text-gray-400" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
+                </div>
+              )}
+            </div>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+  
+  // Render project list view
+  const renderListView = () => (
+    <div className="space-y-2">
+      {filteredProjects.length === 0 ? (
+        <div className="text-center py-12">
+          <FolderIcon className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-600 mb-2">No projects found</h3>
+          <p className="text-gray-500 mb-6">Try a different search or create a new project.</p>
+          <Button onClick={() => setLocation('/projects/new')}>
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Create New Project
+          </Button>
+        </div>
+      ) : (
+        filteredProjects.map((project) => (
+          <Card 
+            key={project.id} 
+            className={`hover:shadow-sm transition-shadow overflow-hidden cursor-pointer ${
+              selectedProjects.includes(project.id) ? "border-primary ring-1 ring-primary" : ""
+            }`}
+            onClick={() => setLocation(`/projects/${project.id}`)}
+          >
+            <div className="p-3">
+              <div className="flex items-center gap-2">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Checkbox 
+                    checked={selectedProjects.includes(project.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedProjects(prev => [...prev, project.id]);
+                      } else {
+                        setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                      }
+                    }}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-sm truncate hover:text-primary">{project.name}</h3>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(project.status)}`}>
+                      {getStatusDisplay(project.status)}
+                    </span>
+                    <span className={`hidden sm:inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}>
+                      {getPriorityDisplay(project.priority)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                    <span className="flex items-center gap-1">
+                      <CalendarIcon className="h-3 w-3" />
+                      {formatDate(project.endDate).split(',')[0]}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <BriefcaseIcon className="h-3 w-3" />
+                      {project.teamId ? getTeamName(project.teamId) : 'No Team'}
+                    </span>
+                    <span className="hidden sm:flex items-center gap-1">
+                      <UsersIcon className="h-3 w-3" />
+                      {project.companyId ? getDepartmentName(project.companyId) : 'No Company'}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-24 hidden md:block">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>{project.progress && project.progress.percentage ? project.progress.percentage : 0}%</span>
+                  </div>
+                  <Progress value={project.progress && project.progress.percentage ? project.progress.percentage : 0} className="h-1.5" />
+                </div>
+                <div className="flex gap-1">
+                  {selectedProjects.includes(project.id) && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hidden sm:flex"
                         onClick={(e) => {
                           e.stopPropagation();
                           setLocation(`/projects/${project.id}/edit`);
                         }}
                       >
-                        <EditIcon className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                        <CopyIcon className="mr-2 h-4 w-4" />
-                        Duplicate
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                        <ArchiveIcon className="mr-2 h-4 w-4" />
-                        Archive
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-red-600"
+                        <EditIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteProjectMutation.mutate(project.id);
+                        }}
+                      >
+                        <Trash2Icon className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Trash2Icon className="mr-2 h-4 w-4" />
+                        <MoreHorizontalIcon className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        setLocation(`/projects/${project.id}`);
+                      }}>
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        setLocation(`/projects/${project.id}/edit`);
+                      }}>
+                        Edit Project
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        toast({
+                          title: "Duplicating project",
+                          description: `${project.name} would be duplicated.`,
+                        });
+                      }}>
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        toast({
+                          title: "Archiving project",
+                          description: `${project.name} would be archived.`,
+                        });
+                      }}>
+                        Archive
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteProjectMutation.mutate(project.id);
+                        }}
+                      >
                         Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        ))
+      )}
     </div>
   );
 
   return (
-    <div>
+    <div className="container mx-auto py-6 max-w-7xl">
       {/* Header */}
-      <header className="mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
-            <p className="text-gray-600 mt-1">Manage and track your organization's projects</p>
-          </div>
-          <Button onClick={() => setLocation('/projects/new')}>
-            <PlusIcon className="mr-2 h-4 w-4" /> New Project
-          </Button>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-bold">Projects</h1>
+          <p className="text-gray-500">Manage and track all your projects</p>
         </div>
-      </header>
+        <Button onClick={() => setLocation("/projects/new")}>
+          <PlusIcon className="h-4 w-4 mr-2" />
+          New Project
+        </Button>
+      </div>
       
-      {/* Batch Actions */}
-      {selectedProjects.length > 0 && (
-        <div className="bg-gray-50 border rounded-md p-2 mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Checkbox 
-              checked={selectedProjects.length === filteredProjects.length}
-              onCheckedChange={handleSelectAll}
-              className="data-[state=checked]:bg-primary"
-            />
-            <span className="text-sm font-medium">Selected {selectedProjects.length} of {filteredProjects.length}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Change Status <span className="ml-1">▼</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleChangeStatusSelected("In Progress")}>
-                  <div className="h-2 w-2 rounded-full bg-blue-500 mr-2"></div>
-                  In Progress
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleChangeStatusSelected("Completed")}>
-                  <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
-                  Completed
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleChangeStatusSelected("On Hold")}>
-                  <div className="h-2 w-2 rounded-full bg-yellow-500 mr-2"></div>
-                  On Hold
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleChangeStatusSelected("Planning")}>
-                  <div className="h-2 w-2 rounded-full bg-purple-500 mr-2"></div>
-                  Planning
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleChangeStatusSelected("Cancelled")}>
-                  <div className="h-2 w-2 rounded-full bg-red-500 mr-2"></div>
-                  Cancelled
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <Button variant="outline" size="sm" onClick={handleDuplicateSelected}>
-              <CopyIcon className="mr-1 h-4 w-4" /> Duplicate
-            </Button>
-            
-            <Button variant="outline" size="sm" onClick={handleArchiveSelected}>
-              <ArchiveIcon className="mr-1 h-4 w-4" /> Archive
-            </Button>
-            
-            <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="text-red-600 hover:bg-red-50 hover:text-red-700">
-              <Trash2Icon className="mr-1 h-4 w-4" /> Delete
-            </Button>
-          </div>
-        </div>
-      )}
-      
-      {/* Search and Filter Controls */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
-        <div className="flex gap-4 flex-1">
-          <div className="relative w-full md:w-80">
-            <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
+      {/* Toolbar */}
+      <div className="bg-card rounded-lg shadow-sm border p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Search */}
+          <div className="relative flex-1">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Search projects..." 
               className="pl-9"
-              placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant={viewMode === 'grid' ? 'default' : 'outline'} 
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="px-2 min-w-[36px]"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </Button>
-            <Button 
-              variant={viewMode === 'list' ? 'default' : 'outline'} 
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="px-2 min-w-[36px]"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            </Button>
+          
+          {/* Filters */}
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-1">
+                  <FilterIcon className="h-4 w-4" />
+                  Status
+                  <ChevronDownIcon className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setStatusFilter("all")}>
+                  All Statuses
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter("IN_PROGRESS")}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor("IN_PROGRESS")}`}></span>
+                    In Progress
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("PLANNING")}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor("PLANNING")}`}></span>
+                    Planning
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("ON_HOLD")}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor("ON_HOLD")}`}></span>
+                    On Hold
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("COMPLETED")}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor("COMPLETED")}`}></span>
+                    Completed
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("CANCELLED")}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${getStatusColor("CANCELLED")}`}></span>
+                    Cancelled
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {/* View toggle */}
+            <div className="flex rounded-md border overflow-hidden">
+              <Button 
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                className={`rounded-none border-0 px-3 ${viewMode === 'grid' ? '' : 'bg-transparent'}`}
+                onClick={() => setViewMode('grid')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </Button>
+              <Button 
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                className={`rounded-none border-0 px-3 ${viewMode === 'list' ? '' : 'bg-transparent'}`}
+                onClick={() => setViewMode('list')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </Button>
+            </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <span className="text-sm text-gray-500 whitespace-nowrap">Status:</span>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={statusFilter === "all" ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : ""}
-            onClick={() => setStatusFilter("all")}
-          >
-            All
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={statusFilter === "In Progress" ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : ""}
-            onClick={() => setStatusFilter("In Progress")}
-          >
-            In Progress
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={statusFilter === "Completed" ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
-            onClick={() => setStatusFilter("Completed")}
-          >
-            Completed
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={statusFilter === "On Hold" ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200" : ""}
-            onClick={() => setStatusFilter("On Hold")}
-          >
-            On Hold
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={statusFilter === "Planning" ? "bg-purple-100 text-purple-800 hover:bg-purple-200" : ""}
-            onClick={() => setStatusFilter("Planning")}
-          >
-            Planning
-          </Button>
-        </div>
+        {/* Batch actions - only visible when items are selected */}
+        {selectedProjects.length > 0 && (
+          <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
+            <div className="flex-1 text-sm">
+              <span>
+                <strong>{selectedProjects.length}</strong> project{selectedProjects.length !== 1 ? 's' : ''} selected
+              </span>
+              <Button variant="link" className="h-auto p-0 ml-2" onClick={handleSelectAll}>
+                {selectedProjects.length === filteredProjects.length ? "Deselect All" : "Select All"}
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleDuplicateSelected}
+              >
+                <CopyIcon className="h-4 w-4 mr-1" />
+                Duplicate
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleArchiveSelected}
+              >
+                <ArchiveIcon className="h-4 w-4 mr-1" />
+                Archive
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    Change Status
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleChangeStatusSelected("IN_PROGRESS")}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor("IN_PROGRESS")}`}></span>
+                      In Progress
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleChangeStatusSelected("PLANNING")}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor("PLANNING")}`}></span>
+                      Planning
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleChangeStatusSelected("ON_HOLD")}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor("ON_HOLD")}`}></span>
+                      On Hold
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleChangeStatusSelected("COMPLETED")}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor("COMPLETED")}`}></span>
+                      Completed
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleChangeStatusSelected("CANCELLED")}>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusColor("CANCELLED")}`}></span>
+                      Cancelled
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={handleDeleteSelected}
+              >
+                <Trash2Icon className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
       
-      {/* Projects List */}
-      {filteredProjects.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-500">No projects found matching your filters.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        viewMode === 'grid' ? renderGridView() : renderListView()
-      )}
+      {/* Project list */}
+      <div className="mb-6">
+        {viewMode === 'grid' ? renderGridView() : renderListView()}
+      </div>
     </div>
   );
 }
