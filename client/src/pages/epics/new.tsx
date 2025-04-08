@@ -25,7 +25,7 @@ export default function NewEpic() {
   const [formData, setFormData] = useState<Partial<InsertEpic>>({
     name: "",
     description: "",
-    status: "PLANNING",
+    status: "BACKLOG",
     priority: "MEDIUM"
   });
 
@@ -85,7 +85,7 @@ export default function NewEpic() {
     // Set default progress if not provided
     const dataToSubmit = {
       ...formData,
-      progress: 0,
+      progress: { percentage: 0 },
     } as InsertEpic;
     
     createEpicMutation.mutate(dataToSubmit);
@@ -186,17 +186,15 @@ export default function NewEpic() {
                   <Select 
                     name="status"
                     onValueChange={(value) => handleSelectChange("status", value)}
-                    value={formData.status || "PLANNING"}
+                    value={formData.status || "BACKLOG"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="PLANNING">Planning</SelectItem>
+                      <SelectItem value="BACKLOG">Backlog</SelectItem>
                       <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                      <SelectItem value="ON_HOLD">On Hold</SelectItem>
                       <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -25,7 +25,7 @@ export default function NewStory() {
   const [formData, setFormData] = useState<Partial<InsertStory>>({
     name: "",
     description: "",
-    status: "TODO",
+    status: "BACKLOG",
     priority: "MEDIUM"
   });
 
@@ -183,11 +183,11 @@ export default function NewStory() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="points">Story Points</Label>
+                  <Label htmlFor="storyPoints">Story Points</Label>
                   <Select 
-                    name="points"
-                    onValueChange={(value) => handleSelectChange("points", value)}
-                    value={formData.points?.toString() || "not_estimated"}
+                    name="storyPoints"
+                    onValueChange={(value) => handleSelectChange("storyPoints", value)}
+                    value={formData.storyPoints || "not_estimated"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select points" />
@@ -236,6 +236,36 @@ export default function NewStory() {
             <Separator />
             
             <div className="space-y-4">
+              <h3 className="text-lg font-medium">Timeline</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    name="startDate"
+                    type="date"
+                    value={formData.startDate || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate">Due Date</Label>
+                  <Input
+                    id="dueDate"
+                    name="dueDate"
+                    type="date"
+                    value={formData.dueDate || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
               <h3 className="text-lg font-medium">Status & Priority</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -244,17 +274,17 @@ export default function NewStory() {
                   <Select 
                     name="status"
                     onValueChange={(value) => handleSelectChange("status", value)}
-                    value={formData.status || "TODO"}
+                    value={formData.status || "BACKLOG"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="TODO">To Do</SelectItem>
+                      <SelectItem value="BACKLOG">Backlog</SelectItem>
+                      <SelectItem value="READY">Ready</SelectItem>
                       <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                       <SelectItem value="IN_REVIEW">In Review</SelectItem>
                       <SelectItem value="DONE">Done</SelectItem>
-                      <SelectItem value="BLOCKED">Blocked</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
