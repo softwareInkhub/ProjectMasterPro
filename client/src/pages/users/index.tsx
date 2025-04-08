@@ -90,15 +90,32 @@ export default function UsersPage() {
     teamMap.set(team.id, team.name);
   });
 
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+
   // Add additional information to users
-  const enhancedUsers = users.map((user: User) => ({
-    ...user,
-    status: user.status || "ACTIVE", // Default to ACTIVE if status is not present
-    avatar: getInitials(user.name || "User"),
-    department: departmentMap.get(user.departmentId) || "Unassigned",
-    team: teamMap.get(user.teamId) || "Unassigned",
-    company: companyMap.get(user.companyId) || "Unassigned"
-  }));
+  const enhancedUsers = users.map((user: User) => {
+    // Create a display name from firstName and lastName
+    const displayName = user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}`
+      : user.email.split('@')[0];
+    
+    return {
+      ...user,
+      name: displayName,
+      status: user.status || "ACTIVE", // Default to ACTIVE if status is not present
+      avatar: getInitials(displayName),
+      department: departmentMap.get(user.departmentId) || "Unassigned",
+      team: teamMap.get(user.teamId) || "Unassigned",
+      company: companyMap.get(user.companyId) || "Unassigned"
+    };
+  });
 
   // Filter users based on search query and role filter
   const filteredUsers = enhancedUsers.filter((user: any) => {
@@ -115,15 +132,6 @@ export default function UsersPage() {
     
     return matchesSearch && matchesRole;
   });
-
-  // Get initials for avatar
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
 
   // Get random color for avatar background
   const getAvatarColor = (name: string) => {
