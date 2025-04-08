@@ -1,84 +1,79 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PlusIcon, FilterIcon, SortAscIcon, BuildingIcon, UserIcon, MapPinIcon } from "lucide-react";
+import { 
+  PlusIcon, 
+  FilterIcon, 
+  SortAscIcon, 
+  BuildingIcon, 
+  UserIcon, 
+  MapPinIcon, 
+  Loader2,
+  Trash2Icon
+} from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
+import { Company } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CompaniesPage() {
   const [, setLocation] = useLocation();
   const [filterActive, setFilterActive] = useState("all");
+  const { toast } = useToast();
 
-  // Sample companies data - this would come from an API in the real application
-  const companies = [
-    {
-      id: 1,
-      name: "Acme Corporation",
-      description: "Global leader in technology solutions",
-      industry: "Technology",
-      employees: 1500,
-      location: "New York, USA",
-      founded: "1985",
-      website: "https://acme-corp.example.com",
-      logo: "🏢",
-      status: "Active"
+  // Fetch companies data from API
+  const { data: companies = [], isLoading, error } = useQuery({
+    queryKey: ['/api/companies'],
+    queryFn: getQueryFn()
+  });
+
+  // Delete company mutation
+  const deleteCompanyMutation = useMutation({
+    mutationFn: async (companyId: string) => {
+      await apiRequest("DELETE", `/api/companies/${companyId}`);
     },
-    {
-      id: 2,
-      name: "Globex Industries",
-      description: "Manufacturing and industrial solutions provider",
-      industry: "Manufacturing",
-      employees: 3200,
-      location: "Chicago, USA",
-      founded: "1974",
-      website: "https://globex-ind.example.com",
-      logo: "🏭",
-      status: "Active"
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+      toast({
+        title: "Company deleted",
+        description: "The company has been deleted successfully",
+      });
     },
-    {
-      id: 3,
-      name: "Initech Systems",
-      description: "Enterprise software and IT services",
-      industry: "Software",
-      employees: 850,
-      location: "Austin, USA",
-      founded: "1999",
-      website: "https://initech.example.com",
-      logo: "💻",
-      status: "Inactive"
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete company",
+        description: error.message,
+        variant: "destructive",
+      });
     },
-    {
-      id: 4,
-      name: "Massive Dynamics",
-      description: "Research and development in emerging technologies",
-      industry: "R&D",
-      employees: 1200,
-      location: "Boston, USA",
-      founded: "2005",
-      website: "https://massive-dyn.example.com",
-      logo: "🔬",
-      status: "Active"
-    },
-    {
-      id: 5,
-      name: "Stark Industries",
-      description: "Advanced weapons and defense systems",
-      industry: "Defense",
-      employees: 4500,
-      location: "Malibu, USA",
-      founded: "1940",
-      website: "https://stark-ind.example.com",
-      logo: "⚙️",
-      status: "Active"
+  });
+
+  // Define company logos based on industry
+  const getCompanyLogo = (industry?: string) => {
+    switch (industry?.toLowerCase()) {
+      case 'technology': return '🏢';
+      case 'manufacturing': return '🏭';
+      case 'software': return '💻';
+      case 'r&d': return '🔬';
+      case 'defense': return '⚙️';
+      default: return '🏢';
     }
-  ];
+  };
+
+  // Add status to companies if not present
+  const companiesWithStatus = companies.map((company: Company) => ({
+    ...company,
+    status: company.status || "ACTIVE" // Default to ACTIVE if status is not present
+  }));
 
   // Filter companies based on active status filter
   const filteredCompanies = filterActive === "all" 
-    ? companies 
-    : companies.filter(company => 
+    ? companiesWithStatus 
+    : companiesWithStatus.filter((company) => 
         filterActive === "active" 
-          ? company.status === "Active" 
-          : company.status === "Inactive"
+          ? company.status === "ACTIVE" 
+          : company.status === "INACTIVE"
       );
 
   return (
@@ -135,57 +130,100 @@ export default function CompaniesPage() {
         </div>
       </div>
       
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex justify-center items-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+      
+      {/* Error state */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-500 mb-6">
+          <p className="font-medium">Error loading companies:</p>
+          <p>{error.message}</p>
+        </div>
+      )}
+      
+      {/* Empty state */}
+      {!isLoading && !error && filteredCompanies.length === 0 && (
+        <div className="text-center p-8 border rounded-lg">
+          <BuildingIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium mb-2">No companies found</h3>
+          <p className="text-gray-500 mb-4">
+            {filterActive !== "all" 
+              ? `No ${filterActive} companies found. Try adjusting your filters.` 
+              : "Let's create your first company to get started."}
+          </p>
+          <Button onClick={() => setLocation('/companies/new')}>
+            <PlusIcon className="mr-2 h-4 w-4" /> Add Company
+          </Button>
+        </div>
+      )}
+      
       {/* Companies List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCompanies.map((company) => (
-          <Card 
-            key={company.id} 
-            className="hover:shadow-md transition-shadow cursor-pointer" 
-            onClick={() => setLocation(`/companies/${company.id}`)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 text-3xl">{company.logo}</div>
-                  <div>
-                    <CardTitle>{company.name}</CardTitle>
-                    <CardDescription>{company.description}</CardDescription>
+      {!isLoading && !error && filteredCompanies.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCompanies.map((company: Company) => (
+            <Card 
+              key={company.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer" 
+              onClick={() => setLocation(`/companies/${company.id}`)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 text-3xl">{getCompanyLogo(company.name)}</div>
+                    <div>
+                      <CardTitle>{company.name}</CardTitle>
+                      <CardDescription>{company.description}</CardDescription>
+                    </div>
+                  </div>
+                  <span className={`text-sm px-2 py-1 rounded-full ${
+                    company.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                  }`}>
+                    {company.status === "ACTIVE" ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <BuildingIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">Created:</span>
+                    <span className="font-medium">
+                      {new Date(company.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <UserIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">Website:</span>
+                    <span className="font-medium">{company.website || "Not specified"}</span>
+                  </div>
+                  <div className="pt-2 mt-2 border-t flex justify-between items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Are you sure you want to delete this company?')) {
+                          deleteCompanyMutation.mutate(company.id);
+                        }
+                      }}
+                    >
+                      <Trash2Icon className="h-4 w-4 mr-1" /> Delete
+                    </Button>
+                    <Button variant="ghost" size="sm" className="hover:text-primary-600">
+                      View Details
+                    </Button>
                   </div>
                 </div>
-                <span className={`text-sm px-2 py-1 rounded-full ${
-                  company.status === "Active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                }`}>
-                  {company.status}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <BuildingIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Industry:</span>
-                  <span className="font-medium">{company.industry}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <UserIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Employees:</span>
-                  <span className="font-medium">{company.employees.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPinIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">Location:</span>
-                  <span className="font-medium">{company.location}</span>
-                </div>
-                <div className="pt-2 mt-2 border-t text-sm text-right">
-                  <Button variant="ghost" size="sm" className="hover:text-primary-600">
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

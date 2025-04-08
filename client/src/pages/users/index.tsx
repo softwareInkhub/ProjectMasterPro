@@ -9,148 +9,112 @@ import {
   MailIcon,
   PhoneIcon,
   BuildingIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  Loader2,
+  Trash2Icon,
+  FilterIcon
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
+import { User } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 export default function UsersPage() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const { toast } = useToast();
 
-  // Sample users data - this would come from an API in the real application
-  const users = [
-    {
-      id: 1,
-      name: "John Smith",
-      email: "john.smith@acmecorp.example",
-      phone: "+1 (555) 123-4567",
-      role: "Developer",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Frontend Development",
-      teamId: 1,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "JS",
-      status: "Active"
-    },
-    {
-      id: 2,
-      name: "Emily Johnson",
-      email: "emily.johnson@acmecorp.example",
-      phone: "+1 (555) 234-5678",
-      role: "Manager",
-      department: "Marketing",
-      departmentId: 2,
-      team: "Digital Marketing",
-      teamId: 5,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "EJ",
-      status: "Active"
-    },
-    {
-      id: 3,
-      name: "Michael Wilson",
-      email: "michael.wilson@acmecorp.example",
-      phone: "+1 (555) 345-6789",
-      role: "Manager",
-      department: "Finance",
-      departmentId: 3,
-      team: "Financial Planning",
-      teamId: 7,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "MW",
-      status: "Active"
-    },
-    {
-      id: 4,
-      name: "Sarah Brown",
-      email: "sarah.brown@acmecorp.example",
-      phone: "+1 (555) 456-7890",
-      role: "Manager",
-      department: "Human Resources",
-      departmentId: 4,
-      team: "Recruitment",
-      teamId: 9,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "SB",
-      status: "Active"
-    },
-    {
-      id: 5,
-      name: "Alice Chen",
-      email: "alice.chen@acmecorp.example",
-      phone: "+1 (555) 567-8901",
-      role: "Team Lead",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Frontend Development",
-      teamId: 1,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "AC",
-      status: "Active"
-    },
-    {
-      id: 6,
-      name: "David Lee",
-      email: "david.lee@globex.example",
-      phone: "+1 (555) 678-9012",
-      role: "Manager",
-      department: "Research & Development",
-      departmentId: 5,
-      team: "Product Innovation",
-      teamId: 12,
-      company: "Globex Industries",
-      companyId: 2,
-      avatar: "DL",
-      status: "Active"
-    },
-    {
-      id: 7,
-      name: "Emma Wilson",
-      email: "emma.wilson@acmecorp.example",
-      phone: "+1 (555) 789-0123",
-      role: "Developer",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Backend Development",
-      teamId: 2,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "EW",
-      status: "Inactive"
-    },
-    {
-      id: 8,
-      name: "Bob Jackson",
-      email: "bob.jackson@acmecorp.example",
-      phone: "+1 (555) 890-1234",
-      role: "Team Lead",
-      department: "Engineering",
-      departmentId: 1,
-      team: "Backend Development",
-      teamId: 2,
-      company: "Acme Corporation",
-      companyId: 1,
-      avatar: "BJ",
-      status: "Active"
-    }
-  ];
+  // Fetch users data from API
+  const { data: users = [], isLoading, error } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: getQueryFn()
+  });
 
-  // Filter users based on search query
-  const filteredUsers = users.filter(user => 
-    searchQuery === "" || 
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.team.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch companies data for mapping company IDs to names
+  const { data: companies = [] } = useQuery({
+    queryKey: ['/api/companies'],
+    queryFn: getQueryFn()
+  });
+
+  // Fetch departments data for mapping department IDs to names
+  const { data: departments = [] } = useQuery({
+    queryKey: ['/api/departments'],
+    queryFn: getQueryFn()
+  });
+
+  // Fetch teams data for mapping team IDs to names
+  const { data: teams = [] } = useQuery({
+    queryKey: ['/api/teams'],
+    queryFn: getQueryFn()
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await apiRequest("DELETE", `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "User deleted",
+        description: "The user has been deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete user",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create maps for easy lookups
+  const companyMap = new Map();
+  companies.forEach((company: any) => {
+    companyMap.set(company.id, company.name);
+  });
+
+  const departmentMap = new Map();
+  departments.forEach((department: any) => {
+    departmentMap.set(department.id, department.name);
+  });
+
+  const teamMap = new Map();
+  teams.forEach((team: any) => {
+    teamMap.set(team.id, team.name);
+  });
+
+  // Add additional information to users
+  const enhancedUsers = users.map((user: User) => ({
+    ...user,
+    status: user.status || "ACTIVE", // Default to ACTIVE if status is not present
+    avatar: getInitials(user.name || "User"),
+    department: departmentMap.get(user.departmentId) || "Unassigned",
+    team: teamMap.get(user.teamId) || "Unassigned",
+    company: companyMap.get(user.companyId) || "Unassigned"
+  }));
+
+  // Filter users based on search query and role filter
+  const filteredUsers = enhancedUsers.filter((user: any) => {
+    // Apply search filter
+    const matchesSearch = searchQuery === "" || 
+      (user.name && user.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.role && user.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.department && user.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (user.team && user.team.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // Apply role filter
+    const matchesRole = filterRole === "all" || (user.role && user.role === filterRole);
+    
+    return matchesSearch && matchesRole;
+  });
 
   // Get initials for avatar
   const getInitials = (name: string) => {
@@ -200,98 +164,185 @@ export default function UsersPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <SortAscIcon className="mr-2 h-4 w-4" /> Sort
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={filterRole === "all" ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : ""}
+            onClick={() => setFilterRole("all")}
+          >
+            All Roles
           </Button>
-          <Button variant="outline" size="sm">
-            Active
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={filterRole === "ADMIN" ? "bg-purple-100 text-purple-800 hover:bg-purple-200" : ""}
+            onClick={() => setFilterRole("ADMIN")}
+          >
+            Admins
           </Button>
-          <Button variant="outline" size="sm">
-            All
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={filterRole === "MANAGER" ? "bg-indigo-100 text-indigo-800 hover:bg-indigo-200" : ""}
+            onClick={() => setFilterRole("MANAGER")}
+          >
+            Managers
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={filterRole === "TEAM_LEAD" ? "bg-teal-100 text-teal-800 hover:bg-teal-200" : ""}
+            onClick={() => setFilterRole("TEAM_LEAD")}
+          >
+            Team Leads
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={filterRole === "DEVELOPER" ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
+            onClick={() => setFilterRole("DEVELOPER")}
+          >
+            Developers
           </Button>
         </div>
       </div>
       
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex justify-center items-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+      
+      {/* Error state */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-500 mb-6">
+          <p className="font-medium">Error loading users:</p>
+          <p>{error.message}</p>
+        </div>
+      )}
+      
+      {/* Empty state */}
+      {!isLoading && !error && filteredUsers.length === 0 && (
+        <div className="text-center p-8 border rounded-lg">
+          <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium mb-2">No users found</h3>
+          <p className="text-gray-500 mb-4">
+            {searchQuery ? 
+              "No users match your search criteria. Try adjusting your filters." : 
+              "Let's create your first user to get started."}
+          </p>
+          <Button onClick={() => setLocation('/users/new')}>
+            <PlusIcon className="mr-2 h-4 w-4" /> Add User
+          </Button>
+        </div>
+      )}
+      
       {/* Users List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map((user) => (
-          <Card 
-            key={user.id} 
-            className={`hover:shadow-md transition-shadow cursor-pointer ${user.status === "Inactive" ? "opacity-70" : ""}`}
-            onClick={() => setLocation(`/users/${user.id}`)}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-start gap-3">
-                <div className={`flex-shrink-0 h-12 w-12 rounded-full ${getAvatarColor(user.name)} flex items-center justify-center text-white font-semibold text-lg`}>
-                  {user.avatar || getInitials(user.name)}
-                </div>
-                <div>
-                  <CardTitle>{user.name}</CardTitle>
-                  <CardDescription>{user.role}</CardDescription>
-                </div>
-                {user.status === "Inactive" && (
-                  <span className="ml-auto px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
-                    Inactive
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <MailIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">{user.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <PhoneIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-gray-600">{user.phone}</span>
-                </div>
-                <div className="pt-2 border-t mt-2 space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <BuildingIcon className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-600">Department:</span>
-                    <span 
-                      className="font-medium cursor-pointer hover:text-primary-600"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLocation(`/departments/${user.departmentId}`);
-                      }}
-                    >
-                      {user.department}
-                    </span>
+      {!isLoading && !error && filteredUsers.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredUsers.map((user) => (
+            <Card 
+              key={user.id} 
+              className={`hover:shadow-md transition-shadow cursor-pointer ${user.status === "INACTIVE" ? "opacity-70" : ""}`}
+              onClick={() => setLocation(`/users/${user.id}`)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-3">
+                  <div className={`flex-shrink-0 h-12 w-12 rounded-full ${getAvatarColor(user.name || "")} flex items-center justify-center text-white font-semibold text-lg`}>
+                    {user.avatar}
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <BriefcaseIcon className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-600">Team:</span>
-                    <span 
-                      className="font-medium cursor-pointer hover:text-primary-600"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLocation(`/teams/${user.teamId}`);
-                      }}
-                    >
-                      {user.team}
+                  <div>
+                    <CardTitle>{user.name}</CardTitle>
+                    <CardDescription>{user.role || "User"}</CardDescription>
+                  </div>
+                  {user.status === "INACTIVE" && (
+                    <span className="ml-auto px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                      Inactive
                     </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MailIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">{user.email}</span>
+                  </div>
+                  {user.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <PhoneIcon className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">{user.phone}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t mt-2 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <BuildingIcon className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Department:</span>
+                      {user.departmentId ? (
+                        <span 
+                          className="font-medium cursor-pointer hover:text-primary-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLocation(`/departments/${user.departmentId}`);
+                          }}
+                        >
+                          {user.department}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Unassigned</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <BriefcaseIcon className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Team:</span>
+                      {user.teamId ? (
+                        <span 
+                          className="font-medium cursor-pointer hover:text-primary-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLocation(`/teams/${user.teamId}`);
+                          }}
+                        >
+                          {user.team}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Unassigned</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end pt-0">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocation(`/users/${user.id}/edit`);
-                }}
-              >
-                Edit
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+              <CardFooter className="flex justify-between pt-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to delete this user?')) {
+                      deleteUserMutation.mutate(user.id);
+                    }
+                  }}
+                >
+                  <Trash2Icon className="h-4 w-4 mr-1" /> Delete
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLocation(`/users/${user.id}/edit`);
+                  }}
+                >
+                  Edit
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
