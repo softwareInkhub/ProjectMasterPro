@@ -20,7 +20,8 @@ import {
   ArchiveIcon,
   CopyIcon,
   EditIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  Loader2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -50,6 +51,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
+import { Epic, Project, InsertEpic } from "@shared/schema";
 
 export default function EpicsPage() {
   const [, setLocation] = useLocation();
@@ -57,152 +61,143 @@ export default function EpicsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedEpic, setSelectedEpic] = useState<any>(null);
-  const [selectedEpics, setSelectedEpics] = useState<number[]>([]);
+  const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null);
+  const [selectedEpics, setSelectedEpics] = useState<string[]>([]);
   
-  // Sample epic data - this would come from an API in the real application
-  const epics = [
-    {
-      id: 1,
-      name: "User Authentication System",
-      description: "Implement secure user authentication and authorization functionality",
-      status: "IN_PROGRESS",
-      priority: "HIGH",
-      projectId: 1,
-      projectName: "Website Redesign",
-      startDate: "2023-09-15",
-      endDate: "2023-12-01",
-      progress: 40,
-      storyCount: 12,
-      completedStories: 5,
-      assignees: [
-        { id: 5, name: "Alice Chen", avatar: "AC" },
-        { id: 8, name: "Bob Jackson", avatar: "BJ" }
-      ]
-    },
-    {
-      id: 2,
-      name: "Dashboard Analytics",
-      description: "Create a comprehensive analytics dashboard with visualizations",
-      status: "BACKLOG",
-      priority: "MEDIUM",
-      projectId: 1,
-      projectName: "Website Redesign",
-      startDate: "2023-12-05",
-      endDate: "2024-01-20",
-      progress: 0,
-      storyCount: 8,
-      completedStories: 0,
-      assignees: [
-        { id: 5, name: "Alice Chen", avatar: "AC" }
-      ]
-    },
-    {
-      id: 3,
-      name: "Mobile Responsiveness",
-      description: "Ensure all website components are fully responsive on mobile devices",
-      status: "IN_PROGRESS",
-      priority: "HIGH",
-      projectId: 1,
-      projectName: "Website Redesign",
-      startDate: "2023-10-01",
-      endDate: "2023-11-30",
-      progress: 75,
-      storyCount: 10,
-      completedStories: 7,
-      assignees: [
-        { id: 5, name: "Alice Chen", avatar: "AC" },
-        { id: 12, name: "Charlie Martinez", avatar: "CM" }
-      ]
-    },
-    {
-      id: 4,
-      name: "Customer Management Interface",
-      description: "Build customer data management screens for CRM system",
-      status: "IN_PROGRESS",
-      priority: "CRITICAL",
-      projectId: 2,
-      projectName: "CRM Integration",
-      startDate: "2023-10-15",
-      endDate: "2023-12-15",
-      progress: 30,
-      storyCount: 15,
-      completedStories: 4,
-      assignees: [
-        { id: 8, name: "Bob Jackson", avatar: "BJ" }
-      ]
-    },
-    {
-      id: 5,
-      name: "Social Media Integration",
-      description: "Integrate social media sharing and authentication",
-      status: "COMPLETED",
-      priority: "MEDIUM",
-      projectId: 3,
-      projectName: "Q4 Marketing Campaign",
-      startDate: "2023-10-01",
-      endDate: "2023-11-15",
-      progress: 100,
-      storyCount: 6,
-      completedStories: 6,
-      assignees: [
-        { id: 21, name: "Eric Thompson", avatar: "ET" }
-      ]
-    },
-    {
-      id: 6,
-      name: "Continuous Integration Pipeline",
-      description: "Set up automated testing and deployment workflows",
-      status: "BACKLOG",
-      priority: "HIGH",
-      projectId: 4,
-      projectName: "Infrastructure Migration",
-      startDate: "2023-11-01",
-      endDate: "2024-01-15",
-      progress: 0,
-      storyCount: 9,
-      completedStories: 0,
-      assignees: [
-        { id: 12, name: "Charlie Martinez", avatar: "CM" }
-      ]
-    }
-  ];
+  // Fetch epics from API
+  const { data: epics = [], isLoading: isLoadingEpics, error: epicsError } = useQuery({
+    queryKey: ['/api/epics'],
+    queryFn: getQueryFn()
+  });
+  
+  // Fetch projects for mapping projectId to projectName
+  const { data: projects = [] } = useQuery({
+    queryKey: ['/api/projects'],
+    queryFn: getQueryFn()
+  });
+  
+  // Create a map of projectId to projectName for easy lookup
+  const projectMap = new Map<string, string>();
+  projects.forEach((project: Project) => {
+    projectMap.set(project.id, project.name);
+  });
 
   // New epic form state
-  const [newEpic, setNewEpic] = useState({
+  const [newEpic, setNewEpic] = useState<Partial<InsertEpic>>({
     name: "",
     description: "",
     status: "BACKLOG",
     priority: "MEDIUM",
-    projectId: "1",
-    startDate: "",
-    endDate: ""
-  });
-
-  // Edit epic form state
-  const [editEpic, setEditEpic] = useState({
-    id: 0,
-    name: "",
-    description: "",
-    status: "",
-    priority: "",
     projectId: "",
     startDate: "",
     endDate: ""
   });
 
+  // Edit epic form state
+  const [editEpic, setEditEpic] = useState<Partial<InsertEpic> & { id?: string }>({
+    id: "",
+    name: "",
+    description: "",
+    status: "BACKLOG",
+    priority: "MEDIUM",
+    projectId: "",
+    startDate: "",
+    endDate: ""
+  });
+
+  // Create mutation for adding new epics
+  const createEpicMutation = useMutation({
+    mutationFn: async (epic: InsertEpic) => {
+      const response = await apiRequest('POST', '/api/epics', epic);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+      toast({
+        title: "Epic created",
+        description: "New epic has been successfully created.",
+      });
+      setIsCreateDialogOpen(false);
+      // Reset form
+      setNewEpic({
+        name: "",
+        description: "",
+        status: "BACKLOG",
+        priority: "MEDIUM",
+        projectId: "",
+        startDate: "",
+        endDate: ""
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to create epic",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update mutation for editing epics
+  const updateEpicMutation = useMutation({
+    mutationFn: async (epic: Partial<InsertEpic> & { id: string }) => {
+      const { id, ...updateData } = epic;
+      const response = await apiRequest('PUT', `/api/epics/${id}`, updateData);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+      toast({
+        title: "Epic updated",
+        description: "Epic has been successfully updated.",
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to update epic",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete mutation for removing epics
+  const deleteEpicMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/epics/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+      toast({
+        title: "Epic deleted",
+        description: "Epic has been successfully deleted.",
+      });
+      setSelectedEpics([]);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to delete epic",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter epics based on search query and status filter
-  const filteredEpics = epics.filter(epic => 
+  const filteredEpics = epics.filter((epic: Epic) => 
     (searchQuery === "" || 
       epic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      epic.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      epic.projectName.toLowerCase().includes(searchQuery.toLowerCase())
+      (epic.description && epic.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (projectMap.get(epic.projectId)?.toLowerCase().includes(searchQuery.toLowerCase()))
     ) && 
     (statusFilter === "all" || epic.status === statusFilter)
   );
 
   // Format date string to more readable format
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Not set';
+    
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
@@ -247,41 +242,106 @@ export default function EpicsPage() {
 
   // Handle creating a new epic
   const handleCreateEpic = () => {
-    // API call would go here
-    console.log("Creating new epic:", newEpic);
-    setIsCreateDialogOpen(false);
-    // Reset form
-    setNewEpic({
-      name: "",
-      description: "",
-      status: "BACKLOG",
-      priority: "MEDIUM",
-      projectId: "1",
-      startDate: "",
-      endDate: ""
-    });
+    if (!newEpic.projectId) {
+      toast({
+        title: "Missing project",
+        description: "Please select a project for this epic.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newEpic.name) {
+      toast({
+        title: "Missing name",
+        description: "Please provide a name for this epic.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert dates if provided
+    const epicToCreate: any = { ...newEpic };
+    if (epicToCreate.startDate) {
+      epicToCreate.startDate = new Date(epicToCreate.startDate).toISOString();
+    }
+    if (epicToCreate.endDate) {
+      epicToCreate.endDate = new Date(epicToCreate.endDate).toISOString();
+    }
+
+    createEpicMutation.mutate(epicToCreate as InsertEpic);
   };
 
   // Handle editing an epic
   const handleEditEpic = () => {
-    // API call would go here
-    console.log("Updating epic:", editEpic);
-    setIsEditDialogOpen(false);
+    if (!editEpic.id) {
+      toast({
+        title: "Error",
+        description: "Missing epic ID for update",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!editEpic.name) {
+      toast({
+        title: "Missing name",
+        description: "Please provide a name for this epic.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!editEpic.projectId) {
+      toast({
+        title: "Missing project",
+        description: "Please select a project for this epic.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert dates if provided
+    const epicToUpdate: any = { ...editEpic };
+    if (epicToUpdate.startDate) {
+      epicToUpdate.startDate = new Date(epicToUpdate.startDate).toISOString();
+    }
+    if (epicToUpdate.endDate) {
+      epicToUpdate.endDate = new Date(epicToUpdate.endDate).toISOString();
+    }
+
+    updateEpicMutation.mutate(epicToUpdate as InsertEpic & { id: string });
   };
 
   // Initialize edit form when an epic is selected for editing
-  const openEditDialog = (epic: any) => {
+  const openEditDialog = (epic: Epic) => {
     setSelectedEpic(epic);
+    
+    // Format dates for input fields
+    let startDateForInput = '';
+    let endDateForInput = '';
+    
+    if (epic.startDate) {
+      const date = new Date(epic.startDate);
+      startDateForInput = date.toISOString().split('T')[0];
+    }
+    
+    if (epic.endDate) {
+      const date = new Date(epic.endDate);
+      endDateForInput = date.toISOString().split('T')[0];
+    }
+    
     setEditEpic({
       id: epic.id,
       name: epic.name,
-      description: epic.description,
+      description: epic.description || '',
       status: epic.status,
       priority: epic.priority,
-      projectId: epic.projectId.toString(),
-      startDate: epic.startDate,
-      endDate: epic.endDate
+      projectId: epic.projectId,
+      startDate: startDateForInput,
+      endDate: endDateForInput
     });
+    
     setIsEditDialogOpen(true);
   };
   
@@ -290,46 +350,85 @@ export default function EpicsPage() {
     if (selectedEpics.length === filteredEpics.length) {
       setSelectedEpics([]);
     } else {
-      setSelectedEpics(filteredEpics.map(e => e.id));
+      setSelectedEpics(filteredEpics.map((e: Epic) => e.id));
     }
   };
 
   // Batch operations
   const handleDeleteSelected = () => {
-    toast({
-      title: "Deleting epics",
-      description: `${selectedEpics.length} epics would be deleted.`,
-    });
-    // In a real application, this would call API to delete epics
-    setSelectedEpics([]);
+    if (window.confirm(`Are you sure you want to delete ${selectedEpics.length} epic(s)?`)) {
+      // Create a promise for each deletion
+      const deletePromises = selectedEpics.map(id => deleteEpicMutation.mutateAsync(id));
+      
+      // Execute all deletions in parallel
+      Promise.all(deletePromises)
+        .then(() => {
+          toast({
+            title: "Epics deleted",
+            description: `${selectedEpics.length} epic(s) have been successfully deleted.`,
+          });
+          setSelectedEpics([]);
+        })
+        .catch((error) => {
+          toast({
+            title: "Failed to delete epics",
+            description: error.message,
+            variant: "destructive",
+          });
+        });
+    }
   };
 
   const handleArchiveSelected = () => {
     toast({
-      title: "Archiving epics",
-      description: `${selectedEpics.length} epics would be archived.`,
+      title: "Feature not implemented",
+      description: `Archiving ${selectedEpics.length} epics is not implemented yet.`,
     });
-    // In a real application, this would call API to archive epics
     setSelectedEpics([]);
   };
 
   const handleDuplicateSelected = () => {
     toast({
-      title: "Duplicating epics",
-      description: `${selectedEpics.length} epics would be duplicated.`,
+      title: "Feature not implemented",
+      description: `Duplicating ${selectedEpics.length} epics is not implemented yet.`,
     });
-    // In a real application, this would call API to duplicate epics
     setSelectedEpics([]);
   };
 
   const handleChangeStatusSelected = (status: string) => {
     toast({
-      title: "Updating status",
-      description: `${selectedEpics.length} epics would be updated to "${status}".`,
+      title: "Feature not implemented",
+      description: `Changing status of ${selectedEpics.length} epics to "${status}" is not implemented yet.`,
     });
-    // In a real application, this would call API to update epic status
     setSelectedEpics([]);
   };
+
+  // Loading state
+  if (isLoadingEpics) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Loading epics...</span>
+      </div>
+    );
+  }
+
+  // Error state
+  if (epicsError) {
+    return (
+      <div className="bg-red-50 p-4 rounded-md border border-red-200 text-red-800">
+        <h2 className="text-lg font-semibold mb-2">Error loading epics</h2>
+        <p>{(epicsError as Error).message || "Unknown error occurred"}</p>
+        <Button 
+          variant="outline" 
+          className="mt-4"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/epics'] })}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -453,302 +552,414 @@ export default function EpicsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEpics.map((epic) => (
-            <Card 
-              key={epic.id} 
-              className="hover:shadow-md transition-shadow relative"
-            >
-              {/* Checkbox for selection */}
-              <div 
-                className="absolute top-2 left-2 z-10">
-                <Checkbox
-                  checked={selectedEpics.includes(epic.id)}
-                  className="data-[state=checked]:bg-primary border-gray-300"
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedEpics(prev => [...prev, epic.id]);
-                    } else {
-                      setSelectedEpics(prev => prev.filter(id => id !== epic.id));
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-              
-              <CardContent 
-                className="p-4 pl-9 cursor-pointer"
-                onClick={() => setLocation(`/epics/${epic.id}`)}
+          {filteredEpics.map((epic: Epic) => {
+            // Calculate progress percentage from progress.percentage property
+            const progressPercentage = epic.progress ? 
+              typeof epic.progress === 'string' 
+                ? JSON.parse(epic.progress).percentage 
+                : epic.progress.percentage || 0
+              : 0;
+            
+            return (
+              <Card 
+                key={epic.id} 
+                className="hover:shadow-md transition-shadow relative"
               >
-                <div className="flex justify-between items-start">
-                  <h3 className="text-base font-semibold text-gray-900 truncate">{epic.name}</h3>
-                  <div className="flex gap-1">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs px-1.5 py-0.5 ${getStatusColor(epic.status)}`}
-                    >
-                      {epic.status === "IN_PROGRESS" ? "In Progress" : epic.status === "BACKLOG" ? "Backlog" : "Completed"}
-                    </Badge>
-                  </div>
+                {/* Checkbox for selection */}
+                <div 
+                  className="absolute top-2 left-2 z-10">
+                  <Checkbox
+                    checked={selectedEpics.includes(epic.id)}
+                    className="data-[state=checked]:bg-primary border-gray-300"
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedEpics(prev => [...prev, epic.id]);
+                      } else {
+                        setSelectedEpics(prev => prev.filter(id => id !== epic.id));
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
                 </div>
                 
-                <div className="mt-2 text-xs text-gray-600 line-clamp-2">{epic.description}</div>
-                
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span>Progress</span>
-                    <span>{epic.progress}% ({epic.completedStories}/{epic.storyCount})</span>
-                  </div>
-                  <Progress value={epic.progress} className="h-1.5" />
-                </div>
-                
-                <div className="flex items-center justify-between mt-3">
-                  <div className="flex items-center text-xs text-gray-500">
-                    <BriefcaseIcon className="h-3 w-3 mr-1" />
-                    <span className="truncate">{epic.projectName}</span>
+                <CardContent 
+                  className="p-4 pl-9 cursor-pointer"
+                  onClick={() => setLocation(`/epics/${epic.id}`)}
+                >
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-base font-semibold text-gray-900 truncate">{epic.name}</h3>
+                    <div className="flex gap-1">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs px-1.5 py-0.5 ${getStatusColor(epic.status)}`}
+                      >
+                        {epic.status === "IN_PROGRESS" ? "In Progress" : epic.status === "BACKLOG" ? "Backlog" : "Completed"}
+                      </Badge>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs px-1.5 py-0.5 ${getPriorityColor(epic.priority)}`}
+                      >
+                        {epic.priority}
+                      </Badge>
+                    </div>
                   </div>
                   
-                  <div className="flex -space-x-2">
-                    {epic.assignees.map((assignee) => (
-                      <div 
-                        key={assignee.id}
-                        title={assignee.name}
-                        className={`flex-shrink-0 h-6 w-6 rounded-full ${getAvatarColor(assignee.name)} flex items-center justify-center text-white font-medium text-xs border border-white`}
-                      >
-                        {assignee.avatar}
-                      </div>
-                    ))}
+                  <p className="text-sm text-gray-500 my-2 line-clamp-2">
+                    {epic.description || "No description provided"}
+                  </p>
+                  
+                  <div className="mt-3 mb-1">
+                    <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
+                      <span>Progress</span>
+                      <span>{progressPercentage}%</span>
+                    </div>
+                    <Progress value={progressPercentage} className="h-1.5" />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  
+                  <div className="mt-4 flex justify-between">
+                    <div className="flex items-center gap-2">
+                      <BookOpenIcon className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">{projectMap.get(epic.projectId) || "Unknown project"}</span>
+                    </div>
+                    
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontalIcon className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          openEditDialog(epic);
+                        }}>
+                          <EditIcon className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          // Logic to duplicate epic
+                          toast({
+                            title: "Feature not implemented",
+                            description: "Duplicating epic is not implemented yet.",
+                          });
+                        }}>
+                          <CopyIcon className="mr-2 h-4 w-4" /> Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm("Are you sure you want to delete this epic?")) {
+                              deleteEpicMutation.mutate(epic.id);
+                            }
+                          }}
+                        >
+                          <Trash2Icon className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  
+                  <div className="mt-3 flex justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      <span>{epic.startDate ? formatDate(epic.startDate) : "No start date"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <ClockIcon className="h-3.5 w-3.5" />
+                      <span>{epic.endDate ? formatDate(epic.endDate) : "No end date"}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
       
       {/* Create Epic Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[625px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Create New Epic</DialogTitle>
             <DialogDescription>
-              Add a new epic to organize and track related user stories.
+              Add a new epic to track large pieces of work that can be broken down into multiple stories.
             </DialogDescription>
           </DialogHeader>
+          
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Epic Name</Label>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
               <Input
                 id="name"
-                placeholder="Enter epic name"
+                placeholder="Epic name"
+                className="col-span-3"
                 value={newEpic.name}
                 onChange={(e) => setNewEpic({...newEpic, name: e.target.value})}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+            
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="description" className="text-right pt-2">
+                Description
+              </Label>
               <Textarea
                 id="description"
-                placeholder="Enter epic description"
+                placeholder="Detailed description of the epic"
+                className="col-span-3"
                 rows={4}
                 value={newEpic.description}
                 onChange={(e) => setNewEpic({...newEpic, description: e.target.value})}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="project">Project</Label>
-                <Select 
-                  value={newEpic.projectId}
-                  onValueChange={(value) => setNewEpic({...newEpic, projectId: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Website Redesign</SelectItem>
-                    <SelectItem value="2">CRM Integration</SelectItem>
-                    <SelectItem value="3">Q4 Marketing Campaign</SelectItem>
-                    <SelectItem value="4">Infrastructure Migration</SelectItem>
-                    <SelectItem value="5">Mobile App Development</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
-                <Select 
-                  value={newEpic.status}
-                  onValueChange={(value) => setNewEpic({...newEpic, status: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BACKLOG">Backlog</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="project" className="text-right">
+                Project
+              </Label>
+              <Select 
+                value={newEpic.projectId} 
+                onValueChange={(value) => setNewEpic({...newEpic, projectId: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project: Project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="priority">Priority</Label>
-                <Select 
-                  value={newEpic.priority}
-                  onValueChange={(value) => setNewEpic({...newEpic, priority: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="CRITICAL">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <Select 
+                value={newEpic.status} 
+                onValueChange={(value) => setNewEpic({...newEpic, status: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BACKLOG">Backlog</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={newEpic.startDate}
-                  onChange={(e) => setNewEpic({...newEpic, startDate: e.target.value})}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="endDate">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={newEpic.endDate}
-                  onChange={(e) => setNewEpic({...newEpic, endDate: e.target.value})}
-                />
-              </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="priority" className="text-right">
+                Priority
+              </Label>
+              <Select 
+                value={newEpic.priority} 
+                onValueChange={(value) => setNewEpic({...newEpic, priority: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="startDate" className="text-right">
+                Start Date
+              </Label>
+              <Input
+                id="startDate"
+                type="date"
+                className="col-span-3"
+                value={newEpic.startDate}
+                onChange={(e) => setNewEpic({...newEpic, startDate: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="endDate" className="text-right">
+                End Date
+              </Label>
+              <Input
+                id="endDate"
+                type="date"
+                className="col-span-3"
+                value={newEpic.endDate}
+                onChange={(e) => setNewEpic({...newEpic, endDate: e.target.value})}
+              />
             </div>
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateEpic}>Create Epic</Button>
+            <Button 
+              type="submit" 
+              onClick={handleCreateEpic}
+              disabled={createEpicMutation.isPending}
+            >
+              {createEpicMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Create Epic
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
       {/* Edit Epic Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[625px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Edit Epic</DialogTitle>
             <DialogDescription>
-              Update epic details and track progress.
+              Make changes to the selected epic's details.
             </DialogDescription>
           </DialogHeader>
+          
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Epic Name</Label>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Name
+              </Label>
               <Input
                 id="edit-name"
-                placeholder="Enter epic name"
+                placeholder="Epic name"
+                className="col-span-3"
                 value={editEpic.name}
                 onChange={(e) => setEditEpic({...editEpic, name: e.target.value})}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
+            
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="edit-description" className="text-right pt-2">
+                Description
+              </Label>
               <Textarea
                 id="edit-description"
-                placeholder="Enter epic description"
+                placeholder="Detailed description of the epic"
+                className="col-span-3"
                 rows={4}
                 value={editEpic.description}
                 onChange={(e) => setEditEpic({...editEpic, description: e.target.value})}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-project">Project</Label>
-                <Select 
-                  value={editEpic.projectId}
-                  onValueChange={(value) => setEditEpic({...editEpic, projectId: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Website Redesign</SelectItem>
-                    <SelectItem value="2">CRM Integration</SelectItem>
-                    <SelectItem value="3">Q4 Marketing Campaign</SelectItem>
-                    <SelectItem value="4">Infrastructure Migration</SelectItem>
-                    <SelectItem value="5">Mobile App Development</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <Select 
-                  value={editEpic.status}
-                  onValueChange={(value) => setEditEpic({...editEpic, status: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BACKLOG">Backlog</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-project" className="text-right">
+                Project
+              </Label>
+              <Select 
+                value={editEpic.projectId} 
+                onValueChange={(value) => setEditEpic({...editEpic, projectId: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project: Project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-priority">Priority</Label>
-                <Select 
-                  value={editEpic.priority}
-                  onValueChange={(value) => setEditEpic({...editEpic, priority: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="CRITICAL">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-status" className="text-right">
+                Status
+              </Label>
+              <Select 
+                value={editEpic.status} 
+                onValueChange={(value) => setEditEpic({...editEpic, status: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BACKLOG">Backlog</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-startDate">Start Date</Label>
-                <Input
-                  id="edit-startDate"
-                  type="date"
-                  value={editEpic.startDate}
-                  onChange={(e) => setEditEpic({...editEpic, startDate: e.target.value})}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-endDate">End Date</Label>
-                <Input
-                  id="edit-endDate"
-                  type="date"
-                  value={editEpic.endDate}
-                  onChange={(e) => setEditEpic({...editEpic, endDate: e.target.value})}
-                />
-              </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-priority" className="text-right">
+                Priority
+              </Label>
+              <Select 
+                value={editEpic.priority} 
+                onValueChange={(value) => setEditEpic({...editEpic, priority: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-startDate" className="text-right">
+                Start Date
+              </Label>
+              <Input
+                id="edit-startDate"
+                type="date"
+                className="col-span-3"
+                value={editEpic.startDate}
+                onChange={(e) => setEditEpic({...editEpic, startDate: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-endDate" className="text-right">
+                End Date
+              </Label>
+              <Input
+                id="edit-endDate"
+                type="date"
+                className="col-span-3"
+                value={editEpic.endDate}
+                onChange={(e) => setEditEpic({...editEpic, endDate: e.target.value})}
+              />
             </div>
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditEpic}>Update Epic</Button>
+            <Button 
+              type="submit" 
+              onClick={handleEditEpic}
+              disabled={updateEpicMutation.isPending}
+            >
+              {updateEpicMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
