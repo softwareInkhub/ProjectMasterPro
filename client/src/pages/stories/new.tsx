@@ -31,14 +31,12 @@ export default function NewStory() {
 
   // Fetch epics for the select field
   const { data: epics = [], isLoading: isLoadingEpics } = useQuery({
-    queryKey: ['/api/epics'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/epics']
   });
 
   // Fetch users for assignee select field
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['/api/users'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/users']
   });
 
   // Create story mutation

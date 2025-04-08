@@ -31,8 +31,7 @@ export default function NewEpic() {
 
   // Fetch projects for the select field
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
-    queryKey: ['/api/projects'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/projects']
   });
 
   // Create epic mutation

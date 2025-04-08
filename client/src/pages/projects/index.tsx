@@ -49,19 +49,16 @@ export default function ProjectsPage() {
   
   // Fetch projects from API
   const { data: projects = [], isLoading, error } = useQuery({
-    queryKey: ['/api/projects'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/projects']
   });
 
   // Fetch departments and teams for display
   const { data: departments = [] } = useQuery({
-    queryKey: ['/api/departments'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/departments']
   });
 
   const { data: teams = [] } = useQuery({
-    queryKey: ['/api/teams'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/teams']
   });
 
   // Delete project mutation

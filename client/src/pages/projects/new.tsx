@@ -31,18 +31,15 @@ export default function NewProject() {
 
   // Fetch data for select fields
   const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
-    queryKey: ['/api/companies'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/companies']
   });
 
   const { data: teams = [], isLoading: isLoadingTeams } = useQuery({
-    queryKey: ['/api/teams'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/teams']
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['/api/users'],
-    queryFn: getQueryFn()
+    queryKey: ['/api/users']
   });
 
   // Create project mutation
