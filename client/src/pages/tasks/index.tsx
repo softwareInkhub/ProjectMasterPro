@@ -993,14 +993,14 @@ export default function TasksPage() {
                 Assignee
               </Label>
               <Select 
-                value={newTask.assigneeId || ''} 
-                onValueChange={(value) => setNewTask({...newTask, assigneeId: value})}
+                value={newTask.assigneeId || 'null'} 
+                onValueChange={(value) => setNewTask({...newTask, assigneeId: value === 'null' ? '' : value})}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="null">None</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
@@ -1173,14 +1173,14 @@ export default function TasksPage() {
                 Assignee
               </Label>
               <Select 
-                value={editTask.assigneeId || ''} 
-                onValueChange={(value) => setEditTask({...editTask, assigneeId: value})}
+                value={editTask.assigneeId || 'null'} 
+                onValueChange={(value) => setEditTask({...editTask, assigneeId: value === 'null' ? '' : value})}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="null">None</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
