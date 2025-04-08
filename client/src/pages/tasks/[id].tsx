@@ -41,7 +41,7 @@ import {
   Link2,
   MoreHorizontal,
   PlusIcon,
-  User,
+  User as UserIcon,
   MessageSquare,
   CheckSquare,
   Tag,
@@ -49,6 +49,7 @@ import {
   Clipboard,
   Trash2,
   Copy,
+  Loader2
 } from "lucide-react";
 import {
   Dialog,
@@ -64,6 +65,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
+import { 
+  Task, Comment, User, Project, 
+  TaskWithStringDates, 
+  CommentWithStringDates, 
+  UserWithStringDates as UserString, 
+  ProjectWithStringDates as ProjectString 
+} from "@shared/schema";
 
 export default function TaskDetailPage() {
   const [, params] = useRoute("/tasks/:id");
@@ -76,373 +86,225 @@ export default function TaskDetailPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [newSubtaskText, setNewSubtaskText] = useState("");
-  const [selectedAssignee, setSelectedAssignee] = useState<{id: string, name: string, avatar: string} | null>(null);
-  const [taskData, setTaskData] = useState<any | null>(null);
+  const [selectedAssignee, setSelectedAssignee] = useState<User | null>(null);
+  const [editTask, setEditTask] = useState<Partial<Task>>({});
 
-  // Sample users for assignee dropdown
-  const users = [
-    { id: "5", name: "Alice Chen", avatar: "AC" },
-    { id: "8", name: "Bob Jackson", avatar: "BJ" },
-    { id: "12", name: "Charlie Martinez", avatar: "CM" },
-    { id: "21", name: "Eric Thompson", avatar: "ET" },
-    { id: "24", name: "Fiona Rodriguez", avatar: "FR" }
-  ];
+  // Fetch task data
+  const { data: task, isLoading: isLoadingTask, error: taskError } = useQuery({
+    queryKey: [`/api/tasks/${taskId}`],
+    queryFn: getQueryFn(),
+    enabled: !!taskId
+  });
 
-  // Find task based on ID
-  // In a real application, this would be fetched from an API
-  const tasks = [
-    {
-      id: "1",
-      title: "Design new homepage layout",
-      description: "Create a modern and responsive design for the company homepage",
-      status: "In Progress",
-      priority: "High",
-      projectId: "1",
-      projectName: "Website Redesign",
-      assigneeId: "5",
-      assigneeName: "Alice Chen",
-      assigneeAvatar: "AC",
-      dueDate: "2023-12-10",
-      progress: 60,
-      tags: ["design", "frontend"],
-      createdAt: "2023-09-05",
-      comments: [
-        {
-          id: "1",
-          author: "Bob Jackson",
-          authorAvatar: "BJ",
-          date: "2023-09-06",
-          text: "I've added some wireframe mockups to the shared drive. Let me know what you think."
-        },
-        {
-          id: "2",
-          author: "Alice Chen",
-          authorAvatar: "AC",
-          date: "2023-09-07",
-          text: "Thanks Bob, I'll review them today and provide feedback."
-        }
-      ],
-      checklist: {
-        total: 6,
-        completed: 4,
-        items: [
-          { id: "1", text: "Research competitor websites", completed: true },
-          { id: "2", text: "Create wireframes", completed: true },
-          { id: "3", text: "Get initial feedback", completed: true },
-          { id: "4", text: "Design high-fidelity mockups", completed: true },
-          { id: "5", text: "Implement responsive design", completed: false },
-          { id: "6", text: "Final review and approval", completed: false }
-        ]
-      }
-    },
-    {
-      id: "2",
-      title: "Implement user authentication",
-      description: "Add login, registration, and password reset functionality",
-      status: "To Do",
-      priority: "High",
-      projectId: "1",
-      projectName: "Website Redesign",
-      assigneeId: "8",
-      assigneeName: "Bob Jackson",
-      assigneeAvatar: "BJ",
-      dueDate: "2023-12-15",
-      progress: 0,
-      tags: ["backend", "security"],
-      createdAt: "2023-09-06",
-      comments: [
-        {
-          id: "1",
-          author: "Charlie Martinez",
-          authorAvatar: "CM",
-          date: "2023-09-08",
-          text: "Should we use JWT or session-based authentication?"
-        }
-      ],
-      checklist: {
-        total: 5,
-        completed: 0,
-        items: [
-          { id: "1", text: "Design authentication flow", completed: false },
-          { id: "2", text: "Implement login functionality", completed: false },
-          { id: "3", text: "Implement registration", completed: false },
-          { id: "4", text: "Add password reset", completed: false },
-          { id: "5", text: "Security testing", completed: false }
-        ]
-      }
-    },
-    {
-      id: "3",
-      title: "Optimize database queries",
-      description: "Improve performance of slow database operations",
-      status: "In Progress",
-      priority: "Medium",
-      projectId: "2",
-      projectName: "CRM Integration",
-      assigneeId: "8",
-      assigneeName: "Bob Jackson",
-      assigneeAvatar: "BJ",
-      dueDate: "2023-11-30",
-      progress: 40,
-      tags: ["backend", "database", "performance"],
-      createdAt: "2023-10-18",
-      comments: [],
-      checklist: {
-        total: 4,
-        completed: 2,
-        items: [
-          { id: "1", text: "Identify slow queries", completed: true },
-          { id: "2", text: "Profile database performance", completed: true },
-          { id: "3", text: "Optimize identified queries", completed: false },
-          { id: "4", text: "Test optimized performance", completed: false }
-        ]
-      }
-    },
-    {
-      id: "4",
-      title: "Create API documentation",
-      description: "Generate comprehensive API docs using Swagger/OpenAPI",
-      status: "Completed",
-      priority: "Medium",
-      projectId: "2",
-      projectName: "CRM Integration",
-      assigneeId: "12",
-      assigneeName: "Charlie Martinez",
-      assigneeAvatar: "CM",
-      dueDate: "2023-11-20",
-      progress: 100,
-      tags: ["documentation", "api"],
-      createdAt: "2023-10-25",
-      comments: [],
-      checklist: {
-        total: 3,
-        completed: 3,
-        items: [
-          { id: "1", text: "Document all endpoints", completed: true },
-          { id: "2", text: "Add request/response examples", completed: true },
-          { id: "3", text: "Publish documentation", completed: true }
-        ]
-      }
-    },
-    {
-      id: "5",
-      title: "Design social media assets",
-      description: "Create graphics for the Q4 marketing campaign",
-      status: "Review",
-      priority: "High",
-      projectId: "3",
-      projectName: "Q4 Marketing Campaign",
-      assigneeId: "21",
-      assigneeName: "Eric Thompson",
-      assigneeAvatar: "ET",
-      dueDate: "2023-11-28",
-      progress: 90,
-      tags: ["design", "marketing"],
-      createdAt: "2023-11-10",
-      comments: [],
-      checklist: {
-        total: 8,
-        completed: 7,
-        items: [
-          { id: "1", text: "Design Facebook banner", completed: true },
-          { id: "2", text: "Design Twitter header", completed: true },
-          { id: "3", text: "Create Instagram posts", completed: true },
-          { id: "4", text: "Design LinkedIn graphics", completed: true },
-          { id: "5", text: "Create email newsletter template", completed: true },
-          { id: "6", text: "Design promotional banners", completed: true },
-          { id: "7", text: "Create animated social media ads", completed: true },
-          { id: "8", text: "Final review and approval", completed: false }
-        ]
-      }
-    },
-    {
-      id: "6",
-      title: "Setup CI/CD pipeline",
-      description: "Configure automated testing and deployment pipeline",
-      status: "On Hold",
-      priority: "Medium",
-      projectId: "4",
-      projectName: "Infrastructure Migration",
-      assigneeId: "12",
-      assigneeName: "Charlie Martinez",
-      assigneeAvatar: "CM",
-      dueDate: "2023-10-30",
-      progress: 30,
-      tags: ["devops", "automation"],
-      createdAt: "2023-09-20",
-      comments: [],
-      checklist: {
-        total: 7,
-        completed: 2,
-        items: [
-          { id: "1", text: "Choose CI/CD platform", completed: true },
-          { id: "2", text: "Set up basic pipeline", completed: true },
-          { id: "3", text: "Configure automated tests", completed: false },
-          { id: "4", text: "Set up staging environment", completed: false },
-          { id: "5", text: "Configure deployment to staging", completed: false },
-          { id: "6", text: "Set up production deployment", completed: false },
-          { id: "7", text: "Document the pipeline", completed: false }
-        ]
-      }
-    },
-    {
-      id: "7",
-      title: "Research mobile frameworks",
-      description: "Evaluate React Native, Flutter and native options",
-      status: "Completed",
-      priority: "Low",
-      projectId: "5",
-      projectName: "Mobile App Development",
-      assigneeId: "5",
-      assigneeName: "Alice Chen",
-      assigneeAvatar: "AC",
-      dueDate: "2023-12-05",
-      progress: 100,
-      tags: ["research", "mobile"],
-      createdAt: "2023-11-15",
-      comments: [],
-      checklist: {
-        total: 4,
-        completed: 4,
-        items: [
-          { id: "1", text: "Research React Native", completed: true },
-          { id: "2", text: "Research Flutter", completed: true },
-          { id: "3", text: "Research native options", completed: true },
-          { id: "4", text: "Prepare comparison report", completed: true }
-        ]
-      }
-    },
-    {
-      id: "8",
-      title: "Update logo on all platforms",
-      description: "Implement new logo across website, social media, and documents",
-      status: "Completed",
-      priority: "High",
-      projectId: "6",
-      projectName: "Brand Refresh",
-      assigneeId: "24",
-      assigneeName: "Fiona Rodriguez",
-      assigneeAvatar: "FR",
-      dueDate: "2023-10-10",
-      progress: 100,
-      tags: ["branding", "design"],
-      createdAt: "2023-09-25",
-      comments: [],
-      checklist: {
-        total: 10,
-        completed: 10,
-        items: [
-          { id: "1", text: "Update website logo", completed: true },
-          { id: "2", text: "Update Facebook page", completed: true },
-          { id: "3", text: "Update Twitter profile", completed: true },
-          { id: "4", text: "Update LinkedIn page", completed: true },
-          { id: "5", text: "Update email templates", completed: true },
-          { id: "6", text: "Update business cards", completed: true },
-          { id: "7", text: "Update letterhead", completed: true },
-          { id: "8", text: "Update presentation templates", completed: true },
-          { id: "9", text: "Update product packaging", completed: true },
-          { id: "10", text: "Update documentation", completed: true }
-        ]
-      }
+  // Fetch project data for the task
+  const { data: project } = useQuery({
+    queryKey: [`/api/projects/${task?.projectId}`],
+    queryFn: getQueryFn(),
+    enabled: !!task?.projectId
+  });
+
+  // Fetch assignee data
+  const { data: assignee } = useQuery({
+    queryKey: [`/api/users/${task?.assigneeId}`],
+    queryFn: getQueryFn(),
+    enabled: !!task?.assigneeId
+  });
+
+  // Fetch all users for assignee selection
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: getQueryFn()
+  });
+
+  // Fetch comments for this task
+  const { data: comments = [] } = useQuery({
+    queryKey: [`/api/comments?entityType=task&entityId=${taskId}`],
+    queryFn: getQueryFn(),
+    enabled: !!taskId
+  });
+
+  // Effect to set up initial form data when task is loaded
+  useEffect(() => {
+    if (task) {
+      setEditTask({
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        assigneeId: task.assigneeId,
+        dueDate: task.dueDate,
+      });
     }
-  ];
-  
-  const task = tasks.find(t => t.id === taskId);
-  
-  if (!task) {
-    return (
-      <div className="p-8 text-center">
-        <h2 className="text-2xl font-bold text-red-600 mb-4">Task Not Found</h2>
-        <p className="text-gray-600 mb-6">
-          We couldn't find the task you're looking for.
-        </p>
-        <Button onClick={() => setLocation("/tasks")}>Back to Tasks</Button>
-      </div>
-    );
-  }
-  
-  // Calculate days remaining
-  const getDaysRemaining = () => {
-    const today = new Date();
-    const dueDate = new Date(task.dueDate);
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-      return { days: Math.abs(diffDays), text: "overdue", color: "text-red-600" };
-    } else if (diffDays === 0) {
-      return { days: 0, text: "due today", color: "text-yellow-600" };
-    } else {
-      return { days: diffDays, text: "remaining", color: "text-gray-600" };
+  }, [task]);
+
+  // Update task mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async (updatedTask: Partial<Task>) => {
+      const res = await apiRequest('PUT', `/api/tasks/${taskId}`, updatedTask);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Task updated",
+        description: "Task has been updated successfully."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update task",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-  };
-  
-  const daysInfo = getDaysRemaining();
-  
-  // Format date string
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, "MMM d, yyyy");
-  };
-  
-  // Helper to get status badge color
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case "To Do": return "bg-gray-100 text-gray-800";
-      case "In Progress": return "bg-blue-100 text-blue-800";
-      case "Review": return "bg-purple-100 text-purple-800";
-      case "Completed": return "bg-green-100 text-green-800";
-      case "On Hold": return "bg-yellow-100 text-yellow-800";
-      default: return "bg-gray-100 text-gray-800";
+  });
+
+  // Add new subtask mutation
+  const addSubtaskMutation = useMutation({
+    mutationFn: async (text: string) => {
+      if (!task) return null;
+      
+      // Assuming we have a subtasks field in the Task type
+      const updatedChecklist = {
+        ...task.checklist,
+        items: [
+          ...task.checklist.items,
+          { id: crypto.randomUUID(), text, completed: false }
+        ],
+        total: task.checklist.total + 1
+      };
+      
+      const res = await apiRequest('PUT', `/api/tasks/${taskId}`, {
+        checklist: updatedChecklist
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+      setNewSubtaskText("");
+      setIsAddSubtaskDialogOpen(false);
+      toast({
+        title: "Subtask added",
+        description: "New subtask has been added successfully."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to add subtask",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-  };
-  
-  // Helper to get priority badge color
-  const getPriorityColor = (priority: string) => {
-    switch(priority) {
-      case "High": return "bg-red-100 text-red-800";
-      case "Medium": return "bg-yellow-100 text-yellow-800";
-      case "Low": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
+  });
+
+  // Change assignee mutation
+  const changeAssigneeMutation = useMutation({
+    mutationFn: async (newAssigneeId: string) => {
+      const res = await apiRequest('PUT', `/api/tasks/${taskId}`, {
+        assigneeId: newAssigneeId
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
+      setIsChangeAssigneeDialogOpen(false);
+      toast({
+        title: "Assignee changed",
+        description: "Task assignee has been updated successfully."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to change assignee",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-  };
-  
-  // Get avatar color based on name
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      "bg-blue-500", "bg-green-500", "bg-yellow-500", 
-      "bg-red-500", "bg-purple-500", "bg-pink-500", 
-      "bg-indigo-500", "bg-teal-500"
-    ];
-    
-    // Simple hash function to get consistent color for a name
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-  
-  // Handle checklist item toggle
+  });
+
+  // Delete task mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('DELETE', `/api/tasks/${taskId}`);
+      return res.ok;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsDeleteConfirmOpen(false);
+      toast({
+        title: "Task deleted",
+        description: "Task has been deleted successfully."
+      });
+      setLocation("/tasks");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete task",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Add comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: async (text: string) => {
+      // Assuming the user is authenticated and we have a userId
+      const userId = "1"; // This should be the current user's ID
+      
+      const newComment = {
+        text,
+        entityType: "task",
+        entityId: taskId,
+        userId
+      };
+      
+      const res = await apiRequest('POST', '/api/comments', newComment);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/comments?entityType=task&entityId=${taskId}`] });
+      setCommentText("");
+      setIsAddCommentDialogOpen(false);
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added successfully."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to add comment",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Toggle checklist item
   const toggleChecklistItem = (itemId: string) => {
-    // In a real app, this would call an API to update the task
-    const updatedTask = { ...task };
-    const item = updatedTask.checklist.items.find(item => item.id === itemId);
+    if (!task) return;
     
-    if (item) {
-      item.completed = !item.completed;
-      
-      // Update completed count
-      updatedTask.checklist.completed = updatedTask.checklist.items.filter(item => item.completed).length;
-      
-      // Update progress percentage
-      updatedTask.progress = Math.round((updatedTask.checklist.completed / updatedTask.checklist.total) * 100);
-    }
+    const updatedItems = task.checklist.items.map(item => 
+      item.id === itemId ? { ...item, completed: !item.completed } : item
+    );
     
-    console.log(`Toggle checklist item ${itemId}`);
-    toast({
-      title: "Checklist updated",
-      description: "Changes would be saved to the server in a real app.",
+    const completedCount = updatedItems.filter(item => item.completed).length;
+    const updatedChecklist = {
+      ...task.checklist,
+      items: updatedItems,
+      completed: completedCount
+    };
+    
+    const progress = Math.round((completedCount / task.checklist.total) * 100);
+    
+    updateTaskMutation.mutate({
+      checklist: updatedChecklist,
+      progress
     });
   };
-  
+
   // Handle adding a subtask
   const handleAddSubtask = () => {
     if (!newSubtaskText.trim()) {
@@ -453,17 +315,9 @@ export default function TaskDetailPage() {
       return;
     }
     
-    // In a real app, this would call an API to add the subtask
-    console.log(`Add subtask: ${newSubtaskText}`);
-    toast({
-      title: "Subtask added",
-      description: "Your subtask would be saved in a real app.",
-    });
-    
-    setNewSubtaskText("");
-    setIsAddSubtaskDialogOpen(false);
+    addSubtaskMutation.mutate(newSubtaskText);
   };
-  
+
   // Handle changing assignee
   const handleChangeAssignee = () => {
     if (!selectedAssignee) {
@@ -474,29 +328,14 @@ export default function TaskDetailPage() {
       return;
     }
     
-    // In a real app, this would call an API to update the assignee
-    console.log(`Change assignee to: ${selectedAssignee.name}`);
-    toast({
-      title: "Assignee updated",
-      description: `Task assigned to ${selectedAssignee.name}.`,
-    });
-    
-    setIsChangeAssigneeDialogOpen(false);
+    changeAssigneeMutation.mutate(selectedAssignee.id);
   };
-  
+
   // Handle deleting task
   const handleDeleteTask = () => {
-    // In a real app, this would call an API to delete the task
-    console.log(`Delete task: ${task.id}`);
-    toast({
-      title: "Task deleted",
-      description: "The task has been deleted.",
-    });
-    
-    setIsDeleteConfirmOpen(false);
-    setLocation("/tasks");
+    deleteTaskMutation.mutate();
   };
-  
+
   // Handle adding a comment
   const handleAddComment = () => {
     if (!commentText.trim()) {
@@ -507,17 +346,103 @@ export default function TaskDetailPage() {
       return;
     }
     
-    // In a real app, this would call an API to add the comment
-    console.log(`Add comment: ${commentText}`);
-    toast({
-      title: "Comment added",
-      description: "Your comment would be saved in a real app.",
-    });
+    addCommentMutation.mutate(commentText);
+  };
+
+  // Handle editing task
+  const handleEditTask = () => {
+    updateTaskMutation.mutate(editTask);
+  };
+
+  // Helper to get status badge color
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case "TODO": return "bg-gray-100 text-gray-800";
+      case "IN_PROGRESS": return "bg-blue-100 text-blue-800";
+      case "IN_REVIEW": return "bg-purple-100 text-purple-800";
+      case "DONE": return "bg-green-100 text-green-800";
+      case "BLOCKED": return "bg-yellow-100 text-yellow-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Helper to get priority badge color
+  const getPriorityColor = (priority: string) => {
+    switch(priority) {
+      case "LOW": return "bg-green-100 text-green-800";
+      case "MEDIUM": return "bg-yellow-100 text-yellow-800";
+      case "HIGH": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Calculate days remaining
+  const getDaysRemaining = (dueDate: string) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    setCommentText("");
-    setIsAddCommentDialogOpen(false);
+    if (diffDays < 0) {
+      return { days: Math.abs(diffDays), text: "overdue", color: "text-red-600" };
+    } else if (diffDays === 0) {
+      return { days: 0, text: "due today", color: "text-yellow-600" };
+    } else {
+      return { days: diffDays, text: "remaining", color: "text-gray-600" };
+    }
+  };
+
+  // Format date string
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "MMM d, yyyy");
+    } catch (e) {
+      return "Invalid date";
+    }
   };
   
+  // Get avatar color based on name
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      "bg-blue-500", "bg-green-500", "bg-purple-500", 
+      "bg-pink-500", "bg-yellow-500", "bg-indigo-500"
+    ];
+    
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+  
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  // Loading state
+  if (isLoadingTask) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p>Loading task details...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (taskError || !task) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Task Not Found</h2>
+        <p className="text-gray-600 mb-6">
+          We couldn't find the task you're looking for.
+        </p>
+        <Button onClick={() => setLocation("/tasks")}>Back to Tasks</Button>
+      </div>
+    );
+  }
+
+  const daysInfo = task.dueDate ? getDaysRemaining(task.dueDate) : { days: 0, text: "", color: "" };
+
   return (
     <div className="container mx-auto py-6 max-w-6xl">
       {/* Back button and title */}
@@ -554,26 +479,28 @@ export default function TaskDetailPage() {
                   <p className="text-gray-700">{task.description}</p>
                 </div>
                 
-                <div>
-                  <h2 className="text-lg font-semibold mb-2">Tags</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {task.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-sm">
-                        <Tag className="h-3.5 w-3.5 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
+                {task.tags && task.tags.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-2">Tags</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {task.tags.map((tag, index) => (
+                        <Badge key={index} variant="outline" className="text-sm">
+                          <Tag className="h-3.5 w-3.5 mr-1" />
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 <div>
                   <h2 className="text-lg font-semibold mb-2">Progress</h2>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>{task.checklist.completed} of {task.checklist.total} subtasks completed</span>
-                      <span>{task.progress}%</span>
+                      <span>{task.checklist?.completed || 0} of {task.checklist?.total || 0} subtasks completed</span>
+                      <span>{task.progress || 0}%</span>
                     </div>
-                    <Progress value={task.progress} className="h-2" />
+                    <Progress value={task.progress || 0} className="h-2" />
                   </div>
                 </div>
               </div>
@@ -588,7 +515,7 @@ export default function TaskDetailPage() {
               </TabsTrigger>
               <TabsTrigger value="comments">
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Comments ({task.comments.length})
+                Comments ({comments.length})
               </TabsTrigger>
             </TabsList>
             
@@ -604,23 +531,30 @@ export default function TaskDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="space-y-4">
-                    {task.checklist.items.map((item) => (
-                      <div key={item.id} className="flex items-start space-x-3">
-                        <Checkbox 
-                          id={`checklist-${item.id}`} 
-                          checked={item.completed}
-                          onCheckedChange={() => toggleChecklistItem(item.id)}
-                        />
-                        <label 
-                          htmlFor={`checklist-${item.id}`}
-                          className={`text-sm leading-tight ${item.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
-                        >
-                          {item.text}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  {task.checklist && task.checklist.items.length > 0 ? (
+                    <div className="space-y-4">
+                      {task.checklist.items.map((item) => (
+                        <div key={item.id} className="flex items-start space-x-3">
+                          <Checkbox 
+                            id={`checklist-${item.id}`} 
+                            checked={item.completed}
+                            onCheckedChange={() => toggleChecklistItem(item.id)}
+                          />
+                          <label 
+                            htmlFor={`checklist-${item.id}`}
+                            className={`text-sm leading-tight ${item.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                          >
+                            {item.text}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">
+                      <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No subtasks yet. Add a subtask to get started!</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -637,23 +571,25 @@ export default function TaskDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {task.comments.length === 0 ? (
+                  {comments.length === 0 ? (
                     <div className="text-center py-6 text-gray-500">
                       <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No comments yet. Start the discussion!</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {task.comments.map((comment) => (
+                      {comments.map((comment) => (
                         <div key={comment.id} className="flex space-x-3">
-                          <Avatar className={getAvatarColor(comment.author)}>
-                            <AvatarFallback className="text-white">{comment.authorAvatar}</AvatarFallback>
+                          <Avatar className={getAvatarColor(comment.userId)}>
+                            <AvatarFallback className="text-white">
+                              {comment.userId.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center">
-                              <span className="font-medium">{comment.author}</span>
+                              <span className="font-medium">User {comment.userId}</span>
                               <span className="text-gray-500 text-xs ml-2">
-                                {formatDate(comment.date)}
+                                {formatDate(comment.createdAt)}
                               </span>
                             </div>
                             <p className="text-gray-700 mt-1 text-sm">{comment.text}</p>
@@ -682,7 +618,7 @@ export default function TaskDetailPage() {
                     variant="outline" 
                     className={`${getStatusColor(task.status)}`}
                   >
-                    {task.status}
+                    {task.status.replace("_", " ")}
                   </Badge>
                 </div>
                 
@@ -698,37 +634,47 @@ export default function TaskDetailPage() {
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Assignee</h3>
-                  <div className="flex items-center space-x-2">
-                    <Avatar className={getAvatarColor(task.assigneeName)}>
-                      <AvatarFallback className="text-white">{task.assigneeAvatar}</AvatarFallback>
-                    </Avatar>
-                    <span>{task.assigneeName}</span>
-                  </div>
+                  {assignee ? (
+                    <div className="flex items-center space-x-2">
+                      <Avatar className={getAvatarColor(`${assignee.firstName} ${assignee.lastName}`)}>
+                        <AvatarFallback className="text-white">
+                          {getInitials(`${assignee.firstName} ${assignee.lastName}`)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{assignee.firstName} {assignee.lastName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Unassigned</span>
+                  )}
                 </div>
                 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Project</h3>
-                  <div 
-                    className="flex items-center space-x-2 text-primary cursor-pointer"
-                    onClick={() => setLocation(`/projects/${task.projectId}`)}
-                  >
-                    <Briefcase className="h-4 w-4" />
-                    <span>{task.projectName}</span>
+                {project && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Project</h3>
+                    <div 
+                      className="flex items-center space-x-2 text-primary cursor-pointer"
+                      onClick={() => setLocation(`/projects/${project.id}`)}
+                    >
+                      <Briefcase className="h-4 w-4" />
+                      <span>{project.name}</span>
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 <Separator />
                 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Due Date</h3>
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-4 w-4 mr-2 text-gray-500" />
-                    <span>{formatDate(task.dueDate)}</span>
+                {task.dueDate && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Due Date</h3>
+                    <div className="flex items-center">
+                      <CalendarIcon className="h-4 w-4 mr-2 text-gray-500" />
+                      <span>{formatDate(task.dueDate)}</span>
+                    </div>
+                    <p className={`text-sm mt-1 ${daysInfo.color}`}>
+                      {daysInfo.days} days {daysInfo.text}
+                    </p>
                   </div>
-                  <p className={`text-sm mt-1 ${daysInfo.color}`}>
-                    {daysInfo.days} days {daysInfo.text}
-                  </p>
-                </div>
+                )}
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Created</h3>
@@ -766,7 +712,7 @@ export default function TaskDetailPage() {
                   className="w-full justify-start" 
                   onClick={() => setIsChangeAssigneeDialogOpen(true)}
                 >
-                  <User className="h-4 w-4 mr-2" />
+                  <UserIcon className="h-4 w-4 mr-2" />
                   Change Assignee
                 </Button>
                 <Button 
@@ -797,14 +743,16 @@ export default function TaskDetailPage() {
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
-                defaultValue={task.title}
+                value={editTask.title || ""}
+                onChange={(e) => setEditTask({...editTask, title: e.target.value})}
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                defaultValue={task.description}
+                value={editTask.description || ""}
+                onChange={(e) => setEditTask({...editTask, description: e.target.value})}
                 rows={3}
               />
             </div>
@@ -814,13 +762,14 @@ export default function TaskDetailPage() {
                 <select
                   id="status"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  defaultValue={task.status}
+                  value={editTask.status || ""}
+                  onChange={(e) => setEditTask({...editTask, status: e.target.value})}
                 >
-                  <option>To Do</option>
-                  <option>In Progress</option>
-                  <option>Review</option>
-                  <option>On Hold</option>
-                  <option>Completed</option>
+                  <option value="TODO">To Do</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="IN_REVIEW">Review</option>
+                  <option value="BLOCKED">Blocked</option>
+                  <option value="DONE">Done</option>
                 </select>
               </div>
               <div className="grid gap-2">
@@ -828,11 +777,12 @@ export default function TaskDetailPage() {
                 <select
                   id="priority"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  defaultValue={task.priority}
+                  value={editTask.priority || ""}
+                  onChange={(e) => setEditTask({...editTask, priority: e.target.value})}
                 >
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option>High</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
                 </select>
               </div>
             </div>
@@ -842,7 +792,8 @@ export default function TaskDetailPage() {
                 <Input
                   id="dueDate"
                   type="date"
-                  defaultValue={task.dueDate}
+                  value={editTask.dueDate?.split('T')[0] || ""}
+                  onChange={(e) => setEditTask({...editTask, dueDate: e.target.value})}
                 />
               </div>
               <div className="grid gap-2">
@@ -850,35 +801,46 @@ export default function TaskDetailPage() {
                 <select
                   id="assignee"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  defaultValue={task.assigneeId}
+                  value={editTask.assigneeId || ""}
+                  onChange={(e) => setEditTask({...editTask, assigneeId: e.target.value})}
                 >
-                  <option value="5">Alice Chen</option>
-                  <option value="8">Bob Jackson</option>
-                  <option value="12">Charlie Martinez</option>
-                  <option value="21">Eric Thompson</option>
-                  <option value="24">Fiona Rodriguez</option>
+                  <option value="">Unassigned</option>
+                  {allUsers.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="tags">Tags (comma separated)</Label>
-              <Input
-                id="tags"
-                defaultValue={task.tags.join(", ")}
-              />
-            </div>
+            {task.tags && (
+              <div className="grid gap-2">
+                <Label htmlFor="tags">Tags (comma separated)</Label>
+                <Input
+                  id="tags"
+                  value={Array.isArray(task.tags) ? task.tags.join(", ") : ""}
+                  onChange={(e) => {
+                    const tagArray = e.target.value
+                      .split(",")
+                      .map(tag => tag.trim())
+                      .filter(tag => tag.length > 0);
+                    setEditTask({...editTask, tags: tagArray});
+                  }}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              toast({
-                title: "Task updated",
-                description: "Changes would be saved to the server in a real app.",
-              });
-              setIsEditDialogOpen(false);
-            }}>
+            <Button 
+              onClick={handleEditTask}
+              disabled={updateTaskMutation.isPending}
+            >
+              {updateTaskMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save Changes
             </Button>
           </DialogFooter>
@@ -910,7 +872,13 @@ export default function TaskDetailPage() {
             <Button variant="outline" onClick={() => setIsAddCommentDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddComment}>
+            <Button 
+              onClick={handleAddComment}
+              disabled={addCommentMutation.isPending}
+            >
+              {addCommentMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Add Comment
             </Button>
           </DialogFooter>
@@ -941,7 +909,13 @@ export default function TaskDetailPage() {
             <Button variant="outline" onClick={() => setIsAddSubtaskDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddSubtask}>
+            <Button 
+              onClick={handleAddSubtask}
+              disabled={addSubtaskMutation.isPending}
+            >
+              {addSubtaskMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Add Subtask
             </Button>
           </DialogFooter>
@@ -963,15 +937,17 @@ export default function TaskDetailPage() {
               <select
                 id="assigneeSelect"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                defaultValue={task.assigneeId}
+                defaultValue={task.assigneeId || ""}
                 onChange={(e) => {
-                  const user = users.find(u => u.id === e.target.value);
+                  const user = allUsers.find(u => u.id === e.target.value);
                   setSelectedAssignee(user || null);
                 }}
               >
-                <option value="" disabled>Select an assignee</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>{user.name}</option>
+                <option value="">Unassigned</option>
+                {allUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.firstName} {user.lastName}
+                  </option>
                 ))}
               </select>
             </div>
@@ -980,7 +956,13 @@ export default function TaskDetailPage() {
             <Button variant="outline" onClick={() => setIsChangeAssigneeDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleChangeAssignee}>
+            <Button 
+              onClick={handleChangeAssignee}
+              disabled={changeAssigneeMutation.isPending}
+            >
+              {changeAssigneeMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save Changes
             </Button>
           </DialogFooter>
@@ -998,7 +980,14 @@ export default function TaskDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction 
+              onClick={handleDeleteTask} 
+              className="bg-destructive text-destructive-foreground"
+              disabled={deleteTaskMutation.isPending}
+            >
+              {deleteTaskMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

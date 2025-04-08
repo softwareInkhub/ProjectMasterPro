@@ -319,3 +319,74 @@ export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// For in-memory storage, we need to use string dates instead of Date objects
+export interface TaskWithStringDates {
+  id: string;
+  title: string;
+  description?: string;
+  storyId: string;
+  parentTaskId?: string;
+  status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  assigneeId?: string;
+  estimatedHours?: string;
+  actualHours?: string;
+  startDate?: string;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  progress?: number;
+  tags?: string[];
+  checklist?: {
+    total: number;
+    completed: number;
+    items: Array<{
+      id: string;
+      text: string;
+      completed: boolean;
+    }>;
+  };
+}
+
+export interface CommentWithStringDates {
+  id: string;
+  text: string;
+  userId: string;
+  entityType: string;
+  entityId: string;
+  parentCommentId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserWithStringDates {
+  id: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: 'ADMIN' | 'MANAGER' | 'TEAM_LEAD' | 'DEVELOPER' | 'VIEWER';
+  departmentId?: string | null;
+  companyId?: string | null;
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectWithStringDates {
+  id: string;
+  name: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  status: 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  companyId: string;
+  teamId: string;
+  departmentId?: string;
+  projectManagerId?: string;
+  progress: { percentage: number };
+  createdAt: string;
+  updatedAt: string;
+}
