@@ -23,7 +23,7 @@ export default function NewStory() {
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Partial<InsertStory>>({
-    title: "",
+    name: "",
     description: "",
     status: "TODO",
     priority: "MEDIUM"
@@ -67,10 +67,10 @@ export default function NewStory() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title) {
+    if (!formData.name) {
       toast({
         title: "Missing required field",
-        description: "Story title is required.",
+        description: "Story name is required.",
         variant: "destructive"
       });
       return;
@@ -124,12 +124,12 @@ export default function NewStory() {
               
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Story Title *</Label>
+                  <Label htmlFor="name">Story Name *</Label>
                   <Input
-                    id="title"
-                    name="title"
-                    placeholder="Enter story title"
-                    value={formData.title}
+                    id="name"
+                    name="name"
+                    placeholder="Enter story name"
+                    value={formData.name}
                     onChange={handleInputChange}
                     required
                   />
@@ -187,13 +187,13 @@ export default function NewStory() {
                   <Select 
                     name="points"
                     onValueChange={(value) => handleSelectChange("points", value)}
-                    value={formData.points?.toString() || ""}
+                    value={formData.points?.toString() || "not_estimated"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select points" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Not estimated</SelectItem>
+                      <SelectItem value="not_estimated">Not estimated</SelectItem>
                       {pointsOptions.map(points => (
                         <SelectItem key={points} value={points.toString()}>
                           {points}
@@ -208,13 +208,13 @@ export default function NewStory() {
                   <Select 
                     name="assigneeId"
                     onValueChange={(value) => handleSelectChange("assigneeId", value)}
-                    value={formData.assigneeId || ""}
+                    value={formData.assigneeId || "unassigned"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {isLoadingUsers ? (
                         <div className="flex items-center justify-center p-2">
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />

@@ -203,13 +203,13 @@ export default function NewProject() {
                   <Select 
                     name="departmentId"
                     onValueChange={(value) => handleSelectChange("departmentId", value)}
-                    value={formData.departmentId || ""}
+                    value={formData.departmentId || "none"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {/* Add departments here */}
                     </SelectContent>
                   </Select>
@@ -247,13 +247,13 @@ export default function NewProject() {
                   <Select 
                     name="projectManagerId"
                     onValueChange={(value) => handleSelectChange("projectManagerId", value)}
-                    value={formData.projectManagerId || ""}
+                    value={formData.projectManagerId || "none"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select project manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {isLoadingUsers ? (
                         <div className="flex items-center justify-center p-2">
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
