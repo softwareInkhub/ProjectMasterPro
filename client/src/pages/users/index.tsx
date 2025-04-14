@@ -14,7 +14,7 @@ import {
   Trash2Icon,
   FilterIcon
 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
@@ -22,12 +22,50 @@ import { User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ChevronLeft } from "lucide-react";
+import React from "react";
 
-export default function UsersPage() {
+interface UsersPageProps {
+  new?: boolean;
+  detail?: boolean;
+}
+
+export default function UsersPage({ new: isNew, detail: isDetail }: UsersPageProps = {}) {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const { toast } = useToast();
+  const params = useParams();
+  
+  // If we're in new mode, show the new user page
+  if (isNew) {
+    // Render the new user form from users/new.tsx
+    const NewUser = React.lazy(() => import('./new'));
+    return (
+      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>}>
+        <NewUser />
+      </React.Suspense>
+    );
+  }
+  
+  // If we're in detail mode, show the user detail page
+  if (isDetail && params.id) {
+    // For now, we'll just show a placeholder since we haven't created the detail page yet
+    return (
+      <div className="text-center p-8 border rounded-lg">
+        <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+        <h3 className="text-lg font-medium mb-2">User Detail View</h3>
+        <p className="text-gray-500 mb-4">
+          Viewing details for user with ID: {params.id}
+        </p>
+        <Button onClick={() => setLocation('/users')}>
+          <ChevronLeft className="mr-2 h-4 w-4" /> Back to Users
+        </Button>
+      </div>
+    );
+  }
 
   // Fetch users data from API
   const { data: users = [], isLoading, error } = useQuery({

@@ -158,6 +158,21 @@ function App() {
             </Layout>
           </ProtectedRoute>
         </Route>
+        {/* Company routes in correct order - most specific first */}
+        <Route path="/companies/new">
+          <ProtectedRoute>
+            <Layout>
+              <CompaniesPage new={true} />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/companies/:id">
+          <ProtectedRoute>
+            <Layout>
+              <CompaniesPage detail={true} />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
         <Route path="/companies">
           <ProtectedRoute>
             <Layout>
@@ -220,6 +235,21 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <TeamsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        {/* User routes in correct order - most specific first */}
+        <Route path="/users/new">
+          <ProtectedRoute>
+            <Layout>
+              <UsersPage new={true} />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/users/:id">
+          <ProtectedRoute>
+            <Layout>
+              <UsersPage detail={true} />
             </Layout>
           </ProtectedRoute>
         </Route>

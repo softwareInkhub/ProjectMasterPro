@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -11,16 +11,48 @@ import {
   Loader2,
   Trash2Icon
 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { Company } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
-export default function CompaniesPage() {
+interface CompaniesPageProps {
+  new?: boolean;
+  detail?: boolean;
+}
+
+export default function CompaniesPage({ new: isNew, detail: isDetail }: CompaniesPageProps = {}) {
   const [, setLocation] = useLocation();
   const [filterActive, setFilterActive] = useState("all");
   const { toast } = useToast();
+  const params = useParams();
+  
+  // If we're in new mode, show the new company page
+  if (isNew) {
+    // Render the new company form from companies/new.tsx
+    const NewCompany = React.lazy(() => import('./new'));
+    return (
+      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>}>
+        <NewCompany />
+      </React.Suspense>
+    );
+  }
+  
+  // If we're in detail mode, show the company detail page
+  if (isDetail && params.id) {
+    // Render the company detail component from companies/[id].tsx
+    const CompanyDetail = React.lazy(() => import('./[id]'));
+    return (
+      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>}>
+        <CompanyDetail />
+      </React.Suspense>
+    );
+  }
 
   // Fetch companies data from API
   const { data: companies = [], isLoading, error } = useQuery({
