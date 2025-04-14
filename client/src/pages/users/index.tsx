@@ -31,39 +31,12 @@ interface UsersPageProps {
   detail?: boolean;
 }
 
-export default function UsersPage({ new: isNew, detail: isDetail }: UsersPageProps = {}) {
+// Main Users List Component 
+const UserList = () => {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const { toast } = useToast();
-  const params = useParams();
-  
-  // Handle different rendering modes
-  if (isNew) {
-    return (
-      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>}>
-        <NewUserPage />
-      </React.Suspense>
-    );
-  }
-  
-  if (isDetail && params.id) {
-    // For now, we'll just show a placeholder since we haven't created the detail page yet
-    return (
-      <div className="text-center p-8 border rounded-lg">
-        <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-        <h3 className="text-lg font-medium mb-2">User Detail View</h3>
-        <p className="text-gray-500 mb-4">
-          Viewing details for user with ID: {params.id}
-        </p>
-        <Button onClick={() => setLocation('/users')}>
-          <ChevronLeft className="mr-2 h-4 w-4" /> Back to Users
-        </Button>
-      </div>
-    );
-  }
 
   // Fetch users data from API
   const { data: users = [], isLoading, error } = useQuery({
@@ -389,4 +362,45 @@ export default function UsersPage({ new: isNew, detail: isDetail }: UsersPagePro
       )}
     </div>
   );
+};
+
+// User Detail Page Component
+const UserDetailPage = ({ id }: { id: string }) => {
+  const [, setLocation] = useLocation();
+  
+  return (
+    <div className="text-center p-8 border rounded-lg">
+      <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+      <h3 className="text-lg font-medium mb-2">User Detail View</h3>
+      <p className="text-gray-500 mb-4">
+        Viewing details for user with ID: {id}
+      </p>
+      <Button onClick={() => setLocation('/users')}>
+        <ChevronLeft className="mr-2 h-4 w-4" /> Back to Users
+      </Button>
+    </div>
+  );
+};
+
+// Main Wrapper Component
+export default function UsersPage({ new: isNew, detail: isDetail }: UsersPageProps = {}) {
+  const params = useParams();
+  
+  // Handle different rendering modes without conditional hooks
+  if (isNew) {
+    return (
+      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>}>
+        <NewUserPage />
+      </React.Suspense>
+    );
+  }
+  
+  if (isDetail && params.id) {
+    return <UserDetailPage id={params.id} />;
+  }
+  
+  // Default: Show user list
+  return <UserList />;
 }

@@ -25,34 +25,12 @@ interface CompaniesPageProps {
 const NewCompanyPage = React.lazy(() => import('./new'));
 const CompanyDetailPage = React.lazy(() => import('./[id]'));
 
-export default function CompaniesPage({ new: isNew, detail: isDetail }: CompaniesPageProps = {}) {
+// Main Companies List Component
+const CompanyList = () => {
   const [, setLocation] = useLocation();
   const [filterActive, setFilterActive] = useState("all");
   const { toast } = useToast();
-  const params = useParams();
 
-  // Handle different rendering modes
-  if (isNew) {
-    return (
-      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>}>
-        <NewCompanyPage />
-      </React.Suspense>
-    );
-  }
-  
-  if (isDetail && params.id) {
-    return (
-      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>}>
-        <CompanyDetailPage />
-      </React.Suspense>
-    );
-  }
-
-  // For the main companies list view
   // Fetch companies data from API
   const { data: companies = [], isLoading, error } = useQuery({
     queryKey: ['/api/companies'],
@@ -257,4 +235,33 @@ export default function CompaniesPage({ new: isNew, detail: isDetail }: Companie
       )}
     </div>
   );
+};
+
+// Main Wrapper Component
+export default function CompaniesPage({ new: isNew, detail: isDetail }: CompaniesPageProps = {}) {
+  const params = useParams();
+  
+  // Handle different rendering modes without conditional hooks
+  if (isNew) {
+    return (
+      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>}>
+        <NewCompanyPage />
+      </React.Suspense>
+    );
+  }
+  
+  if (isDetail && params.id) {
+    return (
+      <React.Suspense fallback={<div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>}>
+        <CompanyDetailPage />
+      </React.Suspense>
+    );
+  }
+  
+  // Default: Show company list
+  return <CompanyList />;
 }
