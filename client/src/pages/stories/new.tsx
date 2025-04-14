@@ -266,7 +266,7 @@ export default function NewStory() {
                     id="startDate"
                     name="startDate"
                     type="date"
-                    value={formData.startDate as string || ""}
+                    value={String(formData.startDate || "")}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -277,7 +277,7 @@ export default function NewStory() {
                     id="dueDate"
                     name="dueDate"
                     type="date"
-                    value={formData.dueDate || ""}
+                    value={String(formData.dueDate || "")}
                     onChange={handleInputChange}
                   />
                 </div>
