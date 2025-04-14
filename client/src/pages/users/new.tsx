@@ -113,14 +113,16 @@ export default function NewUserPage() {
 
   // Handle company change (reset department and team if company changes)
   const handleCompanyChange = (value: string) => {
-    form.setValue("companyId", value);
+    // Convert "_none" to null for the database
+    form.setValue("companyId", value === "_none" ? null : value);
     form.setValue("departmentId", null);
     form.setValue("teamId", null);
   };
 
   // Handle department change (reset team if department changes)
   const handleDepartmentChange = (value: string) => {
-    form.setValue("departmentId", value);
+    // Convert "_none" to null for the database
+    form.setValue("departmentId", value === "_none" ? null : value);
     form.setValue("teamId", null);
   };
 
@@ -287,7 +289,7 @@ export default function NewUserPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="_none">None</SelectItem>
                               {companies.map((company: any) => (
                                 <SelectItem key={company.id} value={company.id}>
                                   {company.name}
@@ -317,7 +319,7 @@ export default function NewUserPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="_none">None</SelectItem>
                               {filteredDepartments.map((department: any) => (
                                 <SelectItem key={department.id} value={department.id}>
                                   {department.name}
@@ -338,7 +340,7 @@ export default function NewUserPage() {
                           <FormLabel>Team</FormLabel>
                           <Select 
                             value={field.value || ""}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => field.onChange(value === "_none" ? null : value)}
                             disabled={!selectedDepartmentId}
                           >
                             <FormControl>
@@ -347,7 +349,7 @@ export default function NewUserPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="_none">None</SelectItem>
                               {filteredTeams.map((team: any) => (
                                 <SelectItem key={team.id} value={team.id}>
                                   {team.name}
