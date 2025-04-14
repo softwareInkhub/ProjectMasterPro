@@ -26,14 +26,26 @@ interface User {
   name: string;
 }
 
+// Company type for dropdown
+interface Company {
+  id: string;
+  name: string;
+}
+
+// Team type for parent team dropdown
+interface Team {
+  id: string;
+  name: string;
+}
+
 // Define schema for form validation
 const formSchema = z.object({
   name: z.string()
     .min(1, { message: 'Team name is required' })
     .max(100, { message: 'Team name cannot exceed 100 characters' }),
   description: z.string().nullable().optional(),
-  departmentId: z.string().min(1, { message: 'Department is required' }),
-  leadId: z.string().nullable().optional(),
+  companyId: z.string().min(1, { message: 'Company is required' }),
+  parentTeamId: z.string().nullable().optional(),
 });
 
 export default function NewTeamPage() {
@@ -51,14 +63,24 @@ export default function NewTeamPage() {
     queryKey: ['/api/users'],
   });
 
+  // Fetch companies for dropdown
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ['/api/companies'],
+  });
+
+  // Fetch teams for parent team dropdown
+  const { data: teams = [] } = useQuery<Team[]>({
+    queryKey: ['/api/teams'],
+  });
+
   // Setup form with validation
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
       description: '',
-      departmentId: '',
-      leadId: null,
+      companyId: '',
+      parentTeamId: null,
     },
   });
 
@@ -158,29 +180,29 @@ export default function NewTeamPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="departmentId"
+                    name="companyId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
+                        <FormLabel>Company</FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a department" />
+                              <SelectValue placeholder="Select a company" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {departments.map((department) => (
-                              <SelectItem key={department.id} value={department.id}>
-                                {department.name}
+                            {companies.map((company) => (
+                              <SelectItem key={company.id} value={company.id}>
+                                {company.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          The department this team belongs to.
+                          The company this team belongs to.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -189,30 +211,30 @@ export default function NewTeamPage() {
 
                   <FormField
                     control={form.control}
-                    name="leadId"
+                    name="parentTeamId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Team Lead (Optional)</FormLabel>
+                        <FormLabel>Parent Team (Optional)</FormLabel>
                         <Select
                           value={field.value || ''}
                           onValueChange={(value) => field.onChange(value === 'null' ? null : value)}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a team lead" />
+                              <SelectValue placeholder="Select a parent team" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="null">None</SelectItem>
-                            {users.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name}
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          The person who leads this team.
+                          The parent team this team reports to (if any).
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
