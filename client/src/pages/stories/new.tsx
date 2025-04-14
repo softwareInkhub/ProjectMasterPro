@@ -19,6 +19,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { Story, InsertStory } from "@shared/schema";
 
+// Special values for placeholders
+const PLACEHOLDER_VALUES = {
+  NOT_ESTIMATED: "_not_estimated",
+  UNASSIGNED: "_unassigned",
+  NO_EPICS: "_no_epics_available"
+};
+
 export default function NewStory() {
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,8 +34,8 @@ export default function NewStory() {
     description: "",
     status: "BACKLOG",
     priority: "MEDIUM",
-    storyPoints: "_not_estimated",
-    assigneeId: "_unassigned"
+    storyPoints: PLACEHOLDER_VALUES.NOT_ESTIMATED,
+    assigneeId: PLACEHOLDER_VALUES.UNASSIGNED
   });
 
   // Fetch epics for the select field
@@ -98,11 +105,11 @@ export default function NewStory() {
     const dataToSubmit = { ...formData };
     
     // Convert placeholder values to null
-    if (dataToSubmit.storyPoints === "_not_estimated") {
+    if (dataToSubmit.storyPoints === PLACEHOLDER_VALUES.NOT_ESTIMATED) {
       dataToSubmit.storyPoints = null;
     }
     
-    if (dataToSubmit.assigneeId === "_unassigned") {
+    if (dataToSubmit.assigneeId === PLACEHOLDER_VALUES.UNASSIGNED) {
       dataToSubmit.assigneeId = null;
     }
     
@@ -118,12 +125,8 @@ export default function NewStory() {
   };
   
   const handleSelectChange = (name: string, value: string) => {
-    // Handle special case values
-    if (value === "_not_estimated" || value === "_unassigned") {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    // All values go straight to the form data
+    setFormData(prev => ({ ...prev, [name]: value }));
     
     console.log(`Setting ${name} to ${value}`);
   };
@@ -223,13 +226,13 @@ export default function NewStory() {
                   <Select 
                     name="storyPoints"
                     onValueChange={(value) => handleSelectChange("storyPoints", value)}
-                    value={formData.storyPoints || "_not_estimated"}
+                    value={formData.storyPoints || PLACEHOLDER_VALUES.NOT_ESTIMATED}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select points" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_not_estimated">Not estimated</SelectItem>
+                      <SelectItem value={PLACEHOLDER_VALUES.NOT_ESTIMATED}>Not estimated</SelectItem>
                       {pointsOptions.map(points => (
                         <SelectItem key={points} value={points.toString()}>
                           {points}
@@ -244,13 +247,13 @@ export default function NewStory() {
                   <Select 
                     name="assigneeId"
                     onValueChange={(value) => handleSelectChange("assigneeId", value)}
-                    value={formData.assigneeId || "_unassigned"}
+                    value={formData.assigneeId || PLACEHOLDER_VALUES.UNASSIGNED}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_unassigned">Unassigned</SelectItem>
+                      <SelectItem value={PLACEHOLDER_VALUES.UNASSIGNED}>Unassigned</SelectItem>
                       {isLoadingUsers ? (
                         <div className="flex items-center justify-center p-2">
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
