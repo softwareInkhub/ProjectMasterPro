@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,18 +13,18 @@ import {
   BriefcaseIcon,
   Loader2,
   Trash2Icon,
-  FilterIcon
+  FilterIcon,
+  ChevronLeft
 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
-import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft } from "lucide-react";
-import React from "react";
+
+// Define the lazy components outside of the component function
+const NewUserPage = React.lazy(() => import('./new'));
 
 interface UsersPageProps {
   new?: boolean;
@@ -37,20 +38,17 @@ export default function UsersPage({ new: isNew, detail: isDetail }: UsersPagePro
   const { toast } = useToast();
   const params = useParams();
   
-  // If we're in new mode, show the new user page
+  // Handle different rendering modes
   if (isNew) {
-    // Render the new user form from users/new.tsx
-    const NewUser = React.lazy(() => import('./new'));
     return (
       <React.Suspense fallback={<div className="flex justify-center items-center h-48">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>}>
-        <NewUser />
+        <NewUserPage />
       </React.Suspense>
     );
   }
   
-  // If we're in detail mode, show the user detail page
   if (isDetail && params.id) {
     // For now, we'll just show a placeholder since we haven't created the detail page yet
     return (
@@ -138,7 +136,7 @@ export default function UsersPage({ new: isNew, detail: isDetail }: UsersPagePro
   };
 
   // Add additional information to users
-  const enhancedUsers = users.map((user: User) => {
+  const enhancedUsers = users.map((user: any) => {
     // Create a display name from firstName and lastName
     const displayName = user.firstName && user.lastName 
       ? `${user.firstName} ${user.lastName}`
@@ -265,7 +263,7 @@ export default function UsersPage({ new: isNew, detail: isDetail }: UsersPagePro
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-500 mb-6">
           <p className="font-medium">Error loading users:</p>
-          <p>{error.message}</p>
+          <p>{(error as Error).message}</p>
         </div>
       )}
       
@@ -288,7 +286,7 @@ export default function UsersPage({ new: isNew, detail: isDetail }: UsersPagePro
       {/* Users List */}
       {!isLoading && !error && filteredUsers.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredUsers.map((user) => (
+          {filteredUsers.map((user: any) => (
             <Card 
               key={user.id} 
               className={`hover:shadow-md transition-shadow cursor-pointer ${user.status === "INACTIVE" ? "opacity-70" : ""}`}

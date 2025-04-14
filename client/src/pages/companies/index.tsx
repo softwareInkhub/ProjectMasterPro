@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -6,8 +6,7 @@ import {
   FilterIcon, 
   SortAscIcon, 
   BuildingIcon, 
-  UserIcon, 
-  MapPinIcon, 
+  UserIcon,
   Loader2,
   Trash2Icon
 } from "lucide-react";
@@ -22,38 +21,38 @@ interface CompaniesPageProps {
   detail?: boolean;
 }
 
+// Define the lazy components outside of the component function
+const NewCompanyPage = React.lazy(() => import('./new'));
+const CompanyDetailPage = React.lazy(() => import('./[id]'));
+
 export default function CompaniesPage({ new: isNew, detail: isDetail }: CompaniesPageProps = {}) {
   const [, setLocation] = useLocation();
   const [filterActive, setFilterActive] = useState("all");
   const { toast } = useToast();
   const params = useParams();
-  
-  // If we're in new mode, show the new company page
+
+  // Handle different rendering modes
   if (isNew) {
-    // Render the new company form from companies/new.tsx
-    const NewCompany = React.lazy(() => import('./new'));
     return (
       <React.Suspense fallback={<div className="flex justify-center items-center h-48">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>}>
-        <NewCompany />
+        <NewCompanyPage />
       </React.Suspense>
     );
   }
   
-  // If we're in detail mode, show the company detail page
   if (isDetail && params.id) {
-    // Render the company detail component from companies/[id].tsx
-    const CompanyDetail = React.lazy(() => import('./[id]'));
     return (
       <React.Suspense fallback={<div className="flex justify-center items-center h-48">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>}>
-        <CompanyDetail />
+        <CompanyDetailPage />
       </React.Suspense>
     );
   }
 
+  // For the main companies list view
   // Fetch companies data from API
   const { data: companies = [], isLoading, error } = useQuery({
     queryKey: ['/api/companies'],
@@ -94,7 +93,7 @@ export default function CompaniesPage({ new: isNew, detail: isDetail }: Companie
   };
 
   // Add status to companies if not present
-  const companiesWithStatus = companies.map((company: Company) => ({
+  const companiesWithStatus = companies.map((company: any) => ({
     ...company,
     status: company.status || "ACTIVE" // Default to ACTIVE if status is not present
   }));
@@ -102,7 +101,7 @@ export default function CompaniesPage({ new: isNew, detail: isDetail }: Companie
   // Filter companies based on active status filter
   const filteredCompanies = filterActive === "all" 
     ? companiesWithStatus 
-    : companiesWithStatus.filter((company) => 
+    : companiesWithStatus.filter((company: any) => 
         filterActive === "active" 
           ? company.status === "ACTIVE" 
           : company.status === "INACTIVE"
@@ -173,7 +172,7 @@ export default function CompaniesPage({ new: isNew, detail: isDetail }: Companie
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-500 mb-6">
           <p className="font-medium">Error loading companies:</p>
-          <p>{error.message}</p>
+          <p>{(error as Error).message}</p>
         </div>
       )}
       
@@ -196,7 +195,7 @@ export default function CompaniesPage({ new: isNew, detail: isDetail }: Companie
       {/* Companies List */}
       {!isLoading && !error && filteredCompanies.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCompanies.map((company: Company) => (
+          {filteredCompanies.map((company: any) => (
             <Card 
               key={company.id} 
               className="hover:shadow-md transition-shadow cursor-pointer" 
