@@ -1,14 +1,11 @@
 /**
- * Application-wide constants for form placeholder values
- * These ensure we don't have empty string values in SelectItem components
+ * Constants for placeholder values used throughout the application
  */
 
-export const PLACEHOLDER_VALUES = {
-  // Common placeholder values
+export const Placeholder = {
   NONE: "_none",
-  UNASSIGNED: "_unassigned",
   NOT_ESTIMATED: "_not_estimated",
-  NO_EPICS: "_no_epics_available",
-  NO_PROJECTS: "_no_projects_available",
-  NO_PARENT: "_no_parent"
-}
+  UNASSIGNED: "_unassigned", 
+  NO_EPICS: "_no_epics",
+  NO_PROJECT: "_no_project"
+};

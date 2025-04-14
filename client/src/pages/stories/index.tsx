@@ -53,7 +53,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { Epic, Project, Story, User, InsertStory } from "@shared/schema";
-import { PLACEHOLDER_VALUES } from "@/lib/constants";
+import { Placeholder } from "@/lib/constants";
 
 export default function StoriesPage() {
   const [, setLocation] = useLocation();
@@ -845,7 +845,7 @@ export default function StoriesPage() {
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PLACEHOLDER_VALUES.UNASSIGNED}>None</SelectItem>
+                  <SelectItem value={Placeholder.UNASSIGNED}>None</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
@@ -867,7 +867,7 @@ export default function StoriesPage() {
                   <SelectValue placeholder="Select reporter" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PLACEHOLDER_VALUES.UNASSIGNED}>None</SelectItem>
+                  <SelectItem value={Placeholder.UNASSIGNED}>None</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
@@ -1047,7 +1047,7 @@ export default function StoriesPage() {
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PLACEHOLDER_VALUES.UNASSIGNED}>None</SelectItem>
+                  <SelectItem value={Placeholder.UNASSIGNED}>None</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
@@ -1069,7 +1069,7 @@ export default function StoriesPage() {
                   <SelectValue placeholder="Select reporter" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PLACEHOLDER_VALUES.UNASSIGNED}>None</SelectItem>
+                  <SelectItem value={Placeholder.UNASSIGNED}>None</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
