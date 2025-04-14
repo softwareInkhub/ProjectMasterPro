@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,19 +12,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, User, Loader2, Building2, Briefcase } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronLeft, UserIcon, Loader2 } from "lucide-react";
 
 // Define form schema for user creation
 const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.string().min(1, "Role is required"),
+  role: z.enum(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER", "USER"]).default("USER"),
   companyId: z.string().optional().nullable(),
   departmentId: z.string().optional().nullable(),
   teamId: z.string().optional().nullable(),
-  phone: z.string().optional().nullable(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -32,38 +33,36 @@ type FormValues = z.infer<typeof formSchema>;
 export default function NewUserPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  
-  // Fetch companies for dropdown
+
+  // Fetch companies, departments, and teams for select options
   const { data: companies = [] } = useQuery({
     queryKey: ['/api/companies'],
     queryFn: getQueryFn()
   });
 
-  // Fetch departments for dropdown
   const { data: departments = [] } = useQuery({
     queryKey: ['/api/departments'],
     queryFn: getQueryFn()
   });
 
-  // Fetch teams for dropdown
   const { data: teams = [] } = useQuery({
     queryKey: ['/api/teams'],
     queryFn: getQueryFn()
   });
-  
+
   // Create form
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
       firstName: "",
       lastName: "",
+      email: "",
       password: "",
-      role: "DEVELOPER",
+      role: "USER",
       companyId: null,
       departmentId: null,
       teamId: null,
-      phone: "",
+      status: "ACTIVE",
     },
   });
 
@@ -100,15 +99,30 @@ export default function NewUserPage() {
     createUserMutation.mutate(data);
   };
 
-  // Filter departments by selected company
-  const filteredDepartments = form.watch("companyId") 
-    ? departments.filter((dept: any) => dept.companyId === form.watch("companyId"))
-    : departments;
+  // Filter departments and teams based on selected company
+  const selectedCompanyId = form.watch("companyId");
+  const filteredDepartments = departments.filter((dept: any) => 
+    !selectedCompanyId || dept.companyId === selectedCompanyId
+  );
+  
+  // Filter teams based on selected department
+  const selectedDepartmentId = form.watch("departmentId");
+  const filteredTeams = teams.filter((team: any) => 
+    !selectedDepartmentId || team.departmentId === selectedDepartmentId
+  );
 
-  // Filter teams by selected department
-  const filteredTeams = form.watch("departmentId")
-    ? teams.filter((team: any) => team.departmentId === form.watch("departmentId"))
-    : teams;
+  // Handle company change (reset department and team if company changes)
+  const handleCompanyChange = (value: string) => {
+    form.setValue("companyId", value);
+    form.setValue("departmentId", null);
+    form.setValue("teamId", null);
+  };
+
+  // Handle department change (reset team if department changes)
+  const handleDepartmentChange = (value: string) => {
+    form.setValue("departmentId", value);
+    form.setValue("teamId", null);
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -136,7 +150,7 @@ export default function NewUserPage() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="firstName"
@@ -171,7 +185,7 @@ export default function NewUserPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email*</FormLabel>
+                      <FormLabel>Email Address*</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="john.doe@example.com" {...field} />
                       </FormControl>
@@ -190,26 +204,8 @@ export default function NewUserPage() {
                         <Input type="password" placeholder="••••••••" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Password must be at least 6 characters
+                        At least 6 characters long
                       </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="+1 (555) 123-4567" 
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -235,10 +231,11 @@ export default function NewUserPage() {
                           <SelectItem value="MANAGER">Manager</SelectItem>
                           <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
                           <SelectItem value="DEVELOPER">Developer</SelectItem>
+                          <SelectItem value="USER">Regular User</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        This determines what permissions the user will have
+                        Determines the user's access and permission level
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -247,26 +244,22 @@ export default function NewUserPage() {
 
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company</FormLabel>
+                      <FormLabel>Status</FormLabel>
                       <Select 
-                        defaultValue={field.value || undefined} 
+                        defaultValue={field.value} 
                         onValueChange={field.onChange}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a company" />
+                            <SelectValue placeholder="Select a status" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {companies.map((company: any) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.name}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="INACTIVE">Inactive</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -274,65 +267,100 @@ export default function NewUserPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="departmentId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Department</FormLabel>
-                      <Select 
-                        defaultValue={field.value || undefined} 
-                        onValueChange={field.onChange}
-                        disabled={!form.watch("companyId")}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={!form.watch("companyId") ? "Select a company first" : "Select a department"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {filteredDepartments.map((department: any) => (
-                            <SelectItem key={department.id} value={department.id}>
-                              {department.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="border-t pt-6 mt-2">
+                  <h3 className="text-lg font-medium mb-4">Organization Assignment</h3>
 
-                <FormField
-                  control={form.control}
-                  name="teamId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Team</FormLabel>
-                      <Select 
-                        defaultValue={field.value || undefined} 
-                        onValueChange={field.onChange}
-                        disabled={!form.watch("departmentId")}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={!form.watch("departmentId") ? "Select a department first" : "Select a team"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {filteredTeams.map((team: any) => (
-                            <SelectItem key={team.id} value={team.id}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <div className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="companyId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company</FormLabel>
+                          <Select 
+                            value={field.value || ""}
+                            onValueChange={handleCompanyChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a company" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {companies.map((company: any) => (
+                                <SelectItem key={company.id} value={company.id}>
+                                  {company.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="departmentId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Department</FormLabel>
+                          <Select 
+                            value={field.value || ""}
+                            onValueChange={handleDepartmentChange}
+                            disabled={!selectedCompanyId}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={selectedCompanyId ? "Select a department" : "Select a company first"} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {filteredDepartments.map((department: any) => (
+                                <SelectItem key={department.id} value={department.id}>
+                                  {department.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="teamId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Team</FormLabel>
+                          <Select 
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                            disabled={!selectedDepartmentId}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={selectedDepartmentId ? "Select a team" : "Select a department first"} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {filteredTeams.map((team: any) => (
+                                <SelectItem key={team.id} value={team.id}>
+                                  {team.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
                 <div className="flex justify-end gap-3 pt-3">
                   <Button
@@ -365,29 +393,21 @@ export default function NewUserPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-primary mt-0.5" />
+                <UserIcon className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <h4 className="text-sm font-medium">User Roles</h4>
                   <p className="text-xs text-gray-500">
-                    Different roles have different permissions. Admins have full access, while Developers have limited access.
+                    Administrators have full access to the system. Managers can manage departments and teams.
+                    Team Leads can manage their teams and projects. Developers have limited access based on their assignments.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <Building2 className="h-5 w-5 text-primary mt-0.5" />
+                <UserIcon className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-medium">Organization Structure</h4>
+                  <h4 className="text-sm font-medium">Organization Assignment</h4>
                   <p className="text-xs text-gray-500">
-                    Assign users to companies, departments, and teams to organize your workforce effectively.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Briefcase className="h-5 w-5 text-primary mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium">Team Assignment</h4>
-                  <p className="text-xs text-gray-500">
-                    Users need to be assigned to a department before they can be assigned to a team.
+                    Users can be assigned to a company, department, and team. This determines what projects and tasks they can access.
                   </p>
                 </div>
               </div>
