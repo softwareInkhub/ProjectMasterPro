@@ -32,12 +32,12 @@ export default function NewStory() {
   });
 
   // Fetch epics for the select field
-  const { data: epics = [], isLoading: isLoadingEpics } = useQuery({
+  const { data: epics = [], isLoading: isLoadingEpics } = useQuery<any[]>({
     queryKey: ['/api/epics']
   });
 
   // Fetch users for assignee select field
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<any[]>({
     queryKey: ['/api/users']
   });
 
@@ -181,11 +181,17 @@ export default function NewStory() {
                           Loading...
                         </div>
                       ) : (
-                        epics.map(epic => (
-                          <SelectItem key={epic.id} value={epic.id}>
-                            {epic.name}
-                          </SelectItem>
-                        ))
+                        <>
+                          {epics && epics.length > 0 ? (
+                            epics.map((epic: any) => (
+                              <SelectItem key={epic.id} value={epic.id}>
+                                {epic.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="_no_epics">No epics available, please create one first</SelectItem>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
@@ -230,11 +236,17 @@ export default function NewStory() {
                           Loading...
                         </div>
                       ) : (
-                        users.map(user => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.firstName} {user.lastName}
-                          </SelectItem>
-                        ))
+                        <>
+                          {users && users.length > 0 ? (
+                            users.map((user: any) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.firstName} {user.lastName}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1 text-sm">No users found</div>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
@@ -254,7 +266,7 @@ export default function NewStory() {
                     id="startDate"
                     name="startDate"
                     type="date"
-                    value={formData.startDate || ""}
+                    value={formData.startDate as string || ""}
                     onChange={handleInputChange}
                   />
                 </div>
