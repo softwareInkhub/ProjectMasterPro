@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { Epic, InsertEpic } from "@shared/schema";
+import { PLACEHOLDER_VALUES } from "@/lib/constants";
 
 export default function NewEpic() {
   const [, setLocation] = useLocation();
@@ -171,11 +172,17 @@ export default function NewEpic() {
                           Loading...
                         </div>
                       ) : (
-                        projects.map(project => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.name}
-                          </SelectItem>
-                        ))
+                        <>
+                          {projects && projects.length > 0 ? (
+                            projects.map((project: any) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-sm">No projects available, please create one first</div>
+                          )}
+                        </>
                       )}
                     </SelectContent>
                   </Select>

@@ -18,13 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
 import { Story, InsertStory } from "@shared/schema";
-
-// Special values for placeholders
-const PLACEHOLDER_VALUES = {
-  NOT_ESTIMATED: "_not_estimated",
-  UNASSIGNED: "_unassigned",
-  NO_EPICS: "_no_epics_available"
-};
+import { PLACEHOLDER_VALUES } from "@/lib/constants";
 
 export default function NewStory() {
   const [, setLocation] = useLocation();
