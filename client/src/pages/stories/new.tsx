@@ -26,7 +26,9 @@ export default function NewStory() {
     name: "",
     description: "",
     status: "BACKLOG",
-    priority: "MEDIUM"
+    priority: "MEDIUM",
+    storyPoints: "_not_estimated",
+    assigneeId: "_unassigned"
   });
 
   // Fetch epics for the select field
@@ -95,7 +97,14 @@ export default function NewStory() {
   };
   
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // If the value starts with "_", set it to null in the database
+    if (name === "storyPoints" && value === "_not_estimated") {
+      setFormData(prev => ({ ...prev, [name]: null }));
+    } else if (name === "assigneeId" && value === "_unassigned") {
+      setFormData(prev => ({ ...prev, [name]: null }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Get points options
@@ -187,13 +196,13 @@ export default function NewStory() {
                   <Select 
                     name="storyPoints"
                     onValueChange={(value) => handleSelectChange("storyPoints", value)}
-                    value={formData.storyPoints || "not_estimated"}
+                    value={formData.storyPoints || "_not_estimated"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select points" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="not_estimated">Not estimated</SelectItem>
+                      <SelectItem value="_not_estimated">Not estimated</SelectItem>
                       {pointsOptions.map(points => (
                         <SelectItem key={points} value={points.toString()}>
                           {points}
@@ -208,13 +217,13 @@ export default function NewStory() {
                   <Select 
                     name="assigneeId"
                     onValueChange={(value) => handleSelectChange("assigneeId", value)}
-                    value={formData.assigneeId || "unassigned"}
+                    value={formData.assigneeId || "_unassigned"}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      <SelectItem value="_unassigned">Unassigned</SelectItem>
                       {isLoadingUsers ? (
                         <div className="flex items-center justify-center p-2">
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
