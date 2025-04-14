@@ -532,7 +532,7 @@ export default function TasksPage() {
                 <LayoutIcon className="h-4 w-4 mr-1" /> Board
               </Button>
             </div>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setLocation("/tasks/new")}>
               <PlusIcon className="mr-2 h-4 w-4" /> Create Task
             </Button>
           </div>

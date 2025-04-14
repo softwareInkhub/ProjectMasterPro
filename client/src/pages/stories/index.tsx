@@ -465,7 +465,7 @@ export default function StoriesPage() {
             <h1 className="text-3xl font-bold text-gray-900">Stories</h1>
             <p className="text-gray-600 mt-1">Manage user stories across your projects</p>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={() => setLocation("/stories/new")}>
             <PlusIcon className="mr-2 h-4 w-4" /> Create Story
           </Button>
         </div>
