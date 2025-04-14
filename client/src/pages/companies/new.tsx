@@ -6,29 +6,29 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { insertCompanySchema } from "@shared/schema";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, BuildingIcon, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, Building2, Loader2 } from "lucide-react";
 
-// Extend the company schema with validation
-const formSchema = insertCompanySchema
-  .extend({
-    name: z.string().min(1, "Company name is required"),
-    description: z.string().optional().nullable(),
-    website: z.string().url("Please enter a valid URL").optional().nullable(),
-  });
+// Define form schema for company creation
+const formSchema = z.object({
+  name: z.string().min(1, "Company name is required"),
+  description: z.string().optional().nullable(),
+  website: z.string().url("Please enter a valid URL").optional().nullable(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function NewCompanyPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  
+
   // Create form
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -36,13 +36,19 @@ export default function NewCompanyPage() {
       name: "",
       description: "",
       website: "",
+      status: "ACTIVE",
     },
   });
 
   // Create company mutation
   const createCompanyMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const res = await apiRequest("POST", "/api/companies", data);
+      // Remove null or empty string values
+      const cleanedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== null && v !== "")
+      );
+      
+      const res = await apiRequest("POST", "/api/companies", cleanedData);
       return res.json();
     },
     onSuccess: () => {
@@ -102,9 +108,6 @@ export default function NewCompanyPage() {
                       <FormControl>
                         <Input placeholder="Acme Corporation" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        The official name of the company
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -117,15 +120,15 @@ export default function NewCompanyPage() {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Brief description about the company"
-                          className="resize-y min-h-[100px]"
+                        <Textarea 
+                          placeholder="Brief description of the company" 
+                          className="resize-none min-h-[100px]"
                           {...field}
                           value={field.value || ""}
                         />
                       </FormControl>
                       <FormDescription>
-                        Provide a short description about the company's business
+                        Provide a brief overview of the company's activities and focus areas
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -137,16 +140,45 @@ export default function NewCompanyPage() {
                   name="website"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Website</FormLabel>
+                      <FormLabel>Website URL</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="https://acmecorp.example.com" 
+                          type="url" 
+                          placeholder="https://example.com" 
                           {...field}
                           value={field.value || ""}
                         />
                       </FormControl>
                       <FormDescription>
-                        The company's official website URL (include https://)
+                        Include the full URL with https://
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select 
+                        defaultValue={field.value} 
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Inactive companies won't appear in active filters
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -184,20 +216,20 @@ export default function NewCompanyPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
-                <BuildingIcon className="h-5 w-5 text-primary mt-0.5" />
+                <Building2 className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-medium">Company Details</h4>
+                  <h4 className="text-sm font-medium">Company Structure</h4>
                   <p className="text-xs text-gray-500">
-                    Provide accurate company information for better organization.
+                    After creating a company, you can add departments, teams, and assign users to establish your organizational structure.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <BuildingIcon className="h-5 w-5 text-primary mt-0.5" />
+                <Building2 className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-medium">Website Format</h4>
+                  <h4 className="text-sm font-medium">Status Usage</h4>
                   <p className="text-xs text-gray-500">
-                    Enter website URLs with the complete format (https://example.com).
+                    Set a company as inactive if it's not currently operating or if you want to temporarily hide it from active views.
                   </p>
                 </div>
               </div>

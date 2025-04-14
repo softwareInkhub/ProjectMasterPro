@@ -1,80 +1,86 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { insertCompanySchema } from "@shared/schema";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { 
-  ChevronLeft, 
-  Building2, 
-  Building, 
-  Globe, 
-  CalendarDays, 
-  Clock, 
-  Loader2,
-  Users,
-  Briefcase,
-  Trash2,
-  PenSquare
-} from "lucide-react";
+import { ChevronLeft, Building2, Loader2, UserIcon, Building, Briefcase } from "lucide-react";
 
-// Extend the company schema with validation
-const formSchema = insertCompanySchema
-  .extend({
-    name: z.string().min(1, "Company name is required"),
-    description: z.string().optional().nullable(),
-    website: z.string().url("Please enter a valid URL").optional().nullable(),
-  });
+// Define form schema for company update
+const formSchema = z.object({
+  name: z.string().min(1, "Company name is required"),
+  description: z.string().optional().nullable(),
+  website: z.string().url("Please enter a valid URL").optional().nullable(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function CompanyDetailPage() {
-  const params = useParams<{ id: string }>();
-  const companyId = params.id;
+  const params = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
-  
-  // Fetch company data
+  const [activeTab, setActiveTab] = useState("details");
+
+  // Fetch company details
   const { data: company, isLoading, error } = useQuery({
-    queryKey: ['/api/companies', companyId],
+    queryKey: ['/api/companies', params.id],
     queryFn: getQueryFn(),
+    enabled: !!params.id,
   });
 
-  // Fetch company departments
+  // Fetch departments for this company
   const { data: departments = [] } = useQuery({
     queryKey: ['/api/departments'],
     queryFn: getQueryFn(),
-    select: (data) => data.filter((dept: any) => dept.companyId === companyId),
+    select: (data: any) => data.filter((dept: any) => dept.companyId === params.id),
+    enabled: !!params.id,
   });
 
-  // Form setup
+  // Fetch users for this company
+  const { data: users = [] } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: getQueryFn(),
+    select: (data: any) => data.filter((user: any) => user.companyId === params.id),
+    enabled: !!params.id,
+  });
+
+  // Create form with default values from company data
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    values: {
+    defaultValues: {
       name: company?.name || "",
       description: company?.description || "",
       website: company?.website || "",
+      status: company?.status || "ACTIVE",
     },
+    values: company ? {
+      name: company.name,
+      description: company.description || "",
+      website: company.website || "",
+      status: company.status || "ACTIVE",
+    } : undefined,
   });
 
   // Update company mutation
   const updateCompanyMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const res = await apiRequest("PUT", `/api/companies/${companyId}`, data);
+      // Remove null or empty string values
+      const cleanedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== null && v !== "")
+      );
+      
+      const res = await apiRequest("PUT", `/api/companies/${params.id}`, cleanedData);
       return res.json();
     },
     onSuccess: () => {
@@ -82,8 +88,8 @@ export default function CompanyDetailPage() {
         title: "Company updated",
         description: "The company has been updated successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/companies', companyId] });
-      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/companies', params.id] });
     },
     onError: (error: Error) => {
       toast({
@@ -94,10 +100,15 @@ export default function CompanyDetailPage() {
     },
   });
 
+  // Form submission handler
+  const onSubmit = (data: FormValues) => {
+    updateCompanyMutation.mutate(data);
+  };
+
   // Delete company mutation
   const deleteCompanyMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/companies/${companyId}`);
+      await apiRequest("DELETE", `/api/companies/${params.id}`);
     },
     onSuccess: () => {
       toast({
@@ -116,36 +127,29 @@ export default function CompanyDetailPage() {
     },
   });
 
-  // Form submission handler
-  const onSubmit = (data: FormValues) => {
-    updateCompanyMutation.mutate(data);
-  };
-
-  // Handle delete
+  // Handle company deletion
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
+    if (confirm('Are you sure you want to delete this company? This action cannot be undone.')) {
       deleteCompanyMutation.mutate();
     }
   };
 
-  // Loading state
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-96">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="p-6 bg-red-50 text-red-600 rounded-lg">
-        <h3 className="text-lg font-medium mb-2">Error loading company</h3>
+      <div className="p-4 rounded-lg bg-red-50 text-red-500 mb-6">
+        <p className="font-medium">Error loading company:</p>
         <p>{(error as Error).message}</p>
         <Button 
+          className="mt-4" 
           variant="outline" 
-          className="mt-4"
           onClick={() => navigate("/companies")}
         >
           <ChevronLeft className="mr-2 h-4 w-4" />
@@ -155,19 +159,16 @@ export default function CompanyDetailPage() {
     );
   }
 
-  // If company not found
   if (!company) {
     return (
-      <div className="p-6 bg-yellow-50 text-yellow-600 rounded-lg">
+      <div className="text-center p-8 border rounded-lg">
+        <Building2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
         <h3 className="text-lg font-medium mb-2">Company not found</h3>
-        <p>The company you're looking for doesn't exist or has been deleted.</p>
-        <Button 
-          variant="outline" 
-          className="mt-4"
-          onClick={() => navigate("/companies")}
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Back to Companies
+        <p className="text-gray-500 mb-4">
+          The company you're looking for doesn't exist or has been removed.
+        </p>
+        <Button onClick={() => navigate("/companies")}>
+          <ChevronLeft className="mr-2 h-4 w-4" /> Back to Companies
         </Button>
       </div>
     );
@@ -175,7 +176,6 @@ export default function CompanyDetailPage() {
 
   return (
     <div className="container mx-auto py-6">
-      {/* Header with back button */}
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -185,345 +185,341 @@ export default function CompanyDetailPage() {
           <ChevronLeft className="mr-2 h-4 w-4" />
           Back to Companies
         </Button>
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{company.name}</h1>
-              <Badge variant={company.status === "ACTIVE" ? "success" : "secondary"}>
-                {company.status === "ACTIVE" ? "Active" : "Inactive"}
-              </Badge>
-            </div>
-            <p className="text-gray-600 mt-1">{company.description || "No description provided"}</p>
+            <h1 className="text-3xl font-bold">{company.name}</h1>
+            <p className="text-gray-600 mt-1">
+              {company.description || "No description provided"}
+            </p>
           </div>
-          
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             <Button 
-              variant="outline"
-              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              variant="destructive"
               onClick={handleDelete}
               disabled={deleteCompanyMutation.isPending}
             >
-              {deleteCompanyMutation.isPending ? (
+              {deleteCompanyMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
               )}
-              Delete
+              Delete Company
             </Button>
-            {!isEditing ? (
-              <Button 
-                variant="outline"
-                onClick={() => setIsEditing(true)}
-              >
-                <PenSquare className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-            ) : (
-              <Button 
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-              >
-                Cancel
-              </Button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
-          <TabsTrigger value="employees">Employees</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="details">Company Details</TabsTrigger>
+          <TabsTrigger value="departments">Departments ({departments.length})</TabsTrigger>
+          <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
         </TabsList>
         
-        {/* Overview Tab */}
-        <TabsContent value="overview">
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="md:col-span-2">
-              {!isEditing ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Company Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Name</h3>
-                      <p className="text-lg">{company.name}</p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                      <p>{company.description || "No description provided"}</p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Website</h3>
-                      {company.website ? (
-                        <a 
-                          href={company.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline flex items-center gap-1"
-                        >
-                          <Globe className="h-4 w-4" />
-                          {company.website}
-                        </a>
-                      ) : (
-                        <p className="text-gray-400">No website provided</p>
+        <TabsContent value="details">
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Company Information</CardTitle>
+                <CardDescription>
+                  View and edit company details
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name*</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Acme Corporation" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </div>
-                    
-                    <div className="pt-4 border-t">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Created</h3>
-                          <p className="flex items-center gap-1 text-sm">
-                            <CalendarDays className="h-4 w-4 text-gray-400" />
-                            {new Date(company.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                          <p className="flex items-center gap-1 text-sm">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            {new Date(company.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Edit Company</CardTitle>
-                    <CardDescription>Update the company information</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Company Name*</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    />
 
-                        <FormField
-                          control={form.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  className="resize-y min-h-[100px]"
-                                  {...field}
-                                  value={field.value || ""}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Brief description of the company" 
+                              className="resize-none min-h-[100px]"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Provide a brief overview of the company's activities and focus areas
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                        <FormField
-                          control={form.control}
-                          name="website"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Website</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  {...field}
-                                  value={field.value || ""}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Include the full URL (e.g., https://example.com)
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    <FormField
+                      control={form.control}
+                      name="website"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Website URL</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="url" 
+                              placeholder="https://example.com" 
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Include the full URL with https://
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                        <div className="flex justify-end gap-3 pt-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsEditing(false)}
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select 
+                            defaultValue={field.value} 
+                            onValueChange={field.onChange}
                           >
-                            Cancel
-                          </Button>
-                          <Button 
-                            type="submit"
-                            disabled={updateCompanyMutation.isPending}
-                          >
-                            {updateCompanyMutation.isPending && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Save Changes
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-            
-            <div>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="ACTIVE">Active</SelectItem>
+                              <SelectItem value="INACTIVE">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Inactive companies won't appear in active filters
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex justify-end gap-3 pt-3">
+                      <Button 
+                        type="submit"
+                        disabled={updateCompanyMutation.isPending}
+                      >
+                        {updateCompanyMutation.isPending && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Save Changes
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Statistics</CardTitle>
+                  <CardTitle>Company Overview</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center">
-                      <Building className="h-5 w-5 text-blue-500 mr-2" />
-                      <span>Departments</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Status:</span>
                     </div>
-                    <Badge variant="outline">{departments?.length || 0}</Badge>
+                    <span className={`text-sm px-2 py-1 rounded-full ${
+                      company.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                    }`}>
+                      {company.status === "ACTIVE" ? "Active" : "Inactive"}
+                    </span>
                   </div>
-                  <Separator />
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center">
-                      <Briefcase className="h-5 w-5 text-indigo-500 mr-2" />
-                      <span>Teams</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Departments:</span>
                     </div>
-                    <Badge variant="outline">0</Badge>
+                    <span className="text-sm">{departments.length}</span>
                   </div>
-                  <Separator />
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center">
-                      <Users className="h-5 w-5 text-green-500 mr-2" />
-                      <span>Employees</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Users:</span>
                     </div>
-                    <Badge variant="outline">0</Badge>
+                    <span className="text-sm">{users.length}</span>
+                  </div>
+                  <div className="border-t pt-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Created:</span>
+                      <span className="text-sm">{new Date(company.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Last Updated:</span>
+                      <span className="text-sm">{new Date(company.updatedAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-center">
-                  <Button variant="outline" className="w-full" onClick={() => navigate(`/companies/${companyId}/departments/new`)}>
-                    Add Department
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => navigate("/departments/new")}
+                  >
+                    <Building className="mr-2 h-4 w-4" /> Add Department
                   </Button>
-                </CardFooter>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => navigate("/users/new")}
+                  >
+                    <UserIcon className="mr-2 h-4 w-4" /> Add User
+                  </Button>
+                </CardContent>
               </Card>
             </div>
           </div>
         </TabsContent>
         
-        {/* Departments Tab */}
         <TabsContent value="departments">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
+            <CardHeader>
+              <div className="flex justify-between items-center">
                 <CardTitle>Departments</CardTitle>
-                <CardDescription>
-                  Departments in {company.name}
-                </CardDescription>
+                <Button onClick={() => navigate("/departments/new")}>
+                  <Building className="mr-2 h-4 w-4" /> Add Department
+                </Button>
               </div>
-              <Button onClick={() => navigate(`/departments/new?companyId=${companyId}`)}>
-                Add Department
-              </Button>
+              <CardDescription>
+                Departments within this company
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {departments.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {departments.map((dept: any) => (
-                    <Card key={dept.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/departments/${dept.id}`)}>
+              {departments.length === 0 ? (
+                <div className="text-center p-8 border rounded-lg">
+                  <Building className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium mb-2">No departments found</h3>
+                  <p className="text-gray-500 mb-4">
+                    This company doesn't have any departments yet.
+                  </p>
+                  <Button onClick={() => navigate("/departments/new")}>
+                    <Building className="mr-2 h-4 w-4" /> Add Department
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {departments.map((department: any) => (
+                    <Card key={department.id} className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => navigate(`/departments/${department.id}`)}
+                    >
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">{dept.name}</CardTitle>
+                        <CardTitle>{department.name}</CardTitle>
+                        <CardDescription>{department.description || "No description"}</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-gray-500">
-                          {dept.description || "No description provided"}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <UserIcon className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm text-gray-600">Users:</span>
+                          </div>
+                          <span className="text-sm font-medium">
+                            {users.filter((user: any) => user.departmentId === department.id).length}
+                          </span>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Building className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No departments yet</h3>
-                  <p className="text-gray-500 max-w-md mx-auto mb-6">
-                    This company doesn't have any departments yet. Create a department to organize teams and employees.
-                  </p>
-                  <Button onClick={() => navigate(`/departments/new?companyId=${companyId}`)}>
-                    Add First Department
-                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
         
-        {/* Teams Tab */}
-        <TabsContent value="teams">
+        <TabsContent value="users">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Teams</CardTitle>
-                <CardDescription>
-                  Teams in {company.name}
-                </CardDescription>
-              </div>
-              <Button onClick={() => navigate(`/teams/new?companyId=${companyId}`)}>
-                Add Team
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Briefcase className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No teams yet</h3>
-                <p className="text-gray-500 max-w-md mx-auto mb-6">
-                  This company doesn't have any teams yet. Create a team to organize employees and their work.
-                </p>
-                <Button onClick={() => navigate(`/teams/new?companyId=${companyId}`)}>
-                  Add First Team
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Users</CardTitle>
+                <Button onClick={() => navigate("/users/new")}>
+                  <UserIcon className="mr-2 h-4 w-4" /> Add User
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Employees Tab */}
-        <TabsContent value="employees">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Employees</CardTitle>
-                <CardDescription>
-                  Employees in {company.name}
-                </CardDescription>
-              </div>
-              <Button onClick={() => navigate(`/users/new?companyId=${companyId}`)}>
-                Add Employee
-              </Button>
+              <CardDescription>
+                Users assigned to this company
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No employees yet</h3>
-                <p className="text-gray-500 max-w-md mx-auto mb-6">
-                  This company doesn't have any employees yet. Add employees to assign them to teams and projects.
-                </p>
-                <Button onClick={() => navigate(`/users/new?companyId=${companyId}`)}>
-                  Add First Employee
-                </Button>
-              </div>
+              {users.length === 0 ? (
+                <div className="text-center p-8 border rounded-lg">
+                  <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium mb-2">No users found</h3>
+                  <p className="text-gray-500 mb-4">
+                    This company doesn't have any users assigned yet.
+                  </p>
+                  <Button onClick={() => navigate("/users/new")}>
+                    <UserIcon className="mr-2 h-4 w-4" /> Add User
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {users.map((user: any) => {
+                    // Create a display name from firstName and lastName
+                    const displayName = user.firstName && user.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user.email.split('@')[0];
+                    
+                    // Get initials for avatar
+                    const initials = displayName
+                      .split(' ')
+                      .map(part => part[0])
+                      .join('')
+                      .toUpperCase();
+
+                    return (
+                      <Card 
+                        key={user.id} 
+                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => navigate(`/users/${user.id}`)}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
+                              {initials}
+                            </div>
+                            <div>
+                              <CardTitle className="text-base">{displayName}</CardTitle>
+                              <CardDescription>{user.email}</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pb-2">
+                          <div className="text-sm text-gray-500">
+                            Role: <span className="font-medium">{user.role || "User"}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
