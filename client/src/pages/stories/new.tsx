@@ -41,6 +41,13 @@ export default function NewStory() {
     queryKey: ['/api/users']
   });
 
+  // For debugging - log to see what's happening
+  useEffect(() => {
+    console.log("Current form data:", formData);
+    console.log("Epics data:", epics);
+    console.log("Users data:", users);
+  }, [formData, epics, users]);
+  
   // Create story mutation
   const createStoryMutation = useMutation({
     mutationFn: async (data: InsertStory) => {
@@ -87,8 +94,22 @@ export default function NewStory() {
       return;
     }
     
+    // Transform the special values before submitting
+    const dataToSubmit = { ...formData };
+    
+    // Convert placeholder values to null
+    if (dataToSubmit.storyPoints === "_not_estimated") {
+      dataToSubmit.storyPoints = null;
+    }
+    
+    if (dataToSubmit.assigneeId === "_unassigned") {
+      dataToSubmit.assigneeId = null;
+    }
+    
+    console.log("Submitting data:", dataToSubmit);
+    
     setIsSubmitting(true);
-    createStoryMutation.mutate(formData as InsertStory);
+    createStoryMutation.mutate(dataToSubmit as InsertStory);
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -97,14 +118,14 @@ export default function NewStory() {
   };
   
   const handleSelectChange = (name: string, value: string) => {
-    // If the value starts with "_", set it to null in the database
-    if (name === "storyPoints" && value === "_not_estimated") {
-      setFormData(prev => ({ ...prev, [name]: null }));
-    } else if (name === "assigneeId" && value === "_unassigned") {
-      setFormData(prev => ({ ...prev, [name]: null }));
+    // Handle special case values
+    if (value === "_not_estimated" || value === "_unassigned") {
+      setFormData(prev => ({ ...prev, [name]: value }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
+    
+    console.log(`Setting ${name} to ${value}`);
   };
 
   // Get points options
@@ -189,7 +210,7 @@ export default function NewStory() {
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="_no_epics">No epics available, please create one first</SelectItem>
+                            <div className="p-2 text-sm">No epics available, please create one first</div>
                           )}
                         </>
                       )}
