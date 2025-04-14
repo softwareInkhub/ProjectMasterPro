@@ -27,7 +27,7 @@ import { ArrowLeftIcon } from 'lucide-react';
 import { Placeholder } from '@/lib/constants';
 
 export default function NewStoryPage() {
-  const [setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   
   // Story data
