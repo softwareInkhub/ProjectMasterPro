@@ -25,31 +25,21 @@ import NewEpicPage from "@/pages/epics/new";
 import StoriesPage from "@/pages/stories";
 import StoryDetailPage from "@/pages/stories/[id]";
 import NewStoryPage from "@/pages/stories/new";
+import LocationsPage from "@/pages/locations";
+import NewLocationPage from "@/pages/locations/new";
+import DevicesPage from "@/pages/devices";
+import NewDevicePage from "@/pages/devices/new";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
 import { Loader2 } from "lucide-react";
 
-// Simple Auth Provider - we'll make it a pass-through since we've updated all components
-// to not rely on the auth context
-function AuthProvider({ children }: { children: ReactNode }) {
-  // Simple pass-through provider
-  return <>{children}</>;
-}
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { Toaster } from "@/components/ui/toaster";
 
 // Protected Route component
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
-
-  useEffect(() => {
-    // Check for token
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
-  }, []);
 
   if (isLoading) {
     return (
@@ -70,6 +60,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function App() {
   return (
     <AuthProvider>
+      <Toaster />
       <Switch>
         {/* Auth routes */}
         <Route path="/login" component={Login} />
@@ -272,6 +263,38 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <ReportsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        {/* Location routes */}
+        <Route path="/locations/new">
+          <ProtectedRoute>
+            <Layout>
+              <NewLocationPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/locations">
+          <ProtectedRoute>
+            <Layout>
+              <LocationsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
+        {/* Device routes */}
+        <Route path="/devices/new">
+          <ProtectedRoute>
+            <Layout>
+              <NewDevicePage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/devices">
+          <ProtectedRoute>
+            <Layout>
+              <DevicesPage />
             </Layout>
           </ProtectedRoute>
         </Route>
