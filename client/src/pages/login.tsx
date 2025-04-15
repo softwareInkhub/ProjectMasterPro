@@ -92,7 +92,37 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setValidationErrors({});
-    loginMutation.mutate({ email, password });
+    
+    try {
+      // Direct manual login with fetch
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Invalid credentials");
+      }
+      
+      const data = await res.json();
+      
+      // Store token in localStorage
+      localStorage.setItem("authToken", data.token);
+      
+      // Hard redirect to dashboard
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Login error:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to login. Please try again.");
+      }
+    }
   };
 
   // Handle registration form submission
@@ -116,13 +146,51 @@ export default function Login() {
       return;
     }
     
-    registerMutation.mutate({
-      email,
-      password,
-      firstName,
-      lastName,
-      companyName,
-    });
+    try {
+      // Direct manual registration with fetch
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          firstName,
+          lastName,
+          companyName,
+        }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        if (errorData.errors) {
+          // Handle validation errors
+          const validationErrors: Record<string, string> = {};
+          errorData.errors.forEach((err: any) => {
+            validationErrors[err.path[0]] = err.message;
+          });
+          setValidationErrors(validationErrors);
+          throw new Error(errorData.message || "Registration failed");
+        }
+        throw new Error(errorData.message || "Registration failed");
+      }
+      
+      const data = await res.json();
+      
+      // Store token in localStorage
+      localStorage.setItem("authToken", data.token);
+      
+      // Hard redirect to dashboard
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Registration error:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to register. Please try again.");
+      }
+    }
   };
 
   const isPending = loginMutation.isPending || registerMutation.isPending;
@@ -206,14 +274,40 @@ export default function Login() {
                   variant="outline" 
                   className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
                   disabled={isPending}
-                  onClick={() => {
-                    setEmail("admin@example.com");
-                    setPassword("password123");
-                    // Login automatically with demo account
-                    loginMutation.mutate({ 
-                      email: "admin@example.com", 
-                      password: "password123" 
-                    });
+                  onClick={async () => {
+                    try {
+                      setError("");
+                      // Set demo credentials and show loading
+                      setEmail("admin@example.com");
+                      setPassword("password123");
+                      
+                      // Direct manual login with fetch
+                      const res = await fetch("/api/auth/login", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ 
+                          email: "admin@example.com", 
+                          password: "password123" 
+                        }),
+                      });
+                      
+                      if (!res.ok) {
+                        throw new Error("Login failed");
+                      }
+                      
+                      const data = await res.json();
+                      
+                      // Store token in localStorage
+                      localStorage.setItem("authToken", data.token);
+                      
+                      // Hard redirect to dashboard
+                      window.location.href = "/";
+                    } catch (err) {
+                      console.error("Login error:", err);
+                      setError("Failed to login with demo account. Please try again.");
+                    }
                   }}
                 >
                   {isPending ? (
