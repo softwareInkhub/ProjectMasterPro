@@ -978,6 +978,192 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Location routes
+  apiRouter.get("/locations", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { companyId } = req.query;
+      const locations = await storage.getLocations(companyId as string);
+      return res.json(locations);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.get("/locations/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const location = await storage.getLocation(req.params.id);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      return res.json(location);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/locations", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertLocationSchema.parse(req.body);
+      const location = await storage.createLocation(validatedData);
+      return res.status(201).json(location);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/locations/:id", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertLocationSchema.partial().parse(req.body);
+      const location = await storage.updateLocation(req.params.id, validatedData);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      return res.json(location);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.delete("/locations/:id", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const success = await storage.deleteLocation(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      return res.status(204).send();
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Device routes
+  apiRouter.get("/devices", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { companyId, departmentId, locationId, assignedToId, status } = req.query;
+      const devices = await storage.getDevices(
+        companyId as string,
+        departmentId as string,
+        locationId as string,
+        assignedToId as string,
+        status as string
+      );
+      return res.json(devices);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.get("/devices/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const device = await storage.getDevice(req.params.id);
+      if (!device) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      return res.json(device);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.get("/devices/serial/:serialNumber", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const device = await storage.getDeviceBySerialNumber(req.params.serialNumber);
+      if (!device) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      return res.json(device);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/devices", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertDeviceSchema.parse(req.body);
+      
+      // Check if a device with the same serial number already exists
+      const existingDevice = await storage.getDeviceBySerialNumber(validatedData.serialNumber);
+      if (existingDevice) {
+        return res.status(409).json({ message: "Device with this serial number already exists" });
+      }
+      
+      const device = await storage.createDevice(validatedData);
+      return res.status(201).json(device);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/devices/:id", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertDeviceSchema.partial().parse(req.body);
+      
+      // If serial number is being changed, check if it's already in use
+      if (validatedData.serialNumber) {
+        const existingDevice = await storage.getDeviceBySerialNumber(validatedData.serialNumber);
+        if (existingDevice && existingDevice.id !== req.params.id) {
+          return res.status(409).json({ message: "Device with this serial number already exists" });
+        }
+      }
+      
+      const device = await storage.updateDevice(req.params.id, validatedData);
+      if (!device) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      return res.json(device);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.delete("/devices/:id", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const success = await storage.deleteDevice(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      return res.status(204).send();
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/devices/:id/assign/:userId", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const device = await storage.assignDevice(req.params.id, req.params.userId);
+      if (!device) {
+        return res.status(404).json({ message: "Device or user not found" });
+      }
+      return res.json(device);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/devices/:id/unassign", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const device = await storage.unassignDevice(req.params.id);
+      if (!device) {
+        return res.status(404).json({ message: "Device not found" });
+      }
+      return res.json(device);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Mount API router at /api prefix
   app.use("/api", apiRouter);

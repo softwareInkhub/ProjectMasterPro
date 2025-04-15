@@ -866,7 +866,7 @@ export class MemStorage implements IStorage {
     const device = this.devices.get(id);
     if (!device) return undefined;
     
-    device.assignedToId = undefined;
+    device.assignedToId = null;
     device.status = "AVAILABLE";
     device.updatedAt = new Date().toISOString();
     this.devices.set(id, device);
