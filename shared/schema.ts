@@ -281,6 +281,59 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
+// Location schema for devices
+export const locations = pgTable("locations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  country: text("country"),
+  zipCode: text("zip_code"),
+  companyId: uuid("company_id").notNull().references(() => companies.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLocationSchema = createInsertSchema(locations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Device schema
+export const devices = pgTable("devices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  serialNumber: text("serial_number").notNull().unique(),
+  type: text("type", { 
+    enum: ["LAPTOP", "DESKTOP", "TABLET", "PHONE", "SERVER", "OTHER"] 
+  }).notNull(),
+  status: text("status", { 
+    enum: ["AVAILABLE", "ASSIGNED", "MAINTENANCE", "RETIRED"] 
+  }).default("AVAILABLE").notNull(),
+  purchaseDate: timestamp("purchase_date"),
+  warrantyExpiryDate: timestamp("warranty_expiry_date"),
+  manufacturer: text("manufacturer"),
+  model: text("model"),
+  specs: jsonb("specs"),
+  notes: text("notes"),
+  assignedToId: uuid("assigned_to_id").references(() => users.id),
+  companyId: uuid("company_id").notNull().references(() => companies.id),
+  departmentId: uuid("department_id").references(() => departments.id),
+  locationId: uuid("location_id").references(() => locations.id),
+  lastAuditDate: timestamp("last_audit_date"),
+  nextAuditDate: timestamp("next_audit_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDeviceSchema = createInsertSchema(devices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Type exports for ORM
 export type Company = typeof companies.$inferSelect;
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
@@ -319,6 +372,12 @@ export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+
+export type Device = typeof devices.$inferSelect;
+export type InsertDevice = z.infer<typeof insertDeviceSchema>;
 
 // For in-memory storage, we need to use string dates instead of Date objects
 export interface TaskWithStringDates {
@@ -387,6 +446,41 @@ export interface ProjectWithStringDates {
   departmentId?: string;
   projectManagerId?: string;
   progress: { percentage: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LocationWithStringDates {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  companyId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeviceWithStringDates {
+  id: string;
+  name: string;
+  serialNumber: string;
+  type: 'LAPTOP' | 'DESKTOP' | 'TABLET' | 'PHONE' | 'SERVER' | 'OTHER';
+  status: 'AVAILABLE' | 'ASSIGNED' | 'MAINTENANCE' | 'RETIRED';
+  purchaseDate?: string;
+  warrantyExpiryDate?: string;
+  manufacturer?: string;
+  model?: string;
+  specs?: Record<string, unknown>;
+  notes?: string;
+  assignedToId?: string;
+  companyId: string;
+  departmentId?: string;
+  locationId?: string;
+  lastAuditDate?: string;
+  nextAuditDate?: string;
   createdAt: string;
   updatedAt: string;
 }

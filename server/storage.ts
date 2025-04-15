@@ -3,9 +3,10 @@ import {
   Group, InsertGroup, User, InsertUser, Team, InsertTeam,
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
-  Notification, InsertNotification,
+  Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
   // String date interfaces for in-memory storage
-  TaskWithStringDates, CommentWithStringDates, UserWithStringDates, ProjectWithStringDates
+  TaskWithStringDates, CommentWithStringDates, UserWithStringDates, ProjectWithStringDates,
+  LocationWithStringDates, DeviceWithStringDates
 } from "@shared/schema";
 
 // Interface for storage operations
@@ -98,6 +99,23 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: string): Promise<boolean>;
   deleteNotification(id: string): Promise<boolean>;
+  
+  // Location operations
+  getLocations(companyId?: string): Promise<Location[]>;
+  getLocation(id: string): Promise<Location | undefined>;
+  createLocation(location: InsertLocation): Promise<Location>;
+  updateLocation(id: string, location: Partial<InsertLocation>): Promise<Location | undefined>;
+  deleteLocation(id: string): Promise<boolean>;
+  
+  // Device operations
+  getDevices(companyId?: string, departmentId?: string, locationId?: string, assignedToId?: string, status?: string): Promise<Device[]>;
+  getDevice(id: string): Promise<Device | undefined>;
+  getDeviceBySerialNumber(serialNumber: string): Promise<Device | undefined>;
+  createDevice(device: InsertDevice): Promise<Device>;
+  updateDevice(id: string, device: Partial<InsertDevice>): Promise<Device | undefined>;
+  deleteDevice(id: string): Promise<boolean>;
+  assignDevice(id: string, userId: string): Promise<Device | undefined>;
+  unassignDevice(id: string): Promise<Device | undefined>;
 }
 
 export class MemStorage implements IStorage {
