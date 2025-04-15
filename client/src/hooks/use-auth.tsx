@@ -29,13 +29,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("authToken");
         if (!token) return null;
 
         const res = await apiRequest("GET", "/api/auth/user");
         if (!res.ok) {
           if (res.status === 401) {
-            localStorage.removeItem("token");
+            localStorage.removeItem("authToken");
             return null;
           }
           throw new Error(`Error fetching user: ${res.statusText}`);
@@ -60,7 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/auth/login", credentials);
+      const res = await apiRequest("POST", "/api/auth/login", {
+        email: credentials.username,
+        password: credentials.password
+      });
       if (!res.ok) {
         throw new Error("Invalid username or password");
       }
@@ -69,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       // Store token and refresh queries
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("authToken", data.token);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
       toast({
@@ -99,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       // Store token and refresh queries
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("authToken", data.token);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
       toast({
@@ -123,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       // Remove token and clear user data
-      localStorage.removeItem("token");
+      localStorage.removeItem("authToken");
       queryClient.setQueryData(["/api/auth/user"], null);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
