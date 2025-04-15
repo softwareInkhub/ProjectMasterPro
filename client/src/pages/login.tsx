@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,12 +195,17 @@ export default function Login() {
 
   const isPending = loginMutation.isPending || registerMutation.isPending;
 
+  // Redirect to simple login page - this is a temporary fix until we resolve the login issues
+  useEffect(() => {
+    window.location.href = "/simple-login";
+  }, []);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Project Management System</CardTitle>
-          <CardDescription>Start managing your projects</CardDescription>
+          <CardDescription>Redirecting to simplified login...</CardDescription>
         </CardHeader>
 
         <CardContent>

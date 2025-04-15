@@ -63,13 +63,212 @@ function App() {
       <Toaster />
       <Switch>
         {/* Auth routes */}
-        <Route path="/login" component={Login} />
-        <Route path="/auth" component={Login} />
+        <Route path="/login">
+          <div>
+            <iframe src="/simple-login" style={{ width: "100%", height: "100vh", border: "none" }}></iframe>
+          </div>
+        </Route>
+        <Route path="/auth">
+          <div>
+            <iframe src="/simple-login" style={{ width: "100%", height: "100vh", border: "none" }}></iframe>
+          </div>
+        </Route>
+        <Route path="/simple-login">
+          {/* Import SimpleLogin from './pages/simple-login' */}
+          <div className="min-h-screen flex items-center justify-center bg-gray-100">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+              <h1 className="text-2xl font-bold mb-6 text-center">Simple Login</h1>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const email = (document.getElementById('email') as HTMLInputElement).value;
+                const password = (document.getElementById('password') as HTMLInputElement).value;
+                
+                fetch('/api/auth/login', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ email, password }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                  localStorage.setItem('authToken', data.token);
+                  window.location.href = '/';
+                })
+                .catch(error => {
+                  console.error('Login error:', error);
+                });
+              }}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your email"
+                    defaultValue="admin@example.com"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your password"
+                    defaultValue="password123"
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                >
+                  Login
+                </button>
+                
+                <button
+                  type="button"
+                  className="w-full mt-4 bg-green-600 text-white py-2 rounded hover:bg-green-700"
+                  onClick={() => {
+                    fetch('/api/auth/login', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ 
+                        email: 'admin@example.com', 
+                        password: 'password123' 
+                      }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                      localStorage.setItem('authToken', data.token);
+                      window.location.href = '/';
+                    })
+                    .catch(error => {
+                      console.error('Login error:', error);
+                    });
+                  }}
+                >
+                  Login with Demo Account
+                </button>
+              </form>
+            </div>
+          </div>
+        </Route>
+        <Route path="/simple-register">
+          {/* Simple inline registration form */}
+          <div className="min-h-screen flex items-center justify-center bg-gray-100">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+              <h1 className="text-2xl font-bold mb-6 text-center">Simple Registration</h1>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const email = (document.getElementById('reg-email') as HTMLInputElement).value;
+                const password = (document.getElementById('reg-password') as HTMLInputElement).value;
+                const firstName = (document.getElementById('reg-firstName') as HTMLInputElement).value;
+                const lastName = (document.getElementById('reg-lastName') as HTMLInputElement).value;
+                const companyName = (document.getElementById('reg-companyName') as HTMLInputElement).value;
+                
+                fetch('/api/auth/register', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ 
+                    email, 
+                    password, 
+                    firstName, 
+                    lastName, 
+                    companyName 
+                  }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                  localStorage.setItem('authToken', data.token);
+                  window.location.href = '/';
+                })
+                .catch(error => {
+                  console.error('Registration error:', error);
+                });
+              }}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    id="reg-email"
+                    type="email"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your email"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <input
+                    id="reg-password"
+                    type="password"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your password"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">First Name</label>
+                  <input
+                    id="reg-firstName"
+                    type="text"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your first name"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Last Name</label>
+                  <input
+                    id="reg-lastName"
+                    type="text"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your last name"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Company Name</label>
+                  <input
+                    id="reg-companyName"
+                    type="text"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your company name"
+                  />
+                </div>
+                
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                >
+                  Register
+                </button>
+                
+                <div className="mt-4 text-center">
+                  <a href="/simple-login" className="text-blue-500 hover:underline">Already have an account? Login</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </Route>
         <Route path="/test-login">
-          {() => {
-            const TestLogin = require('./pages/test-login').default;
-            return <TestLogin />;
-          }}
+          {/* Simple test login page */}
+          <div className="min-h-screen flex items-center justify-center bg-gray-100">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+              <h1 className="text-2xl font-bold mb-6 text-center">Test Login</h1>
+              <div className="text-center">
+                <a href="/simple-login" className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                  Go to Simple Login
+                </a>
+              </div>
+            </div>
+          </div>
         </Route>
         
         {/* Project routes in correct order - most specific first */}
