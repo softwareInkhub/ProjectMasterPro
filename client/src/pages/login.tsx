@@ -41,7 +41,9 @@ export default function Login() {
     onSuccess: (data) => {
       // Store token in localStorage
       localStorage.setItem("authToken", data.token);
-      setLocation("/");
+      
+      // Force a reload of the page to ensure the auth token is properly used
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       setError(error.message);
@@ -76,7 +78,9 @@ export default function Login() {
     onSuccess: (data) => {
       // Store token in localStorage
       localStorage.setItem("authToken", data.token);
-      setLocation("/");
+      
+      // Force a reload of the page to ensure the auth token is properly used
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       setError(error.message);
