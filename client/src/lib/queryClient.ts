@@ -9,15 +9,10 @@ async function throwIfResNotOk(res: Response) {
 
 // Helper to get the auth token from localStorage
 function getAuthToken(): string | null {
-  // First try to get from localStorage
+  // Get the token from localStorage
   const storedToken = localStorage.getItem("authToken");
-  if (storedToken) {
-    return storedToken;
-  }
-  
-  // For development/demo purposes, return a demo token if no token is stored
-  // This allows testing without needing to log in
-  return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEiLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzEyNTA0ODgzLCJleHAiOjE3NDQwNDA4ODN9.J4BrxnTeLkL4NvskJ-IVpLpYGJiB_6v0tzdH7n-d-O8";
+  // Only return the actual stored token - no default demo token
+  return storedToken;
 }
 
 // Helper to create headers with auth token if available
@@ -47,12 +42,16 @@ export async function apiRequest(
     body: data ? JSON.stringify(data) : undefined,
   });
 
-  // Handle unauthorized error (could redirect to login page)
+  // Handle unauthorized error (redirect to login page)
   if (res.status === 401) {
     // If token is invalid or expired, clear it
     localStorage.removeItem("authToken");
-    // Could redirect to login here
-    // window.location.href = "/login";
+    // Force redirect to login page
+    if (!window.location.pathname.includes('/login') && 
+        !window.location.pathname.includes('/auth') &&
+        !window.location.pathname.includes('/test-login')) {
+      window.location.href = "/login";
+    }
   }
 
   await throwIfResNotOk(res);
@@ -73,6 +72,13 @@ export const getQueryFn: <T>(options?: {
     if (res.status === 401) {
       // If token is invalid or expired, clear it
       localStorage.removeItem("authToken");
+      
+      // Force redirect to login page if not already on login/auth pages
+      if (!window.location.pathname.includes('/login') && 
+          !window.location.pathname.includes('/auth') &&
+          !window.location.pathname.includes('/test-login')) {
+        window.location.href = "/login";
+      }
       
       // Return null or throw based on the behavior parameter
       if (unauthorizedBehavior === "returnNull") {
