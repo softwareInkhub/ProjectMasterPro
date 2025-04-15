@@ -65,6 +65,10 @@ function App() {
         {/* Auth routes */}
         <Route path="/login" component={Login} />
         <Route path="/auth" component={Login} />
+        <Route path="/test-login" component={() => {
+          const TestLogin = require('./pages/test-login').default;
+          return <TestLogin />;
+        }} />
         
         {/* Project routes in correct order - most specific first */}
         <Route path="/projects/new">
