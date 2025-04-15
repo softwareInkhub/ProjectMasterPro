@@ -132,6 +132,8 @@ export class MemStorage implements IStorage {
   private comments: Map<string, Comment>;
   private attachments: Map<string, Attachment>;
   private notifications: Map<string, Notification>;
+  private locations: Map<string, Location>;
+  private devices: Map<string, Device>;
 
   constructor() {
     this.companies = new Map();
@@ -147,6 +149,8 @@ export class MemStorage implements IStorage {
     this.comments = new Map();
     this.attachments = new Map();
     this.notifications = new Map();
+    this.locations = new Map();
+    this.devices = new Map();
     
     // Create a default admin user for initial login
     this.createDefaultAdmin();
@@ -735,6 +739,138 @@ export class MemStorage implements IStorage {
 
   async deleteNotification(id: string): Promise<boolean> {
     return this.notifications.delete(id);
+  }
+
+  // Location operations
+  async getLocations(companyId?: string): Promise<Location[]> {
+    const locations = Array.from(this.locations.values());
+    if (companyId) {
+      return locations.filter(location => location.companyId === companyId);
+    }
+    return locations;
+  }
+
+  async getLocation(id: string): Promise<Location | undefined> {
+    return this.locations.get(id);
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    const id = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    const newLocation: Location = {
+      id,
+      ...location,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.locations.set(id, newLocation);
+    return newLocation;
+  }
+
+  async updateLocation(id: string, locationUpdate: Partial<InsertLocation>): Promise<Location | undefined> {
+    const existingLocation = this.locations.get(id);
+    if (!existingLocation) return undefined;
+
+    const updatedLocation: Location = {
+      ...existingLocation,
+      ...locationUpdate,
+      updatedAt: new Date().toISOString()
+    };
+    this.locations.set(id, updatedLocation);
+    return updatedLocation;
+  }
+
+  async deleteLocation(id: string): Promise<boolean> {
+    return this.locations.delete(id);
+  }
+
+  // Device operations
+  async getDevices(companyId?: string, departmentId?: string, locationId?: string, assignedToId?: string, status?: string): Promise<Device[]> {
+    let devices = Array.from(this.devices.values());
+    
+    if (companyId) {
+      devices = devices.filter(device => device.companyId === companyId);
+    }
+    
+    if (departmentId) {
+      devices = devices.filter(device => device.departmentId === departmentId);
+    }
+    
+    if (locationId) {
+      devices = devices.filter(device => device.locationId === locationId);
+    }
+    
+    if (assignedToId) {
+      devices = devices.filter(device => device.assignedToId === assignedToId);
+    }
+    
+    if (status) {
+      devices = devices.filter(device => device.status === status);
+    }
+    
+    return devices;
+  }
+
+  async getDevice(id: string): Promise<Device | undefined> {
+    return this.devices.get(id);
+  }
+
+  async getDeviceBySerialNumber(serialNumber: string): Promise<Device | undefined> {
+    return Array.from(this.devices.values()).find(
+      device => device.serialNumber === serialNumber
+    );
+  }
+
+  async createDevice(device: InsertDevice): Promise<Device> {
+    const id = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    const newDevice: Device = {
+      id,
+      ...device,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.devices.set(id, newDevice);
+    return newDevice;
+  }
+
+  async updateDevice(id: string, deviceUpdate: Partial<InsertDevice>): Promise<Device | undefined> {
+    const existingDevice = this.devices.get(id);
+    if (!existingDevice) return undefined;
+
+    const updatedDevice: Device = {
+      ...existingDevice,
+      ...deviceUpdate,
+      updatedAt: new Date().toISOString()
+    };
+    this.devices.set(id, updatedDevice);
+    return updatedDevice;
+  }
+
+  async deleteDevice(id: string): Promise<boolean> {
+    return this.devices.delete(id);
+  }
+
+  async assignDevice(id: string, userId: string): Promise<Device | undefined> {
+    const device = this.devices.get(id);
+    if (!device || !this.users.has(userId)) return undefined;
+    
+    device.assignedToId = userId;
+    device.status = "ASSIGNED";
+    device.updatedAt = new Date().toISOString();
+    this.devices.set(id, device);
+    return device;
+  }
+
+  async unassignDevice(id: string): Promise<Device | undefined> {
+    const device = this.devices.get(id);
+    if (!device) return undefined;
+    
+    device.assignedToId = undefined;
+    device.status = "AVAILABLE";
+    device.updatedAt = new Date().toISOString();
+    this.devices.set(id, device);
+    return device;
   }
 }
 

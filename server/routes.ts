@@ -6,7 +6,8 @@ import {
   insertDepartmentSchema, insertGroupSchema, insertTeamSchema,
   insertProjectSchema, insertEpicSchema, insertStorySchema,
   insertTaskSchema, insertCommentSchema, insertAttachmentSchema,
-  insertNotificationSchema, registerUserSchema, InsertUser
+  insertNotificationSchema, registerUserSchema, InsertUser,
+  insertLocationSchema, insertDeviceSchema
 } from "@shared/schema";
 import { generateToken, authenticateJwt, AuthRequest, authorize } from "./auth";
 import { z } from "zod";
