@@ -133,6 +133,40 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Get current authenticated user
+  apiRouter.get("/auth/user", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // If using the demo token
+      if (req.user.id === "1" && req.user.email === "admin@example.com") {
+        return res.json(req.user);
+      }
+      
+      // For regular users, get fresh user data from storage
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't send password back to client
+      const { password, ...userWithoutPassword } = user;
+      
+      return res.json(userWithoutPassword);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Logout endpoint
+  apiRouter.post("/auth/logout", async (req: Request, res: Response) => {
+    // Since we're using JWT tokens which are stateless, there's no server-side session to invalidate
+    // The client will clear the token from localStorage
+    return res.status(200).json({ message: "Logout successful" });
+  });
+
   // Company routes
   apiRouter.get("/companies", authenticateJwt, async (req: AuthRequest, res: Response) => {
     try {
