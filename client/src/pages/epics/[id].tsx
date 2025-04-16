@@ -416,9 +416,22 @@ export default function EpicDetailPage() {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span>Epic completion</span>
-                <span>{epic.progress}%</span>
+                <span>
+                  {typeof epic.progress === 'object' 
+                    ? epic.progress.percentage 
+                    : (typeof epic.progress === 'string' 
+                      ? JSON.parse(epic.progress).percentage 
+                      : epic.progress)}%
+                </span>
               </div>
-              <Progress value={epic.progress} className="h-2 mb-4" />
+              <Progress 
+                value={typeof epic.progress === 'object' 
+                  ? epic.progress.percentage 
+                  : (typeof epic.progress === 'string' 
+                    ? JSON.parse(epic.progress).percentage 
+                    : epic.progress)} 
+                className="h-2 mb-4" 
+              />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
               <div className="bg-gray-50 p-4 rounded-lg">
