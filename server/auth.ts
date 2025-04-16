@@ -42,22 +42,22 @@ export function authenticateJwt(req: AuthRequest, res: Response, next: NextFunct
   const token = parts[1];
   
   // Check for demo token - for development purposes only
-  const demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEiLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzEyNTA0ODgzLCJleHAiOjE3NDQwNDA4ODN9.J4BrxnTeLkL4NvskJ-IVpLpYGJiB_6v0tzdH7n-d-O8";
+  const demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZkNjk5MjBiLWEyMTQtNDc3Yi1iN2VjLTgwYTk3MDUzYzIwZSIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3MTI1MDQ4ODMsImV4cCI6MTc0NDA0MDg4M30.KSzp9MzJ2Lx0Rn8SSgRrkOzIgfDVtbUYrIBVl3Ceyt4";
   
   if (token === demoToken) {
     // For demo token, create a demo user
     req.user = {
-      id: "1",
+      id: "fd69920b-a214-477b-b7ec-80a97053c20e", // Valid UUID from the database
       email: "admin@example.com",
       firstName: "Admin",
       lastName: "User",
       role: "ADMIN",
-      companyId: "1",
+      companyId: "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf", // Valid UUID from the database
       password: "",
       status: "ACTIVE",
       departmentId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     return next();
   }

@@ -20,7 +20,7 @@ export default function DirectLogin() {
 
     try {
       // Direct manual login with demo user
-      localStorage.setItem('authToken', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEiLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzEyNTA0ODgzLCJleHAiOjE3NDQwNDA4ODN9.J4BrxnTeLkL4NvskJ-IVpLpYGJiB_6v0tzdH7n-d-O8');
+      localStorage.setItem('authToken', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZkNjk5MjBiLWEyMTQtNDc3Yi1iN2VjLTgwYTk3MDUzYzIwZSIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3MTI1MDQ4ODMsImV4cCI6MTc0NDA0MDg4M30.KSzp9MzJ2Lx0Rn8SSgRrkOzIgfDVtbUYrIBVl3Ceyt4');
       
       setMessage('Login successful! Token set in localStorage.');
       setLoggedIn(true);
