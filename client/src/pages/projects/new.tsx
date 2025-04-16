@@ -123,9 +123,13 @@ export default function NewProject() {
     
     setIsSubmitting(true);
     
-    // Set default progress if not provided
+    // Process dates and set default progress
     const dataToSubmit = {
       ...formData,
+      // Format date strings properly for API
+      startDate: formData.startDate ? (typeof formData.startDate === 'string' ? new Date(formData.startDate).toISOString() : formData.startDate) : undefined,
+      endDate: formData.endDate ? (typeof formData.endDate === 'string' ? new Date(formData.endDate).toISOString() : formData.endDate) : undefined,
+      // Default progress
       progress: { percentage: 0 },
     } as InsertProject;
     
@@ -144,12 +148,13 @@ export default function NewProject() {
       const updatedData: Partial<InsertProject> = {
         ...formData,
         [name]: value,
-        departmentId: null,
-        teamId: null
+        departmentId: "",
+        teamId: ""
       };
       setFormData(updatedData);
-    } else if (value === "none" && name === "departmentId") {
-      setFormData(prev => ({ ...prev, [name]: null }));
+    } else if (value === "none") {
+      // Handle all "none" values by setting to empty string
+      setFormData(prev => ({ ...prev, [name]: "" }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -372,7 +377,7 @@ export default function NewProject() {
                     id="startDate"
                     name="startDate"
                     type="date"
-                    value={formData.startDate || ""}
+                    value={typeof formData.startDate === 'string' ? formData.startDate : ""}
                     onChange={handleInputChange}
                   />
                 </div>
@@ -383,7 +388,7 @@ export default function NewProject() {
                     id="endDate"
                     name="endDate"
                     type="date"
-                    value={formData.endDate || ""}
+                    value={typeof formData.endDate === 'string' ? formData.endDate : ""}
                     onChange={handleInputChange}
                   />
                 </div>
