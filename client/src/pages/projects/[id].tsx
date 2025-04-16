@@ -570,9 +570,23 @@ export default function ProjectDetailPage() {
                         <div className="mt-4">
                           <div className="flex justify-between text-sm mb-1">
                             <span>Progress</span>
-                            <span>{epic.progress}% ({epic.completedStories}/{epic.storyCount} stories)</span>
+                            <span>
+                              {typeof epic.progress === 'object' 
+                                ? epic.progress.percentage 
+                                : (typeof epic.progress === 'string' 
+                                  ? JSON.parse(epic.progress).percentage 
+                                  : epic.progress)}% 
+                              ({epic.completedStories || 0}/{epic.storyCount || 0} stories)
+                            </span>
                           </div>
-                          <Progress value={epic.progress} className="h-2" />
+                          <Progress 
+                            value={typeof epic.progress === 'object' 
+                              ? epic.progress.percentage 
+                              : (typeof epic.progress === 'string' 
+                                ? JSON.parse(epic.progress).percentage 
+                                : epic.progress)} 
+                            className="h-2" 
+                          />
                         </div>
                       </div>
                     </div>
