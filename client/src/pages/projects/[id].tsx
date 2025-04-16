@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -23,7 +25,8 @@ import {
   TrashIcon,
   CheckSquareIcon,
   BookOpenIcon,
-  BookIcon
+  BookIcon,
+  Loader2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -56,69 +59,77 @@ export default function ProjectDetailPage() {
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isAddTeamMemberDialogOpen, setIsAddTeamMemberDialogOpen] = useState(false);
   
-  // Project data - this would come from an API call in the real application
-  const [project, setProject] = useState({
-    id: 1,
-    name: "Website Redesign",
-    description: "Modernizing the corporate website with new design and features. This project includes a complete UI overhaul, improved mobile responsiveness, and integration with the latest CMS for easier content management.",
-    status: "In Progress",
-    progress: 65,
-    startDate: "2023-09-01",
-    endDate: "2023-12-31",
-    department: "Engineering",
-    departmentId: 1,
-    team: "Frontend Development",
-    teamId: 1,
-    teamLead: "Alice Chen",
-    teamLeadId: 5,
-    members: [
-      { id: 5, name: "Alice Chen", role: "Project Manager", avatar: "AC" },
-      { id: 8, name: "Bob Jackson", role: "Developer", avatar: "BJ" },
-      { id: 12, name: "Charlie Martinez", role: "Designer", avatar: "CM" },
-      { id: 15, name: "Diana Kim", role: "QA Engineer", avatar: "DK" },
-      { id: 18, name: "Eric Thompson", role: "Developer", avatar: "ET" }
-    ],
-    tasks: {
-      total: 34,
-      completed: 22,
-      inProgress: 8,
-      backlog: 4
-    },
-    priority: "High",
-    client: "Acme Corporation",
-    budget: 75000,
-    tags: ["web", "ui/ux", "responsive"],
-    createdAt: "2023-08-15",
-    updatedAt: "2023-10-28"
+  // Fetch project data from API
+  const { data: projectData, isLoading: projectLoading, error: projectError } = useQuery({
+    queryKey: [`/api/projects/${projectId}`],
+    enabled: !!projectId,
+  });
+  
+  // Fetch project team members 
+  const { data: teamMembers = [], isLoading: membersLoading } = useQuery({
+    queryKey: [`/api/teams/${projectData?.teamId}/members`],
+    enabled: !!projectData?.teamId,
   });
 
-  // Sample related epics
-  const epics = [
-    {
-      id: 1,
-      name: "User Authentication System",
-      status: "IN_PROGRESS",
-      progress: 40,
-      storyCount: 12,
-      completedStories: 5
-    },
-    {
-      id: 2,
-      name: "Dashboard Analytics",
-      status: "BACKLOG",
-      progress: 0,
-      storyCount: 8,
-      completedStories: 0
-    },
-    {
-      id: 3,
-      name: "Mobile Responsiveness",
-      status: "IN_PROGRESS",
-      progress: 75,
-      storyCount: 10,
-      completedStories: 7
+  // Fetch tasks for this project 
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
+    queryKey: ['/api/tasks'],
+    enabled: !!projectId,
+  });
+
+  // Fetch epics for this project
+  const { data: epics = [], isLoading: epicsLoading } = useQuery({
+    queryKey: ['/api/epics'],
+    queryFn: getQueryFn(),
+    enabled: !!projectId,
+  });
+  
+  // Get related data
+  const { data: departments = [] } = useQuery({
+    queryKey: ['/api/departments']
+  });
+  
+  const { data: teams = [] } = useQuery({
+    queryKey: ['/api/teams']
+  });
+  
+  const { data: users = [] } = useQuery({
+    queryKey: ['/api/users']
+  });
+  
+  // Create derived state from API data
+  const [project, setProject] = useState<any>(null);
+  
+  // Update local state when API data changes
+  useEffect(() => {
+    if (projectData) {
+      // Process related data
+      const team = teams?.find(t => t.id === projectData.teamId);
+      const department = departments?.find(d => d.id === projectData.departmentId);
+      const projectManager = users?.find(u => u.id === projectData.projectManagerId);
+      
+      // Calculate task statistics
+      const taskStats = {
+        total: tasks.length,
+        completed: tasks.filter((t: any) => t.status === "DONE").length,
+        inProgress: tasks.filter((t: any) => t.status === "IN_PROGRESS").length,
+        backlog: tasks.filter((t: any) => t.status === "TODO").length
+      };
+      
+      // Set project with enhanced data
+      setProject({
+        ...projectData,
+        members: teamMembers || [],
+        tasks: taskStats,
+        department: department?.name || "Unknown Department",
+        team: team?.name || "Unknown Team",
+        teamLead: projectManager?.firstName + " " + projectManager?.lastName || "Unknown",
+        tags: ["project"], // Default tags since we don't have this in the schema
+        client: "Internal", // Default client since we don't have this in the schema
+        budget: 0 // Default budget since we don't have this in the schema
+      });
     }
-  ];
+  }, [projectData, departments, teams, users, teamMembers, tasks]);
   
   // Edit form state
   const [editProject, setEditProject] = useState({
@@ -283,6 +294,29 @@ export default function ProjectDetailPage() {
       updatedAt: new Date().toISOString().substring(0, 10)
     });
   };
+
+  // Loading state
+  if (projectLoading || !project) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p>Loading project details...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (projectError) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Project</h2>
+        <p className="text-gray-600 mb-6">
+          {projectError instanceof Error ? projectError.message : "An unknown error occurred."}
+        </p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    );
+  }
 
   return (
     <div>
