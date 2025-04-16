@@ -1,5 +1,5 @@
 import { Route, Switch, Redirect, useLocation } from "wouter";
-import { useEffect, createContext, useContext, useState, ReactNode } from "react";
+import { useEffect, createContext, useContext, useState, ReactNode, lazy, Suspense } from "react";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import ProjectsPage from "@/pages/projects";
@@ -38,8 +38,24 @@ import { Toaster } from "@/components/ui/toaster";
 
 // Protected Route component
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [location] = useLocation();
+
+  // Simple token checking without using useAuth hook
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
+      setIsAuthenticated(!!token);
+      setIsLoading(false);
+    };
+    
+    checkAuth();
+    
+    // Check for token changes
+    const intervalId = setInterval(checkAuth, 1000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   if (isLoading) {
     return (
@@ -50,8 +66,8 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    // Using Redirect component with state to return to the intended page after login
-    return <Redirect to={`/login?redirect=${encodeURIComponent(location)}`} />;
+    // Redirect to our direct login page
+    return <Redirect to={`/direct-login?redirect=${encodeURIComponent(location)}`} />;
   }
 
   return <>{children}</>;
@@ -65,13 +81,23 @@ function App() {
         {/* Auth routes */}
         <Route path="/login">
           <div>
-            <iframe src="/simple-login" style={{ width: "100%", height: "100vh", border: "none" }}></iframe>
+            <iframe src="/direct-login" style={{ width: "100%", height: "100vh", border: "none" }}></iframe>
           </div>
         </Route>
         <Route path="/auth">
           <div>
-            <iframe src="/simple-login" style={{ width: "100%", height: "100vh", border: "none" }}></iframe>
+            <iframe src="/direct-login" style={{ width: "100%", height: "100vh", border: "none" }}></iframe>
           </div>
+        </Route>
+        <Route path="/direct-login">
+          {() => {
+            const DirectLogin = lazy(() => import('./pages/direct-login'));
+            return (
+              <Suspense fallback={<div>Loading...</div>}>
+                <DirectLogin />
+              </Suspense>
+            );
+          }}
         </Route>
         <Route path="/simple-login">
           {/* Import SimpleLogin from './pages/simple-login' */}
