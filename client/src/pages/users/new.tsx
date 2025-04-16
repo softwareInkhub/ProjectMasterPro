@@ -291,7 +291,7 @@ export default function NewUserPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="_none">None</SelectItem>
-                              {companies.map((company: any) => (
+                              {companies.map((company: Company) => (
                                 <SelectItem key={company.id} value={company.id}>
                                   {company.name}
                                 </SelectItem>
@@ -321,7 +321,7 @@ export default function NewUserPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="_none">None</SelectItem>
-                              {filteredDepartments.map((department: any) => (
+                              {filteredDepartments.map((department: Department) => (
                                 <SelectItem key={department.id} value={department.id}>
                                   {department.name}
                                 </SelectItem>
@@ -351,7 +351,7 @@ export default function NewUserPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="_none">None</SelectItem>
-                              {filteredTeams.map((team: any) => (
+                              {filteredTeams.map((team: Team) => (
                                 <SelectItem key={team.id} value={team.id}>
                                   {team.name}
                                 </SelectItem>
