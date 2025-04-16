@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Company, Department, Team } from "@shared/schema";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,17 +36,17 @@ export default function NewUserPage() {
   const { toast } = useToast();
 
   // Fetch companies, departments, and teams for select options
-  const { data: companies = [] } = useQuery({
+  const { data: companies = [] } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
     queryFn: getQueryFn()
   });
 
-  const { data: departments = [] } = useQuery({
+  const { data: departments = [] } = useQuery<Department[]>({
     queryKey: ['/api/departments'],
     queryFn: getQueryFn()
   });
 
-  const { data: teams = [] } = useQuery({
+  const { data: teams = [] } = useQuery<Team[]>({
     queryKey: ['/api/teams'],
     queryFn: getQueryFn()
   });
@@ -101,14 +102,13 @@ export default function NewUserPage() {
 
   // Filter departments and teams based on selected company
   const selectedCompanyId = form.watch("companyId");
-  const filteredDepartments = departments.filter((dept: any) => 
+  const filteredDepartments = departments.filter((dept: Department) => 
     !selectedCompanyId || dept.companyId === selectedCompanyId
   );
   
-  // Filter teams based on selected department
-  const selectedDepartmentId = form.watch("departmentId");
-  const filteredTeams = teams.filter((team: any) => 
-    !selectedDepartmentId || team.departmentId === selectedDepartmentId
+  // Filter teams based on selected company (not department)
+  const filteredTeams = teams.filter((team: Team) => 
+    !selectedCompanyId || team.companyId === selectedCompanyId
   );
 
   // Handle company change (reset department and team if company changes)
@@ -342,11 +342,11 @@ export default function NewUserPage() {
                           <Select 
                             value={field.value || ""}
                             onValueChange={(value) => field.onChange(value === "_none" ? null : value)}
-                            disabled={!selectedDepartmentId}
+                            disabled={!selectedCompanyId}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder={selectedDepartmentId ? "Select a team" : "Select a department first"} />
+                                <SelectValue placeholder={selectedCompanyId ? "Select a team" : "Select a company first"} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
