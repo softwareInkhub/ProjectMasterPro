@@ -154,22 +154,21 @@ export default function ProjectDetailPage() {
   
   // Load project data when component mounts or projectId changes
   useEffect(() => {
-    // In a real application, this would be an API call
-    // For now, we're using the static data above
-    if (projectId) {
+    // Only set up the edit form when project data is available
+    if (projectId && project) {
       // Setup edit form with current project data
       setEditProject({
-        name: project.name,
-        description: project.description,
-        status: project.status,
-        priority: project.priority,
-        departmentId: project.departmentId.toString(),
-        teamId: project.teamId.toString(),
-        teamLeadId: project.teamLeadId.toString(),
-        startDate: project.startDate,
-        endDate: project.endDate,
-        client: project.client,
-        budget: project.budget.toString()
+        name: project.name || "",
+        description: project.description || "",
+        status: project.status || "",
+        priority: project.priority || "",
+        departmentId: project.departmentId ? project.departmentId.toString() : "",
+        teamId: project.teamId ? project.teamId.toString() : "",
+        teamLeadId: project.projectManagerId ? project.projectManagerId.toString() : "",
+        startDate: project.startDate || "",
+        endDate: project.endDate || "",
+        client: project.client || "Internal", // Default value
+        budget: project.budget ? project.budget.toString() : "0" // Default value
       });
     }
   }, [projectId, project]);
@@ -390,9 +389,9 @@ export default function ProjectDetailPage() {
             <div className="mb-4">
               <div className="flex justify-between text-sm mb-1">
                 <span>Project completion</span>
-                <span>{project.progress}%</span>
+                <span>{project.progress && project.progress.percentage ? project.progress.percentage : 0}%</span>
               </div>
-              <Progress value={project.progress} className="h-2" />
+              <Progress value={project.progress && project.progress.percentage ? project.progress.percentage : 0} className="h-2" />
             </div>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -461,7 +460,7 @@ export default function ProjectDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-gray-500">Budget</div>
-                  <div className="font-medium">${project.budget.toLocaleString()}</div>
+                  <div className="font-medium">${typeof project.budget === 'number' ? project.budget.toLocaleString() : '0'}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Created</div>
