@@ -1169,32 +1169,38 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Starting project creation with:", JSON.stringify(project, null, 2));
       
-      // Make sure we have a valid progress object
+      // Only extract the properties that are valid for the database schema
+      // and NOT add progress (it's omitted from the InsertProject type)
+      const { 
+        name, 
+        description, 
+        companyId, 
+        teamId, 
+        startDate, 
+        endDate, 
+        status, 
+        priority, 
+        departmentId, 
+        projectManagerId 
+      } = project;
+      
+      // Build clean project data with only the valid properties
       const projectData = {
-        ...project,
-        progress: project.progress || { percentage: 0 }
+        name,
+        companyId,
+        teamId,
+        description,
+        startDate,
+        endDate,
+        status,
+        priority,
+        departmentId,
+        projectManagerId,
+        // Always set the default progress explicitly
+        progress: { percentage: 0 }
       };
-
-      // Handle Date objects properly - ensure they're valid
-      if (projectData.startDate && !(projectData.startDate instanceof Date)) {
-        try {
-          projectData.startDate = new Date(projectData.startDate);
-        } catch (e) {
-          console.error("Invalid startDate:", projectData.startDate);
-          projectData.startDate = null;
-        }
-      }
       
-      if (projectData.endDate && !(projectData.endDate instanceof Date)) {
-        try {
-          projectData.endDate = new Date(projectData.endDate);
-        } catch (e) {
-          console.error("Invalid endDate:", projectData.endDate);
-          projectData.endDate = null;
-        }
-      }
-      
-      console.log("Formatted project data:", JSON.stringify(projectData, null, 2));
+      console.log("Cleaned project data:", JSON.stringify(projectData, null, 2));
       
       const [newProject] = await db
         .insert(schema.projects)

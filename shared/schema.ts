@@ -132,12 +132,18 @@ export const projects = pgTable("projects", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertProjectSchema = createInsertSchema(projects).omit({
-  id: true,
-  progress: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertProjectSchema = createInsertSchema(projects)
+  .omit({
+    id: true,
+    progress: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Allow ISO string dates and convert them to Date objects
+    startDate: z.string().datetime().optional().transform(val => val ? new Date(val) : null),
+    endDate: z.string().datetime().optional().transform(val => val ? new Date(val) : null),
+  });
 
 // Epic schema
 export const epics = pgTable("epics", {
