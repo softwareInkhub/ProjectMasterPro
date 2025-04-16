@@ -39,7 +39,7 @@ export default function NewEpicPage() {
     projectId: '',
     startDate: '',
     endDate: '',
-    progress: JSON.stringify({ percentage: 0 })
+    progress: { percentage: 0 }
   });
   
   // Fetch reference data
