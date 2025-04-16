@@ -75,11 +75,18 @@ export default function NewProject() {
       });
       setLocation(`/projects/${data.id}`);
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       setIsSubmitting(false);
+      console.error("Project creation error:", error);
+      
+      // More detailed error message
+      const errorMessage = error.response?.data?.errors 
+        ? JSON.stringify(error.response.data.errors) 
+        : error.message;
+      
       toast({
         title: "Failed to create project",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }

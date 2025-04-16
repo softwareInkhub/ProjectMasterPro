@@ -135,9 +135,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
+      console.log("Fetching user data for ID:", req.user.id);
+      
       // Always get fresh user data from storage
       const user = await storage.getUser(req.user.id);
       if (!user) {
+        console.log("User not found in storage:", req.user.id);
         return res.status(404).json({ message: "User not found" });
       }
       
@@ -146,6 +149,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       return res.json(userWithoutPassword);
     } catch (error) {
+      console.error("Error fetching user:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
