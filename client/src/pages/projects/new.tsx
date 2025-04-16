@@ -61,10 +61,26 @@ export default function NewProject() {
 
   // Create project mutation
   const createProjectMutation = useMutation({
-    mutationFn: async (data: InsertProject) => {
+    mutationFn: async (data: any) => {
+      console.log("Sending project data:", data);
       const res = await apiRequest('POST', '/api/projects', data);
-      const result = await res.json();
-      return result;
+      if (!res.ok) {
+        // Parse the error response
+        const errorData = await res.json();
+        console.error("Project API error response:", errorData);
+        
+        // Format error messages for display
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          const errorDetails = errorData.errors.map((err: any) => {
+            return `Field: ${err.path || 'unknown'}, Error: ${err.message || 'invalid value'}`;
+          }).join('\n');
+          throw new Error(`${errorData.message}: ${errorDetails}`);
+        }
+        
+        throw new Error(errorData.message || 'Unknown server error');
+      }
+      
+      return await res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
@@ -79,14 +95,9 @@ export default function NewProject() {
       setIsSubmitting(false);
       console.error("Project creation error:", error);
       
-      // More detailed error message
-      const errorMessage = error.response?.data?.errors 
-        ? JSON.stringify(error.response.data.errors) 
-        : error.message;
-      
       toast({
         title: "Failed to create project",
-        description: errorMessage,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
     }
@@ -125,13 +136,23 @@ export default function NewProject() {
     
     // Prepare data for submission with proper date objects
     const dataToSubmit = {
-      ...formData,
-      // Convert dates to actual Date objects (not string ISO format)
-      startDate: formData.startDate ? new Date(formData.startDate as string) : undefined,
-      endDate: formData.endDate ? new Date(formData.endDate as string) : undefined,
-      // Remove properties with empty strings to use server defaults
-      departmentId: formData.departmentId === "" ? undefined : formData.departmentId,
-      projectManagerId: formData.projectManagerId === "" ? undefined : formData.projectManagerId,
+      // Required fields must be non-null
+      name: formData.name || "",
+      companyId: formData.companyId || "",
+      teamId: formData.teamId || "",
+      
+      // Optional fields
+      description: formData.description || null,
+      status: formData.status || "PLANNING",
+      priority: formData.priority || "MEDIUM",
+      
+      // Convert dates to actual Date objects
+      startDate: formData.startDate ? new Date(formData.startDate as string) : null,
+      endDate: formData.endDate ? new Date(formData.endDate as string) : null,
+      
+      // Optional relationships
+      departmentId: formData.departmentId === "" ? null : formData.departmentId,
+      projectManagerId: formData.projectManagerId === "" ? null : formData.projectManagerId,
     };
     
     createProjectMutation.mutate(dataToSubmit);
