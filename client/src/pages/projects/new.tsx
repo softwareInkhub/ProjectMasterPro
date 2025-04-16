@@ -123,15 +123,16 @@ export default function NewProject() {
     
     setIsSubmitting(true);
     
-    // Process dates and set default progress
+    // Prepare data for submission with proper date objects
     const dataToSubmit = {
       ...formData,
-      // Format date strings properly for API
-      startDate: formData.startDate ? (typeof formData.startDate === 'string' ? new Date(formData.startDate).toISOString() : formData.startDate) : undefined,
-      endDate: formData.endDate ? (typeof formData.endDate === 'string' ? new Date(formData.endDate).toISOString() : formData.endDate) : undefined,
-      // Default progress
-      progress: { percentage: 0 },
-    } as InsertProject;
+      // Convert dates to actual Date objects (not string ISO format)
+      startDate: formData.startDate ? new Date(formData.startDate as string) : undefined,
+      endDate: formData.endDate ? new Date(formData.endDate as string) : undefined,
+      // Remove properties with empty strings to use server defaults
+      departmentId: formData.departmentId === "" ? undefined : formData.departmentId,
+      projectManagerId: formData.projectManagerId === "" ? undefined : formData.projectManagerId,
+    };
     
     createProjectMutation.mutate(dataToSubmit);
   };
