@@ -36,7 +36,7 @@ interface Team {
 export default function TeamsPage() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  const [companyFilter, setCompanyFilter] = useState<string>('');
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const { toast } = useToast();
 
@@ -49,14 +49,18 @@ export default function TeamsPage() {
   const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['/api/departments'],
   });
+  
+  // Fetch companies for filter
+  const { data: companies = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/companies'],
+  });
 
-  // Filter teams based on search and department filter
+  // Filter teams based on search and company filter
   const filteredTeams = teams.filter(team => {
     const matchesSearch = team.name.toLowerCase().includes(search.toLowerCase()) || 
                          (team.description && team.description.toLowerCase().includes(search.toLowerCase()));
-    // For departments filter, we could use the companyId instead or implement a more complex filter using related data
-    const matchesDepartment = departmentFilter && departmentFilter !== 'all' ? true : true; // Always true for now
-    return matchesSearch && matchesDepartment;
+    const matchesCompany = companyFilter && companyFilter !== 'all' ? team.companyId === companyFilter : true;
+    return matchesSearch && matchesCompany;
   });
 
   // Format date helper
@@ -65,10 +69,10 @@ export default function TeamsPage() {
     return date.toLocaleDateString();
   };
 
-  // Get department name helper
-  const getDepartmentName = (departmentId: string) => {
-    const department = departments.find(d => d.id === departmentId);
-    return department ? department.name : 'Unknown';
+  // Get company name helper
+  const getCompanyName = (companyId: string) => {
+    const company = companies.find(c => c.id === companyId);
+    return company ? company.name : 'Unknown';
   };
 
   // Handle checkbox selection
@@ -130,18 +134,18 @@ export default function TeamsPage() {
               />
             </div>
             <div className="w-full sm:w-64">
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
                 <SelectTrigger>
                   <div className="flex items-center">
                     <FilterIcon className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter by department" />
+                    <SelectValue placeholder="Filter by company" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map(department => (
-                    <SelectItem key={department.id} value={department.id}>
-                      {department.name}
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {companies.map(company => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -199,7 +203,7 @@ export default function TeamsPage() {
               <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-lg font-medium text-gray-900">No teams found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {search || departmentFilter ? (
+                {search || companyFilter ? (
                   "No teams match your search criteria."
                 ) : (
                   "Get started by creating a new team."
@@ -229,7 +233,7 @@ export default function TeamsPage() {
                         Name <ArrowUpDownIcon className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
-                    <TableHead className="hidden md:table-cell">Department</TableHead>
+                    <TableHead className="hidden md:table-cell">Company</TableHead>
                     <TableHead className="hidden md:table-cell">Members</TableHead>
                     <TableHead className="hidden lg:table-cell">Created</TableHead>
                     <TableHead className="w-20 text-right">Actions</TableHead>
@@ -264,7 +268,7 @@ export default function TeamsPage() {
                         onClick={() => setLocation(`/teams/${team.id}`)}
                       >
                         <Badge variant="outline" className="hover:bg-secondary">
-                          {getDepartmentName(team.departmentId)}
+                          {getCompanyName(team.companyId)}
                         </Badge>
                       </TableCell>
                       <TableCell 
