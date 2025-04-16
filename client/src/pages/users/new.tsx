@@ -21,11 +21,11 @@ const formSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER", "USER"]).default("USER"),
+  role: z.enum(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER", "VIEWER"]).default("VIEWER"),
   companyId: z.string().optional().nullable(),
   departmentId: z.string().optional().nullable(),
   teamId: z.string().optional().nullable(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+  status: z.enum(["ACTIVE", "INACTIVE", "PENDING"]).default("ACTIVE"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -58,7 +58,7 @@ export default function NewUserPage() {
       lastName: "",
       email: "",
       password: "",
-      role: "USER",
+      role: "VIEWER",
       companyId: null,
       departmentId: null,
       teamId: null,
@@ -233,7 +233,7 @@ export default function NewUserPage() {
                           <SelectItem value="MANAGER">Manager</SelectItem>
                           <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
                           <SelectItem value="DEVELOPER">Developer</SelectItem>
-                          <SelectItem value="USER">Regular User</SelectItem>
+                          <SelectItem value="VIEWER">Viewer</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -262,6 +262,7 @@ export default function NewUserPage() {
                         <SelectContent>
                           <SelectItem value="ACTIVE">Active</SelectItem>
                           <SelectItem value="INACTIVE">Inactive</SelectItem>
+                          <SelectItem value="PENDING">Pending</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
