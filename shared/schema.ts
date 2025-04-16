@@ -171,12 +171,26 @@ export const epics = pgTable("epics", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertEpicSchema = createInsertSchema(epics).omit({
-  id: true,
-  progress: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertEpicSchema = createInsertSchema(epics)
+  .omit({
+    id: true,
+    progress: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Accept and transform string dates to Date objects
+    startDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    endDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    // Make progress optional with a default value provided in the route handler
+    progress: z.object({ percentage: z.number() }).optional(),
+  });
 
 // Story schema
 export const stories = pgTable("stories", {
@@ -199,11 +213,23 @@ export const stories = pgTable("stories", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertStorySchema = createInsertSchema(stories).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertStorySchema = createInsertSchema(stories)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Accept and transform string dates to Date objects
+    startDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    dueDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+  });
 
 // Task schema
 export const tasks = pgTable("tasks", {
@@ -227,11 +253,23 @@ export const tasks = pgTable("tasks", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertTaskSchema = createInsertSchema(tasks)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Accept and transform string dates to Date objects
+    startDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    dueDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+  });
 
 // Comment schema
 export const comments = pgTable("comments", {
