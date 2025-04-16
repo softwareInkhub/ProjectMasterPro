@@ -160,10 +160,14 @@ export default function NewProject() {
   
   // Handle date objects separately to avoid TypeScript issues
   if (formData.startDate) {
-    dataToSubmit.startDate = new Date(formData.startDate as string);
+    // Format as ISO string for API
+    const startDate = new Date(formData.startDate as string);
+    dataToSubmit.startDate = startDate.toISOString() as any; // Using any to bypass TypeScript typing issues
   }
   if (formData.endDate) {
-    dataToSubmit.endDate = new Date(formData.endDate as string);
+    // Format as ISO string for API
+    const endDate = new Date(formData.endDate as string);
+    dataToSubmit.endDate = endDate.toISOString() as any; // Using any to bypass TypeScript typing issues
   }
     
     createProjectMutation.mutate(dataToSubmit);

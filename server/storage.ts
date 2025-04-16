@@ -1166,14 +1166,47 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProject(project: InsertProject): Promise<Project> {
-    const [newProject] = await db
-      .insert(schema.projects)
-      .values({
+    try {
+      console.log("Starting project creation with:", JSON.stringify(project, null, 2));
+      
+      // Make sure we have a valid progress object
+      const projectData = {
         ...project,
-        progress: { percentage: 0 }
-      })
-      .returning();
-    return newProject;
+        progress: project.progress || { percentage: 0 }
+      };
+
+      // Handle Date objects properly - ensure they're valid
+      if (projectData.startDate && !(projectData.startDate instanceof Date)) {
+        try {
+          projectData.startDate = new Date(projectData.startDate);
+        } catch (e) {
+          console.error("Invalid startDate:", projectData.startDate);
+          projectData.startDate = null;
+        }
+      }
+      
+      if (projectData.endDate && !(projectData.endDate instanceof Date)) {
+        try {
+          projectData.endDate = new Date(projectData.endDate);
+        } catch (e) {
+          console.error("Invalid endDate:", projectData.endDate);
+          projectData.endDate = null;
+        }
+      }
+      
+      console.log("Formatted project data:", JSON.stringify(projectData, null, 2));
+      
+      const [newProject] = await db
+        .insert(schema.projects)
+        .values(projectData)
+        .returning();
+        
+      console.log("Project created successfully:", newProject.id);
+      return newProject;
+    } catch (error) {
+      console.error("Error creating project:", error);
+      throw error;
+    }
   }
 
   async updateProject(id: string, projectUpdate: Partial<InsertProject>): Promise<Project | undefined> {
