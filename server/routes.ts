@@ -24,29 +24,24 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const validatedData = loginUserSchema.parse(req.body);
       
-      // Special case for demo login (admin@example.com) 
-      // This allows testing the app without requiring real user accounts
-      if (validatedData.email === "admin@example.com") {
-        const demoUser = {
-          id: "1",
-          email: "admin@example.com",
-          firstName: "Admin",
-          lastName: "User",
-          role: "ADMIN",
-          companyId: "1",
-          status: "ACTIVE",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
+      // Check for admin@example.com with default password
+      if (validatedData.email === "admin@example.com" && validatedData.password === "password") {
+        // Get the actual admin user from database
+        const adminUser = await storage.getUserByEmail("admin@example.com");
         
-        // Generate JWT token
-        const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEiLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzEyNTA0ODgzLCJleHAiOjE3NDQwNDA4ODN9.J4BrxnTeLkL4NvskJ-IVpLpYGJiB_6v0tzdH7n-d-O8";
-        
-        return res.json({
-          token,
-          user: demoUser,
-          expiresIn: 24 * 60 * 60 // 24 hours in seconds
-        });
+        if (adminUser) {
+          // Generate JWT token
+          const token = generateToken(adminUser);
+          
+          // Don't send password back to client
+          const { password, ...userWithoutPassword } = adminUser;
+          
+          return res.json({
+            token,
+            user: userWithoutPassword,
+            expiresIn: 24 * 60 * 60 // 24 hours in seconds
+          });
+        }
       }
       
       // Regular login flow
@@ -140,12 +135,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      // If using the demo token
-      if (req.user.id === "1" && req.user.email === "admin@example.com") {
-        return res.json(req.user);
-      }
-      
-      // For regular users, get fresh user data from storage
+      // Always get fresh user data from storage
       const user = await storage.getUser(req.user.id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
