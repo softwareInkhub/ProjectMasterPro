@@ -595,7 +595,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       // For debugging: inspect the schema validation
       try {
+        // Ensure dates are properly handled with the preprocessor
         const validatedData = insertProjectSchema.parse(req.body);
+        
+        // Verify the progress object is set with a default value if not provided
+        if (!validatedData.progress) {
+          validatedData.progress = { percentage: 0 };
+        }
+        
         console.log("Data validated successfully, creating project:", validatedData);
         const project = await storage.createProject(validatedData);
         console.log("Project created successfully:", project);

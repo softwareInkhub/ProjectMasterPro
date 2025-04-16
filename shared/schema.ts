@@ -135,7 +135,6 @@ export const projects = pgTable("projects", {
 export const insertProjectSchema = createInsertSchema(projects)
   .omit({
     id: true,
-    progress: true,
     createdAt: true,
     updatedAt: true,
   })
@@ -149,6 +148,8 @@ export const insertProjectSchema = createInsertSchema(projects)
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
+    // Make progress optional with a default value provided in the route handler
+    progress: z.object({ percentage: z.number() }).optional(),
   });
 
 // Epic schema

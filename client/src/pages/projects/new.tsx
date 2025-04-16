@@ -421,7 +421,7 @@ export default function NewProject() {
                     name="startDate"
                     type="date"
                     value={
-                      typeof formData.startDate === 'string' && formData.startDate
+                      formData.startDate && typeof formData.startDate === 'string' 
                         ? formData.startDate.split('T')[0]  // Format ISO string to YYYY-MM-DD for date input
                         : ""
                     }
@@ -436,7 +436,7 @@ export default function NewProject() {
                     name="endDate"
                     type="date"
                     value={
-                      typeof formData.endDate === 'string' && formData.endDate
+                      formData.endDate && typeof formData.endDate === 'string' 
                         ? formData.endDate.split('T')[0]  // Format ISO string to YYYY-MM-DD for date input
                         : ""
                     }
