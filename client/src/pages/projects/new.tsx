@@ -62,7 +62,14 @@ export default function NewProject() {
   // Create project mutation
   const createProjectMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log("Sending project data:", data);
+      // Log to debug
+      console.log("Attempting to create project with data:", data);
+      console.log("Auth token exists:", !!localStorage.getItem("authToken"));
+      
+      // Debug authentication
+      const token = localStorage.getItem("authToken");
+      console.log("Token format (first few chars):", token ? token.substring(0, 15) + "..." : "No token");
+      
       const res = await apiRequest('POST', '/api/projects', data);
       if (!res.ok) {
         // Parse the error response
