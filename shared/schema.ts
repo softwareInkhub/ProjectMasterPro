@@ -60,7 +60,7 @@ export const users = pgTable("users", {
   lastName: text("last_name").notNull(),
   role: text("role", { enum: ["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER", "VIEWER"] }).notNull(),
   departmentId: uuid("department_id").references(() => departments.id),
-  companyId: uuid("company_id").notNull().references(() => companies.id),
+  companyId: uuid("company_id").references(() => companies.id),
   status: text("status", { enum: ["ACTIVE", "INACTIVE", "PENDING"] }).default("ACTIVE").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

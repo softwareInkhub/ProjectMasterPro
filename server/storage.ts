@@ -874,4 +874,707 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { db, pool } from "./db";
+import { eq, and, isNull, desc } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import session from "express-session";
+import { createSessionTable } from "./session";
+import * as schema from "@shared/schema";
+
+const PostgresSessionStore = connectPg(session);
+
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true,
+      tableName: "session"
+    });
+    
+    // Create default admin if no users exist
+    this.checkAndCreateDefaultAdmin().catch(console.error);
+  }
+  
+  private async checkAndCreateDefaultAdmin() {
+    const users = await db.select().from(schema.users);
+    if (users.length === 0) {
+      console.log("Creating default admin user...");
+      
+      // First create a default company
+      const [company] = await db.insert(schema.companies).values({
+        name: "Default Company",
+        description: "Default company for administration",
+      }).returning();
+      
+      // Then create the admin user with the company
+      await db.insert(schema.users).values({
+        email: "admin@example.com",
+        password: "$2b$10$8r5YLdRJxQi7R.2CrQHgDuux1S9LCDQo3QhNBNctKpQqvmvMQkGJq", // "password"
+        firstName: "Admin",
+        lastName: "User",
+        role: "ADMIN",
+        status: "ACTIVE",
+        companyId: company.id
+      });
+    }
+  }
+
+  // Company operations
+  async getCompanies(): Promise<Company[]> {
+    return await db.select().from(schema.companies).orderBy(desc(schema.companies.createdAt));
+  }
+
+  async getCompany(id: string): Promise<Company | undefined> {
+    const [company] = await db.select().from(schema.companies).where(eq(schema.companies.id, id));
+    return company;
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const [newCompany] = await db.insert(schema.companies).values(company).returning();
+    return newCompany;
+  }
+
+  async updateCompany(id: string, companyUpdate: Partial<InsertCompany>): Promise<Company | undefined> {
+    const [updatedCompany] = await db
+      .update(schema.companies)
+      .set({ ...companyUpdate, updatedAt: new Date() })
+      .where(eq(schema.companies.id, id))
+      .returning();
+    return updatedCompany;
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    const result = await db.delete(schema.companies).where(eq(schema.companies.id, id));
+    return !!result;
+  }
+
+  // Department operations
+  async getDepartments(companyId?: string): Promise<Department[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(schema.departments)
+        .where(eq(schema.departments.companyId, companyId))
+        .orderBy(desc(schema.departments.createdAt));
+    }
+    return await db.select().from(schema.departments).orderBy(desc(schema.departments.createdAt));
+  }
+
+  async getDepartment(id: string): Promise<Department | undefined> {
+    const [department] = await db.select().from(schema.departments).where(eq(schema.departments.id, id));
+    return department;
+  }
+
+  async createDepartment(department: InsertDepartment): Promise<Department> {
+    const [newDepartment] = await db.insert(schema.departments).values(department).returning();
+    return newDepartment;
+  }
+
+  async updateDepartment(id: string, departmentUpdate: Partial<InsertDepartment>): Promise<Department | undefined> {
+    const [updatedDepartment] = await db
+      .update(schema.departments)
+      .set({ ...departmentUpdate, updatedAt: new Date() })
+      .where(eq(schema.departments.id, id))
+      .returning();
+    return updatedDepartment;
+  }
+
+  async deleteDepartment(id: string): Promise<boolean> {
+    const result = await db.delete(schema.departments).where(eq(schema.departments.id, id));
+    return !!result;
+  }
+
+  // Group operations
+  async getGroups(companyId?: string): Promise<Group[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(schema.groups)
+        .where(eq(schema.groups.companyId, companyId))
+        .orderBy(desc(schema.groups.createdAt));
+    }
+    return await db.select().from(schema.groups).orderBy(desc(schema.groups.createdAt));
+  }
+
+  async getGroup(id: string): Promise<Group | undefined> {
+    const [group] = await db.select().from(schema.groups).where(eq(schema.groups.id, id));
+    return group;
+  }
+
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const [newGroup] = await db.insert(schema.groups).values(group).returning();
+    return newGroup;
+  }
+
+  async updateGroup(id: string, groupUpdate: Partial<InsertGroup>): Promise<Group | undefined> {
+    const [updatedGroup] = await db
+      .update(schema.groups)
+      .set({ ...groupUpdate, updatedAt: new Date() })
+      .where(eq(schema.groups.id, id))
+      .returning();
+    return updatedGroup;
+  }
+
+  async deleteGroup(id: string): Promise<boolean> {
+    const result = await db.delete(schema.groups).where(eq(schema.groups.id, id));
+    return !!result;
+  }
+
+  // User operations
+  async getUsers(companyId?: string, departmentId?: string): Promise<User[]> {
+    let query = db.select().from(schema.users);
+    
+    if (companyId && departmentId) {
+      query = query.where(
+        and(
+          eq(schema.users.companyId, companyId),
+          eq(schema.users.departmentId, departmentId)
+        )
+      );
+    } else if (companyId) {
+      query = query.where(eq(schema.users.companyId, companyId));
+    } else if (departmentId) {
+      query = query.where(eq(schema.users.departmentId, departmentId));
+    }
+    
+    return await query.orderBy(desc(schema.users.createdAt));
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(schema.users).values(user).returning();
+    return newUser;
+  }
+
+  async updateUser(id: string, userUpdate: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(schema.users)
+      .set({ ...userUpdate, updatedAt: new Date() })
+      .where(eq(schema.users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(schema.users).where(eq(schema.users.id, id));
+    return !!result;
+  }
+
+  // Team operations
+  async getTeams(companyId?: string): Promise<Team[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(schema.teams)
+        .where(eq(schema.teams.companyId, companyId))
+        .orderBy(desc(schema.teams.createdAt));
+    }
+    return await db.select().from(schema.teams).orderBy(desc(schema.teams.createdAt));
+  }
+
+  async getTeam(id: string): Promise<Team | undefined> {
+    const [team] = await db.select().from(schema.teams).where(eq(schema.teams.id, id));
+    return team;
+  }
+
+  async createTeam(team: InsertTeam): Promise<Team> {
+    const [newTeam] = await db.insert(schema.teams).values(team).returning();
+    return newTeam;
+  }
+
+  async updateTeam(id: string, teamUpdate: Partial<InsertTeam>): Promise<Team | undefined> {
+    const [updatedTeam] = await db
+      .update(schema.teams)
+      .set({ ...teamUpdate, updatedAt: new Date() })
+      .where(eq(schema.teams.id, id))
+      .returning();
+    return updatedTeam;
+  }
+
+  async deleteTeam(id: string): Promise<boolean> {
+    // First delete team members
+    await db.delete(schema.teamMembers).where(eq(schema.teamMembers.teamId, id));
+    // Then delete team
+    const result = await db.delete(schema.teams).where(eq(schema.teams.id, id));
+    return !!result;
+  }
+
+  async addUserToTeam(teamId: string, userId: string): Promise<boolean> {
+    await db.insert(schema.teamMembers).values({ teamId, userId });
+    return true;
+  }
+
+  async removeUserFromTeam(teamId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(schema.teamMembers)
+      .where(
+        and(
+          eq(schema.teamMembers.teamId, teamId),
+          eq(schema.teamMembers.userId, userId)
+        )
+      );
+    return !!result;
+  }
+
+  async getTeamMembers(teamId: string): Promise<User[]> {
+    const members = await db
+      .select({ user: schema.users })
+      .from(schema.teamMembers)
+      .innerJoin(
+        schema.users,
+        eq(schema.teamMembers.userId, schema.users.id)
+      )
+      .where(eq(schema.teamMembers.teamId, teamId));
+    
+    return members.map(m => m.user);
+  }
+
+  // Project operations
+  async getProjects(companyId?: string, teamId?: string): Promise<Project[]> {
+    let query = db.select().from(schema.projects);
+    
+    if (companyId && teamId) {
+      query = query.where(
+        and(
+          eq(schema.projects.companyId, companyId),
+          eq(schema.projects.teamId, teamId)
+        )
+      );
+    } else if (companyId) {
+      query = query.where(eq(schema.projects.companyId, companyId));
+    } else if (teamId) {
+      query = query.where(eq(schema.projects.teamId, teamId));
+    }
+    
+    return await query.orderBy(desc(schema.projects.createdAt));
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
+    return project;
+  }
+
+  async createProject(project: InsertProject): Promise<Project> {
+    const [newProject] = await db
+      .insert(schema.projects)
+      .values({
+        ...project,
+        progress: { percentage: 0 }
+      })
+      .returning();
+    return newProject;
+  }
+
+  async updateProject(id: string, projectUpdate: Partial<InsertProject>): Promise<Project | undefined> {
+    const [updatedProject] = await db
+      .update(schema.projects)
+      .set({ ...projectUpdate, updatedAt: new Date() })
+      .where(eq(schema.projects.id, id))
+      .returning();
+    return updatedProject;
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const result = await db.delete(schema.projects).where(eq(schema.projects.id, id));
+    return !!result;
+  }
+
+  async updateProjectProgress(id: string, progressPercentage: number): Promise<boolean> {
+    const [result] = await db
+      .update(schema.projects)
+      .set({ 
+        progress: { percentage: progressPercentage },
+        updatedAt: new Date()
+      })
+      .where(eq(schema.projects.id, id))
+      .returning({ id: schema.projects.id });
+    
+    return !!result;
+  }
+
+  // Epic operations
+  async getEpics(projectId?: string): Promise<Epic[]> {
+    if (projectId) {
+      return await db
+        .select()
+        .from(schema.epics)
+        .where(eq(schema.epics.projectId, projectId))
+        .orderBy(desc(schema.epics.createdAt));
+    }
+    return await db.select().from(schema.epics).orderBy(desc(schema.epics.createdAt));
+  }
+
+  async getEpic(id: string): Promise<Epic | undefined> {
+    const [epic] = await db.select().from(schema.epics).where(eq(schema.epics.id, id));
+    return epic;
+  }
+
+  async createEpic(epic: InsertEpic): Promise<Epic> {
+    const [newEpic] = await db
+      .insert(schema.epics)
+      .values({
+        ...epic,
+        progress: { percentage: 0 }
+      })
+      .returning();
+    return newEpic;
+  }
+
+  async updateEpic(id: string, epicUpdate: Partial<InsertEpic>): Promise<Epic | undefined> {
+    const [updatedEpic] = await db
+      .update(schema.epics)
+      .set({ ...epicUpdate, updatedAt: new Date() })
+      .where(eq(schema.epics.id, id))
+      .returning();
+    return updatedEpic;
+  }
+
+  async deleteEpic(id: string): Promise<boolean> {
+    const result = await db.delete(schema.epics).where(eq(schema.epics.id, id));
+    return !!result;
+  }
+
+  async updateEpicProgress(id: string, progressPercentage: number): Promise<boolean> {
+    const [result] = await db
+      .update(schema.epics)
+      .set({
+        progress: { percentage: progressPercentage },
+        updatedAt: new Date()
+      })
+      .where(eq(schema.epics.id, id))
+      .returning({ id: schema.epics.id });
+    
+    return !!result;
+  }
+
+  // Story operations
+  async getStories(epicId?: string): Promise<Story[]> {
+    if (epicId) {
+      return await db
+        .select()
+        .from(schema.stories)
+        .where(eq(schema.stories.epicId, epicId))
+        .orderBy(desc(schema.stories.createdAt));
+    }
+    return await db.select().from(schema.stories).orderBy(desc(schema.stories.createdAt));
+  }
+
+  async getStory(id: string): Promise<Story | undefined> {
+    const [story] = await db.select().from(schema.stories).where(eq(schema.stories.id, id));
+    return story;
+  }
+
+  async createStory(story: InsertStory): Promise<Story> {
+    const [newStory] = await db.insert(schema.stories).values(story).returning();
+    return newStory;
+  }
+
+  async updateStory(id: string, storyUpdate: Partial<InsertStory>): Promise<Story | undefined> {
+    const [updatedStory] = await db
+      .update(schema.stories)
+      .set({ ...storyUpdate, updatedAt: new Date() })
+      .where(eq(schema.stories.id, id))
+      .returning();
+    return updatedStory;
+  }
+
+  async deleteStory(id: string): Promise<boolean> {
+    const result = await db.delete(schema.stories).where(eq(schema.stories.id, id));
+    return !!result;
+  }
+
+  // Task operations
+  async getTasks(storyId?: string, assigneeId?: string): Promise<Task[]> {
+    let query = db.select().from(schema.tasks);
+    
+    if (storyId && assigneeId) {
+      query = query.where(
+        and(
+          eq(schema.tasks.storyId, storyId),
+          eq(schema.tasks.assigneeId, assigneeId)
+        )
+      );
+    } else if (storyId) {
+      query = query.where(eq(schema.tasks.storyId, storyId));
+    } else if (assigneeId) {
+      query = query.where(eq(schema.tasks.assigneeId, assigneeId));
+    }
+    
+    return await query.orderBy(desc(schema.tasks.createdAt));
+  }
+
+  async getTask(id: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
+    return task;
+  }
+
+  async createTask(task: InsertTask): Promise<Task> {
+    const [newTask] = await db.insert(schema.tasks).values(task).returning();
+    return newTask;
+  }
+
+  async updateTask(id: string, taskUpdate: Partial<InsertTask>): Promise<Task | undefined> {
+    const [updatedTask] = await db
+      .update(schema.tasks)
+      .set({ ...taskUpdate, updatedAt: new Date() })
+      .where(eq(schema.tasks.id, id))
+      .returning();
+    return updatedTask;
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await db.delete(schema.tasks).where(eq(schema.tasks.id, id));
+    return !!result;
+  }
+
+  // Comment operations
+  async getComments(entityType: string, entityId: string): Promise<Comment[]> {
+    return await db
+      .select()
+      .from(schema.comments)
+      .where(
+        and(
+          eq(schema.comments.entityType, entityType),
+          eq(schema.comments.entityId, entityId)
+        )
+      )
+      .orderBy(desc(schema.comments.createdAt));
+  }
+
+  async getComment(id: string): Promise<Comment | undefined> {
+    const [comment] = await db.select().from(schema.comments).where(eq(schema.comments.id, id));
+    return comment;
+  }
+
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const [newComment] = await db.insert(schema.comments).values(comment).returning();
+    return newComment;
+  }
+
+  async updateComment(id: string, commentUpdate: Partial<InsertComment>): Promise<Comment | undefined> {
+    const [updatedComment] = await db
+      .update(schema.comments)
+      .set({ ...commentUpdate, updatedAt: new Date() })
+      .where(eq(schema.comments.id, id))
+      .returning();
+    return updatedComment;
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    const result = await db.delete(schema.comments).where(eq(schema.comments.id, id));
+    return !!result;
+  }
+
+  // Attachment operations
+  async getAttachments(entityType: string, entityId: string): Promise<Attachment[]> {
+    return await db
+      .select()
+      .from(schema.attachments)
+      .where(
+        and(
+          eq(schema.attachments.entityType, entityType),
+          eq(schema.attachments.entityId, entityId)
+        )
+      )
+      .orderBy(desc(schema.attachments.createdAt));
+  }
+
+  async getAttachment(id: string): Promise<Attachment | undefined> {
+    const [attachment] = await db.select().from(schema.attachments).where(eq(schema.attachments.id, id));
+    return attachment;
+  }
+
+  async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
+    const [newAttachment] = await db.insert(schema.attachments).values(attachment).returning();
+    return newAttachment;
+  }
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    const result = await db.delete(schema.attachments).where(eq(schema.attachments.id, id));
+    return !!result;
+  }
+
+  // Notification operations
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(schema.notifications)
+      .where(eq(schema.notifications.userId, userId))
+      .orderBy(desc(schema.notifications.createdAt));
+  }
+
+  async getNotification(id: string): Promise<Notification | undefined> {
+    const [notification] = await db.select().from(schema.notifications).where(eq(schema.notifications.id, id));
+    return notification;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(schema.notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const [result] = await db
+      .update(schema.notifications)
+      .set({ isRead: "true" })
+      .where(eq(schema.notifications.id, id))
+      .returning({ id: schema.notifications.id });
+    
+    return !!result;
+  }
+
+  async deleteNotification(id: string): Promise<boolean> {
+    const result = await db.delete(schema.notifications).where(eq(schema.notifications.id, id));
+    return !!result;
+  }
+
+  // Location operations
+  async getLocations(companyId?: string): Promise<Location[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(schema.locations)
+        .where(eq(schema.locations.companyId, companyId))
+        .orderBy(desc(schema.locations.createdAt));
+    }
+    return await db.select().from(schema.locations).orderBy(desc(schema.locations.createdAt));
+  }
+
+  async getLocation(id: string): Promise<Location | undefined> {
+    const [location] = await db.select().from(schema.locations).where(eq(schema.locations.id, id));
+    return location;
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    const [newLocation] = await db.insert(schema.locations).values(location).returning();
+    return newLocation;
+  }
+
+  async updateLocation(id: string, locationUpdate: Partial<InsertLocation>): Promise<Location | undefined> {
+    const [updatedLocation] = await db
+      .update(schema.locations)
+      .set({ ...locationUpdate, updatedAt: new Date() })
+      .where(eq(schema.locations.id, id))
+      .returning();
+    return updatedLocation;
+  }
+
+  async deleteLocation(id: string): Promise<boolean> {
+    const result = await db.delete(schema.locations).where(eq(schema.locations.id, id));
+    return !!result;
+  }
+
+  // Device operations
+  async getDevices(
+    companyId?: string, 
+    departmentId?: string, 
+    locationId?: string, 
+    assignedToId?: string, 
+    status?: string
+  ): Promise<Device[]> {
+    let query = db.select().from(schema.devices);
+    
+    const conditions = [];
+    
+    if (companyId) {
+      conditions.push(eq(schema.devices.companyId, companyId));
+    }
+    
+    if (departmentId) {
+      conditions.push(eq(schema.devices.departmentId, departmentId));
+    }
+    
+    if (locationId) {
+      conditions.push(eq(schema.devices.locationId, locationId));
+    }
+    
+    if (assignedToId) {
+      conditions.push(eq(schema.devices.assignedToId, assignedToId));
+    }
+    
+    if (status) {
+      conditions.push(eq(schema.devices.status, status));
+    }
+    
+    if (conditions.length > 0) {
+      let condition = conditions[0];
+      for (let i = 1; i < conditions.length; i++) {
+        condition = and(condition, conditions[i]);
+      }
+      query = query.where(condition);
+    }
+    
+    return await query.orderBy(desc(schema.devices.createdAt));
+  }
+
+  async getDevice(id: string): Promise<Device | undefined> {
+    const [device] = await db.select().from(schema.devices).where(eq(schema.devices.id, id));
+    return device;
+  }
+
+  async getDeviceBySerialNumber(serialNumber: string): Promise<Device | undefined> {
+    const [device] = await db
+      .select()
+      .from(schema.devices)
+      .where(eq(schema.devices.serialNumber, serialNumber));
+    return device;
+  }
+
+  async createDevice(device: InsertDevice): Promise<Device> {
+    const [newDevice] = await db.insert(schema.devices).values(device).returning();
+    return newDevice;
+  }
+
+  async updateDevice(id: string, deviceUpdate: Partial<InsertDevice>): Promise<Device | undefined> {
+    const [updatedDevice] = await db
+      .update(schema.devices)
+      .set({ ...deviceUpdate, updatedAt: new Date() })
+      .where(eq(schema.devices.id, id))
+      .returning();
+    return updatedDevice;
+  }
+
+  async deleteDevice(id: string): Promise<boolean> {
+    const result = await db.delete(schema.devices).where(eq(schema.devices.id, id));
+    return !!result;
+  }
+
+  async assignDevice(id: string, userId: string): Promise<Device | undefined> {
+    const [updatedDevice] = await db
+      .update(schema.devices)
+      .set({ 
+        assignedToId: userId, 
+        status: "ASSIGNED",
+        updatedAt: new Date()
+      })
+      .where(eq(schema.devices.id, id))
+      .returning();
+    return updatedDevice;
+  }
+
+  async unassignDevice(id: string): Promise<Device | undefined> {
+    const [updatedDevice] = await db
+      .update(schema.devices)
+      .set({ 
+        assignedToId: null, 
+        status: "AVAILABLE",
+        updatedAt: new Date()
+      })
+      .where(eq(schema.devices.id, id))
+      .returning();
+    return updatedDevice;
+  }
+}
+
+export const storage = new DatabaseStorage();
