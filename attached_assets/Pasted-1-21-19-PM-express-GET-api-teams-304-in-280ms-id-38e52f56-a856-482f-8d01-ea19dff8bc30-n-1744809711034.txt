@@ -1,0 +1,112 @@
+1:21:19 PM [express] GET /api/teams 304 in 280ms :: [{"id":"38e52f56-a856-482f-8d01-ea19dff8bc30","n…
+Project creation request received: {
+  "name": "wcwdcw",
+  "companyId": "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf",
+  "teamId": "38e52f56-a856-482f-8d01-ea19dff8bc30",
+  "status": "PLANNING",
+  "priority": "MEDIUM",
+  "description": "cecwece",
+  "departmentId": "cebca523-82f7-40a0-b764-ac178c69eda2",
+  "projectManagerId": "fd69920b-a214-477b-b7ec-80a97053c20e",
+  "startDate": "2025-04-17T00:00:00.000Z",
+  "endDate": "2025-04-21T00:00:00.000Z"
+}
+Project validation error: ZodError: [
+  {
+    "code": "invalid_type",
+    "expected": "date",
+    "received": "string",
+    "path": [
+      "startDate"
+    ],
+    "message": "Expected date, received string"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "date",
+    "received": "string",
+    "path": [
+      "endDate"
+    ],
+    "message": "Expected date, received string"
+  }
+]
+    at get error [as error] (file:///home/runner/workspace/node_modules/zod/lib/index.mjs:587:31)
+    at ZodObject.parse (file:///home/runner/workspace/node_modules/zod/lib/index.mjs:692:22)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:598:51)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at <anonymous> (/home/runner/workspace/server/auth.ts:86:5)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at authenticateJwt (/home/runner/workspace/server/auth.ts:62:12)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/home/runner/workspace/node_modules/express/lib/router/index.js:175:3)
+    at router (/home/runner/workspace/node_modules/express/lib/router/index.js:47:12)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/home/runner/workspace/server/index.ts:37:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/home/runner/workspace/node_modules/body-parser/lib/types/urlencoded.js:85:7)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at /home/runner/workspace/node_modules/body-parser/lib/read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    at invokeCallback (/home/runner/workspace/node_modules/raw-body/index.js:238:16)
+    at done (/home/runner/workspace/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/home/runner/workspace/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:518:28)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  issues: [
+    {
+      code: 'invalid_type',
+      expected: 'date',
+      received: 'string',
+      path: [Array],
+      message: 'Expected date, received string'
+    },
+    {
+      code: 'invalid_type',
+      expected: 'date',
+      received: 'string',
+      path: [Array],
+      message: 'Expected date, received string'
+    }
+  ],
+  addIssue: [Function (anonymous)],
+  addIssues: [Function (anonymous)],
+  errors: [
+    {
+      code: 'invalid_type',
+      expected: 'date',
+      received: 'string',
+      path: [Array],
+      message: 'Expected date, received string'
+    },
+    {
+      code: 'invalid_type',
+      expected: 'date',
+      received: 'string',
+      path: [Array],
+      message: 'Expected date, received string'
+    }
+  ]
+}
+1:21:32 PM [express] POST /api/projects 400 in 13ms :: {"message":"Validation error","errors":[{"cod…

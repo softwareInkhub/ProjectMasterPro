@@ -140,9 +140,15 @@ export const insertProjectSchema = createInsertSchema(projects)
     updatedAt: true,
   })
   .extend({
-    // Allow ISO string dates and convert them to Date objects
-    startDate: z.string().datetime().optional().transform(val => val ? new Date(val) : null),
-    endDate: z.string().datetime().optional().transform(val => val ? new Date(val) : null),
+    // Accept and transform string dates to Date objects
+    startDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    endDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
   });
 
 // Epic schema

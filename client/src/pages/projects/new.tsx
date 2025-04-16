@@ -158,15 +158,13 @@ export default function NewProject() {
     projectManagerId: formData.projectManagerId === "" ? undefined : formData.projectManagerId,
   } as InsertProject;
   
-  // Handle date objects separately - convert to ISO string for the API
-  // Schema now has proper transformer to convert to Date objects
+  // Handle dates - directly pass ISO strings, as the schema will preprocess them
+  // No need for explicit conversion since we're using z.preprocess now
   if (formData.startDate) {
-    // Using type assertion to handle the type conversion for the API
-    dataToSubmit.startDate = new Date(formData.startDate as string).toISOString() as any;
+    dataToSubmit.startDate = formData.startDate as string;
   }
   if (formData.endDate) {
-    // Using type assertion to handle the type conversion for the API
-    dataToSubmit.endDate = new Date(formData.endDate as string).toISOString() as any;
+    dataToSubmit.endDate = formData.endDate as string;
   }
     
     createProjectMutation.mutate(dataToSubmit);
@@ -174,7 +172,16 @@ export default function NewProject() {
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // For date inputs, ensure we store the value in the right format for the backend
+    if (name === "startDate" || name === "endDate") {
+      // If date field has a value, append time to make it a valid ISO string
+      // If empty, just set empty string
+      const formattedValue = value ? `${value}T00:00:00.000Z` : "";
+      setFormData(prev => ({ ...prev, [name]: formattedValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
   
   const handleSelectChange = (name: string, value: string) => {
@@ -413,7 +420,11 @@ export default function NewProject() {
                     id="startDate"
                     name="startDate"
                     type="date"
-                    value={typeof formData.startDate === 'string' ? formData.startDate : ""}
+                    value={
+                      typeof formData.startDate === 'string' && formData.startDate
+                        ? formData.startDate.split('T')[0]  // Format ISO string to YYYY-MM-DD for date input
+                        : ""
+                    }
                     onChange={handleInputChange}
                   />
                 </div>
@@ -424,7 +435,11 @@ export default function NewProject() {
                     id="endDate"
                     name="endDate"
                     type="date"
-                    value={typeof formData.endDate === 'string' ? formData.endDate : ""}
+                    value={
+                      typeof formData.endDate === 'string' && formData.endDate
+                        ? formData.endDate.split('T')[0]  // Format ISO string to YYYY-MM-DD for date input
+                        : ""
+                    }
                     onChange={handleInputChange}
                   />
                 </div>
