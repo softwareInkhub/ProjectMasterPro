@@ -591,14 +591,32 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.post("/projects", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
     try {
-      const validatedData = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(validatedData);
-      return res.status(201).json(project);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      console.log("Project creation request received:", JSON.stringify(req.body, null, 2));
+      
+      // For debugging: inspect the schema validation
+      try {
+        const validatedData = insertProjectSchema.parse(req.body);
+        console.log("Data validated successfully, creating project:", validatedData);
+        const project = await storage.createProject(validatedData);
+        console.log("Project created successfully:", project);
+        return res.status(201).json(project);
+      } catch (validationError) {
+        console.error("Project validation error:", validationError);
+        if (validationError instanceof z.ZodError) {
+          return res.status(400).json({ 
+            message: "Validation error", 
+            errors: validationError.errors,
+            details: validationError.format() 
+          });
+        }
+        throw validationError; // Re-throw if not a validation error
       }
-      return res.status(500).json({ message: "Internal server error" });
+    } catch (error) {
+      console.error("Project creation error:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
   

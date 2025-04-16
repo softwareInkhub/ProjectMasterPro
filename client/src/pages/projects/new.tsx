@@ -135,25 +135,29 @@ export default function NewProject() {
     setIsSubmitting(true);
     
     // Prepare data for submission with proper date objects
-    const dataToSubmit = {
-      // Required fields must be non-null
-      name: formData.name || "",
-      companyId: formData.companyId || "",
-      teamId: formData.teamId || "",
-      
-      // Optional fields
-      description: formData.description || null,
-      status: formData.status || "PLANNING",
-      priority: formData.priority || "MEDIUM",
-      
-      // Convert dates to actual Date objects
-      startDate: formData.startDate ? new Date(formData.startDate as string) : null,
-      endDate: formData.endDate ? new Date(formData.endDate as string) : null,
-      
-      // Optional relationships
-      departmentId: formData.departmentId === "" ? null : formData.departmentId,
-      projectManagerId: formData.projectManagerId === "" ? null : formData.projectManagerId,
-    };
+    // We need to match the InsertProject schema exactly
+  // Use type assertion to avoid TypeScript errors with Date objects
+  const dataToSubmit = {
+    // Required fields
+    name: formData.name,
+    companyId: formData.companyId,
+    teamId: formData.teamId,
+    status: formData.status || "PLANNING", 
+    priority: formData.priority || "MEDIUM",
+    
+    // Optional fields with null/undefined handling
+    description: formData.description || undefined,
+    departmentId: formData.departmentId === "" ? undefined : formData.departmentId,
+    projectManagerId: formData.projectManagerId === "" ? undefined : formData.projectManagerId,
+  } as InsertProject;
+  
+  // Handle date objects separately to avoid TypeScript issues
+  if (formData.startDate) {
+    dataToSubmit.startDate = new Date(formData.startDate as string);
+  }
+  if (formData.endDate) {
+    dataToSubmit.endDate = new Date(formData.endDate as string);
+  }
     
     createProjectMutation.mutate(dataToSubmit);
   };
