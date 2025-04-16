@@ -17,7 +17,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, queryClient, apiRequest } from "@/lib/queryClient";
-import { Project, InsertProject } from "@shared/schema";
+import { Project, InsertProject, Company, Department, Team } from "@shared/schema";
 
 export default function NewProject() {
   const [, setLocation] = useLocation();
@@ -30,17 +30,34 @@ export default function NewProject() {
   });
 
   // Fetch data for select fields
-  const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
-    queryKey: ['/api/companies']
+  const { data: companies = [], isLoading: isLoadingCompanies } = useQuery<Company[]>({
+    queryKey: ['/api/companies'],
+    queryFn: getQueryFn()
   });
 
-  const { data: teams = [], isLoading: isLoadingTeams } = useQuery({
-    queryKey: ['/api/teams']
+  const { data: departments = [], isLoading: isLoadingDepartments } = useQuery<Department[]>({
+    queryKey: ['/api/departments'],
+    queryFn: getQueryFn()
   });
 
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['/api/users']
+  const { data: teams = [], isLoading: isLoadingTeams } = useQuery<Team[]>({
+    queryKey: ['/api/teams'],
+    queryFn: getQueryFn()
   });
+
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<any[]>({
+    queryKey: ['/api/users'],
+    queryFn: getQueryFn()
+  });
+  
+  // Filter departments and teams based on selected company
+  const filteredDepartments = departments.filter((dept: Department) => 
+    !formData.companyId || dept.companyId === formData.companyId
+  );
+  
+  const filteredTeams = teams.filter((team: Team) => 
+    !formData.companyId || team.companyId === formData.companyId
+  );
 
   // Create project mutation
   const createProjectMutation = useMutation({
@@ -114,7 +131,21 @@ export default function NewProject() {
   };
   
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // Special handling for companyId changes
+    if (name === "companyId") {
+      // Reset department and team when company changes
+      const updatedData: Partial<InsertProject> = {
+        ...formData,
+        [name]: value,
+        departmentId: null,
+        teamId: null
+      };
+      setFormData(updatedData);
+    } else if (value === "none" && name === "departmentId") {
+      setFormData(prev => ({ ...prev, [name]: null }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   return (
@@ -210,7 +241,18 @@ export default function NewProject() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {/* Add departments here */}
+                      {isLoadingDepartments ? (
+                        <div className="flex items-center justify-center p-2">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading...
+                        </div>
+                      ) : (
+                        filteredDepartments.map((department: Department) => (
+                          <SelectItem key={department.id} value={department.id}>
+                            {department.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -232,7 +274,7 @@ export default function NewProject() {
                           Loading...
                         </div>
                       ) : (
-                        teams.map(team => (
+                        filteredTeams.map((team: Team) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
                           </SelectItem>
@@ -260,7 +302,7 @@ export default function NewProject() {
                           Loading...
                         </div>
                       ) : (
-                        users.map(user => (
+                        users.map((user: any) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.firstName} {user.lastName}
                           </SelectItem>
