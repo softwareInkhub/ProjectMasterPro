@@ -4,10 +4,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { TimeEntry } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, parseISO } from "date-fns";
-import { Clock, Calendar, User } from "lucide-react";
+import { format } from "date-fns";
+import { Clock, Calendar, ClipboardList } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ResponsiveGrid, CompactCard, CompactCardHeader, CompactCardTitle, CompactCardContent, CompactCardFooter } from "@/components/ui/responsive-grid";
+import { Badge } from "@/components/ui/badge";
 
 // Activity type options
 const ACTIVITY_TYPES = [
@@ -62,15 +63,15 @@ export function TimeEntryList({ taskId, userId, title = "Time Entries", limit }:
   const displayedEntries = limit ? filteredEntries.slice(0, limit) : filteredEntries;
   
   // Calculate total hours
-  const totalHours = filteredEntries.reduce((sum, entry) => sum + entry.duration, 0);
+  const totalHours = filteredEntries.reduce((sum, entry) => sum + Number(entry.duration || 0), 0);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <Card className="border-0 shadow-none">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-0 sm:px-6">
         <CardTitle className="text-xl font-bold">{title}</CardTitle>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <Select value={activityFilter} onValueChange={setActivityFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[140px] sm:w-[180px]">
               <SelectValue placeholder="All activities" />
             </SelectTrigger>
             <SelectContent>
@@ -82,61 +83,54 @@ export function TimeEntryList({ taskId, userId, title = "Time Entries", limit }:
           </Select>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0 sm:px-6">
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </div>
         ) : displayedEntries.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No time entries found
+            <ClipboardList className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p>No time entries found</p>
           </div>
         ) : (
           <>
             <div className="text-sm text-muted-foreground mb-4">
               Total: {totalHours.toFixed(2)} hours
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Activity</TableHead>
-                  <TableHead className="text-right">Duration</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayedEntries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-medium max-w-xs truncate">
-                      {entry.description || "No description"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-xs flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {format(new Date(entry.startTime), 'PP')}
-                        </span>
-                        <span className="text-xs text-muted-foreground flex items-center mt-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {format(new Date(entry.startTime), 'p')} - {format(new Date(entry.endTime), 'p')}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
+            
+            {/* Mobile/Tablet View - Card Grid */}
+            <ResponsiveGrid cols={{ default: 1, sm: 2, lg: 3 }} className="mb-6">
+              {displayedEntries.map((entry) => (
+                <CompactCard key={entry.id} className="hover:bg-accent/50 transition-colors">
+                  <CompactCardHeader>
+                    <div className="flex justify-between items-start">
+                      <CompactCardTitle className="truncate">
+                        {entry.description || "No description"}
+                      </CompactCardTitle>
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-0 text-xs font-normal">
                         {ACTIVITY_TYPES.find(t => t.value === entry.activityType)?.label || entry.activityType}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {entry.duration.toFixed(2)} hrs
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </Badge>
+                    </div>
+                  </CompactCardHeader>
+                  <CompactCardContent className="space-y-2 pt-1">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5 mr-2" />
+                      {format(new Date(entry.startTime), 'PP')}
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5 mr-2" />
+                      {format(new Date(entry.startTime), 'p')} - {entry.endTime ? format(new Date(entry.endTime), 'p') : 'In progress'}
+                    </div>
+                  </CompactCardContent>
+                  <CompactCardFooter className="border-t border-border/50 justify-between">
+                    <span className="text-sm">Duration</span>
+                    <span className="font-medium">{Number(entry.duration || 0).toFixed(2)} hrs</span>
+                  </CompactCardFooter>
+                </CompactCard>
+              ))}
+            </ResponsiveGrid>
           </>
         )}
       </CardContent>

@@ -1,17 +1,19 @@
 import React, { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InsertTimeEntry, TimeEntry } from "@shared/schema";
-import { Clock, PlayCircle, StopCircle, Trash2 } from "lucide-react";
+import { InsertTimeEntry } from "@shared/schema";
+import { Clock, PlayCircle, StopCircle } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
+import { ResponsiveGrid } from "@/components/ui/responsive-grid"; 
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 const ACTIVITY_TYPES = [
   { value: "DEVELOPMENT", label: "Development" },
@@ -39,16 +41,6 @@ export function TimeEntryForm({ taskId }: TimeEntryFormProps) {
   const [description, setDescription] = useState("");
   const [activityType, setActivityType] = useState<string>("DEVELOPMENT");
 
-  // Query to get time entries for this task
-  const { data: timeEntries = [], isLoading } = useQuery({
-    queryKey: ["/api/time-entries", taskId],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/time-entries?taskId=${taskId}`);
-      return await res.json();
-    },
-    enabled: !!taskId
-  });
-
   // Mutation to create a new time entry
   const createTimeEntryMutation = useMutation({
     mutationFn: async (timeEntry: InsertTimeEntry) => {
@@ -69,27 +61,6 @@ export function TimeEntryForm({ taskId }: TimeEntryFormProps) {
       toast({
         title: "Error",
         description: "Failed to save time entry. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutation to delete a time entry
-  const deleteTimeEntryMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/time-entries/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time-entries", taskId] });
-      toast({
-        title: "Time entry deleted",
-        description: "The time entry has been deleted.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete time entry. Please try again.",
         variant: "destructive",
       });
     },
@@ -121,144 +92,112 @@ export function TimeEntryForm({ taskId }: TimeEntryFormProps) {
     
     createTimeEntryMutation.mutate(timeEntry);
   };
-  
-  // Save time entry manually
-  const saveManualEntry = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Get values from form (would need to add more form elements for manual entry)
-    // For now just using the current state values
-    if (!startTime) return;
-    
-    const endTime = new Date();
-    const durationMs = endTime.getTime() - startTime.getTime();
-    const durationHours = durationMs / (1000 * 60 * 60);
-    
-    const timeEntry: InsertTimeEntry = {
-      taskId,
-      userId: user!.id,
-      startTime: startTime,
-      endTime: endTime, 
-      duration: durationHours,
-      description: description,
-      activityType: activityType as any,
-    };
-    
-    createTimeEntryMutation.mutate(timeEntry);
-  };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
-            <span>Time Tracking</span>
+      <Card className="shadow-sm border-0 bg-background">
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="flex items-center text-lg">
+            <Clock className="mr-2 h-4 w-4" />
+            <span>Time Tracker</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <div className="space-y-4">
             {isTracking ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Started:</p>
-                    <p className="font-medium">{startTime && format(startTime, 'PP p')}</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      ({startTime && formatDistanceToNow(startTime, { addSuffix: true })})
-                    </p>
+                {/* Tracking in progress UI */}
+                <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-0">
+                      Recording time
+                    </Badge>
+                    <Button 
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 px-3"
+                      onClick={() => stopTracking()}
+                    >
+                      <StopCircle className="h-4 w-4 mr-1" />
+                      Stop
+                    </Button>
                   </div>
-                  <Button 
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => stopTracking()}
-                  >
-                    <StopCircle className="h-5 w-5" />
-                  </Button>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Started:</p>
+                      <p className="font-medium">{startTime && format(startTime, 'PP p')}</p>
+                    </div>
+                    <div className="text-sm text-primary font-medium">
+                      {startTime && formatDistanceToNow(startTime, { addSuffix: true })}
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="What are you working on?"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="activityType">Activity Type</Label>
-                  <Select value={activityType} onValueChange={setActivityType}>
-                    <SelectTrigger id="activityType">
-                      <SelectValue placeholder="Select activity type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ACTIVITY_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
+                <ResponsiveGrid cols={{ default: 1, sm: 2 }} className="gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="text-xs font-medium">Description</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="What are you working on?"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="resize-none h-24"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="activityType" className="text-xs font-medium">Activity Type</Label>
+                    <Select value={activityType} onValueChange={setActivityType}>
+                      <SelectTrigger id="activityType" className="h-10">
+                        <SelectValue placeholder="Select activity type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACTIVITY_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {ACTIVITY_TYPES.slice(0, 5).map((type) => (
+                        <Button 
+                          key={type.value} 
+                          size="sm"
+                          variant={activityType === type.value ? "default" : "outline"}
+                          className="h-7 text-xs rounded-full px-3"
+                          onClick={() => setActivityType(type.value)}
+                        >
                           {type.label}
-                        </SelectItem>
+                        </Button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    </div>
+                  </div>
+                </ResponsiveGrid>
               </div>
             ) : (
-              <Button 
-                onClick={startTracking} 
-                className="w-full"
-                variant="default"
-              >
-                <PlayCircle className="mr-2 h-5 w-5" />
-                Start Tracking
-              </Button>
+              <div className="flex flex-col items-center py-4 space-y-3">
+                <p className="text-center text-muted-foreground text-sm max-w-sm">
+                  Track time spent on this task to help with reporting and productivity analysis.
+                </p>
+                <Button 
+                  onClick={startTracking} 
+                  className="w-full sm:w-auto"
+                  variant="default"
+                >
+                  <PlayCircle className="mr-2 h-5 w-5" />
+                  Start Tracking
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Time Entries</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-4">Loading time entries...</div>
-          ) : timeEntries.length === 0 ? (
-            <div className="text-center py-4 text-muted-foreground">
-              No time entries yet
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {(timeEntries as TimeEntry[]).map((entry) => (
-                <div key={entry.id} className="flex items-start justify-between border-b pb-4">
-                  <div>
-                    <p className="font-medium">{entry.description || "No description"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(entry.startTime), 'PP p')} - {format(new Date(entry.endTime), 'p')}
-                    </p>
-                    <div className="flex items-center mt-1">
-                      <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
-                        {ACTIVITY_TYPES.find(t => t.value === entry.activityType)?.label || entry.activityType}
-                      </span>
-                      <span className="text-xs ml-2 text-muted-foreground">
-                        {entry.duration.toFixed(2)} hours
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteTimeEntryMutation.mutate(entry.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* We'll let the TimeEntryList component show the entries instead */}
+      <Separator className="my-4" />
     </div>
   );
 }
