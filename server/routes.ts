@@ -703,6 +703,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const validatedData = insertEpicSchema.parse(req.body);
       const epic = await storage.createEpic(validatedData);
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.EPIC_CREATED,
+        payload: epic
+      });
+      
       return res.status(201).json(epic);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -767,6 +774,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const validatedData = insertStorySchema.parse(req.body);
       const story = await storage.createStory(validatedData);
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.STORY_CREATED,
+        payload: story
+      });
+      
       return res.status(201).json(story);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -834,6 +848,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const validatedData = insertTaskSchema.parse(req.body);
       const task = await storage.createTask(validatedData);
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.TASK_CREATED,
+        payload: task
+      });
+      
       return res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {

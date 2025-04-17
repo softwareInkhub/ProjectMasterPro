@@ -34,6 +34,7 @@ import Layout from "@/components/layout/Layout";
 import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { WebSocketProvider } from "@/context/websocket-context";
 import { Toaster } from "@/components/ui/toaster";
 
 // Protected Route component
@@ -76,8 +77,9 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function App() {
   return (
     <AuthProvider>
-      <Toaster />
-      <Switch>
+      <WebSocketProvider>
+        <Toaster />
+        <Switch>
         {/* Auth routes */}
         <Route path="/login">
           <div>
@@ -546,6 +548,7 @@ function App() {
           </Layout>
         </Route>
       </Switch>
+      </WebSocketProvider>
     </AuthProvider>
   );
 }
