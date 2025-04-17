@@ -470,15 +470,15 @@ export default function TaskDetailPage() {
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Main info panel */}
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-4">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
+          <Card className="shadow-sm border-0">
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold mb-2">Description</h2>
-                  <p className="text-gray-700">{task.description}</p>
+                  <h2 className="text-md sm:text-lg font-semibold mb-2">Description</h2>
+                  <p className="text-gray-700 text-sm sm:text-base">{task.description}</p>
                 </div>
                 
                 {task.tags && task.tags.length > 0 && (
@@ -511,32 +511,36 @@ export default function TaskDetailPage() {
           
           <Tabs defaultValue="checklist" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="checklist">
-                <CheckSquare className="h-4 w-4 mr-2" />
-                Checklist
+              <TabsTrigger value="checklist" className="text-xs sm:text-sm">
+                <CheckSquare className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Checklist</span>
+                <span className="xs:hidden">Tasks</span>
               </TabsTrigger>
-              <TabsTrigger value="comments">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Comments ({comments.length})
+              <TabsTrigger value="comments" className="text-xs sm:text-sm">
+                <MessageSquare className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Comments</span>
+                <span className="xs:hidden">Chat</span> 
+                <span className="text-xs">({comments.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="timetracking">
-                <Timer className="h-4 w-4 mr-2" />
-                Time Tracking
+              <TabsTrigger value="timetracking" className="text-xs sm:text-sm">
+                <Timer className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Time Tracking</span>
+                <span className="xs:hidden">Time</span>
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="checklist" className="mt-4">
-              <Card>
-                <CardHeader className="pb-3">
+            <TabsContent value="checklist" className="mt-3 sm:mt-4">
+              <Card className="shadow-sm border-0">
+                <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
                   <div className="flex justify-between items-center">
-                    <CardTitle>Subtasks</CardTitle>
-                    <Button variant="outline" size="sm" onClick={() => setIsAddSubtaskDialogOpen(true)}>
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Add Item
+                    <CardTitle className="text-sm sm:text-base">Subtasks</CardTitle>
+                    <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3" onClick={() => setIsAddSubtaskDialogOpen(true)}>
+                      <PlusIcon className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                      <span className="text-xs sm:text-sm">Add</span>
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 px-4 sm:px-6">
                   {task.checklist && task.checklist.items.length > 0 ? (
                     <div className="space-y-4">
                       {task.checklist.items.map((item) => (
@@ -565,18 +569,22 @@ export default function TaskDetailPage() {
               </Card>
             </TabsContent>
             
-            <TabsContent value="comments" className="mt-4">
-              <Card>
-                <CardHeader className="pb-3">
+            <TabsContent value="comments" className="mt-3 sm:mt-4">
+              <Card className="shadow-sm border-0">
+                <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
                   <div className="flex justify-between items-center">
-                    <CardTitle>Discussion</CardTitle>
-                    <Button onClick={() => setIsAddCommentDialogOpen(true)}>
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Add Comment
+                    <CardTitle className="text-sm sm:text-base">Discussion</CardTitle>
+                    <Button 
+                      size="sm" 
+                      className="h-8 px-2 sm:px-3"
+                      onClick={() => setIsAddCommentDialogOpen(true)}
+                    >
+                      <PlusIcon className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                      <span className="text-xs sm:text-sm">Comment</span>
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 px-4 sm:px-6">
                   {comments.length === 0 ? (
                     <div className="text-center py-6 text-gray-500">
                       <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -608,19 +616,31 @@ export default function TaskDetailPage() {
               </Card>
             </TabsContent>
             
-            <TabsContent value="timetracking" className="mt-4">
-              {taskId && <TimeEntryForm taskId={taskId} />}
+            <TabsContent value="timetracking" className="mt-3 sm:mt-4">
+              {taskId && (
+                <>
+                  <TimeEntryForm taskId={taskId} />
+                  <Card className="shadow-sm border-0 mt-4">
+                    <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
+                      <CardTitle className="text-sm sm:text-base">Time Entries</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 sm:px-6">
+                      {taskId && <TimeEntryList taskId={taskId} limit={5} />}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </div>
         
         {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Details</CardTitle>
+        <div className="space-y-4 lg:space-y-6">
+          <Card className="shadow-sm border-0">
+            <CardHeader className="pb-2 px-4 sm:px-6">
+              <CardTitle className="text-sm sm:text-base">Details</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Status</h3>
@@ -697,12 +717,12 @@ export default function TaskDetailPage() {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Actions</CardTitle>
+          <Card className="shadow-sm border-0">
+            <CardHeader className="pb-2 px-4 sm:px-6">
+              <CardTitle className="text-sm sm:text-base">Actions</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+            <CardContent className="px-4 sm:px-6">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:grid-cols-1">
                 <Button 
                   variant="outline" 
                   className="w-full justify-start"

@@ -85,7 +85,7 @@ export function TimeEntryForm({ taskId }: TimeEntryFormProps) {
       userId: user!.id,
       startTime: startTime,
       endTime: endTime,
-      duration: durationHours,
+      duration: durationHours.toString(), // Convert to string to match schema type
       description: description,
       activityType: activityType as any,
     };
