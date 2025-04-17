@@ -2,11 +2,12 @@ import {
   Company, InsertCompany, Department, InsertDepartment,
   Group, InsertGroup, User, InsertUser, Team, InsertTeam,
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
-  Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
-  Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
+  Task, InsertTask, TimeEntry, InsertTimeEntry, Comment, InsertComment, 
+  Attachment, InsertAttachment, Notification, InsertNotification, 
+  Location, InsertLocation, Device, InsertDevice,
   // Schema tables
   companies, departments, groups, users, teams, teamMembers, projects, epics,
-  stories, tasks, comments, attachments, notifications, locations, devices
+  stories, tasks, timeEntries, comments, attachments, notifications, locations, devices
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
@@ -454,6 +455,50 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTask(id: string): Promise<boolean> {
     const result = await db.delete(tasks).where(eq(tasks.id, id));
+    return result.rowCount > 0;
+  }
+
+  // TimeEntry operations
+  async getTimeEntries(taskId?: string, userId?: string): Promise<TimeEntry[]> {
+    let query = db.select().from(timeEntries);
+    
+    if (taskId && userId) {
+      query = query.where(
+        and(
+          eq(timeEntries.taskId, taskId),
+          eq(timeEntries.userId, userId)
+        )
+      );
+    } else if (taskId) {
+      query = query.where(eq(timeEntries.taskId, taskId));
+    } else if (userId) {
+      query = query.where(eq(timeEntries.userId, userId));
+    }
+    
+    return await query.orderBy(desc(timeEntries.startTime));
+  }
+
+  async getTimeEntry(id: string): Promise<TimeEntry | undefined> {
+    const result = await db.select().from(timeEntries).where(eq(timeEntries.id, id));
+    return result[0];
+  }
+
+  async createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry> {
+    const result = await db.insert(timeEntries).values(timeEntry).returning();
+    return result[0];
+  }
+
+  async updateTimeEntry(id: string, timeEntryUpdate: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined> {
+    const result = await db
+      .update(timeEntries)
+      .set({ ...timeEntryUpdate, updatedAt: new Date() })
+      .where(eq(timeEntries.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTimeEntry(id: string): Promise<boolean> {
+    const result = await db.delete(timeEntries).where(eq(timeEntries.id, id));
     return result.rowCount > 0;
   }
 

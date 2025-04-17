@@ -909,6 +909,125 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Time Entry routes
+  apiRouter.get("/time-entries", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { taskId, userId } = req.query;
+      const timeEntries = await storage.getTimeEntries(
+        taskId as string, 
+        userId as string
+      );
+      return res.json(timeEntries);
+    } catch (error) {
+      console.error("Error fetching time entries:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.get("/time-entries/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const timeEntry = await storage.getTimeEntry(req.params.id);
+      if (!timeEntry) {
+        return res.status(404).json({ message: "Time entry not found" });
+      }
+      return res.json(timeEntry);
+    } catch (error) {
+      console.error("Error fetching time entry:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/time-entries", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      // Make sure user id is set to the authenticated user
+      const timeEntryData = {
+        ...req.body,
+        userId: req.user!.id
+      };
+      
+      const newTimeEntry = await storage.createTimeEntry(timeEntryData);
+      
+      // Broadcast the creation event
+      broadcastEvent({
+        type: EventType.TIME_ENTRY_CREATED,
+        payload: newTimeEntry
+      });
+      
+      return res.status(201).json(newTimeEntry);
+    } catch (error) {
+      console.error("Error creating time entry:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/time-entries/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      // First check if the time entry exists and belongs to the user
+      const existingTimeEntry = await storage.getTimeEntry(req.params.id);
+      
+      if (!existingTimeEntry) {
+        return res.status(404).json({ message: "Time entry not found" });
+      }
+      
+      // Only allow users to update their own time entries or admins to update any
+      if (existingTimeEntry.userId !== req.user!.id && req.user!.role !== "ADMIN") {
+        return res.status(403).json({ message: "You don't have permission to update this time entry" });
+      }
+      
+      const updatedTimeEntry = await storage.updateTimeEntry(req.params.id, req.body);
+      
+      // Broadcast the update event
+      broadcastEvent({
+        type: EventType.TIME_ENTRY_UPDATED,
+        payload: updatedTimeEntry
+      });
+      
+      return res.json(updatedTimeEntry);
+    } catch (error) {
+      console.error("Error updating time entry:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.delete("/time-entries/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      // First check if the time entry exists and belongs to the user
+      const existingTimeEntry = await storage.getTimeEntry(req.params.id);
+      
+      if (!existingTimeEntry) {
+        return res.status(404).json({ message: "Time entry not found" });
+      }
+      
+      // Only allow users to delete their own time entries or admins to delete any
+      if (existingTimeEntry.userId !== req.user!.id && req.user!.role !== "ADMIN") {
+        return res.status(403).json({ message: "You don't have permission to delete this time entry" });
+      }
+      
+      const success = await storage.deleteTimeEntry(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Time entry not found" });
+      }
+      
+      // Broadcast the deletion event
+      broadcastEvent({
+        type: EventType.TIME_ENTRY_DELETED,
+        payload: { id: req.params.id }
+      });
+      
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting time entry:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Comment routes
   apiRouter.get("/comments", authenticateJwt, async (req: AuthRequest, res: Response) => {
     try {
