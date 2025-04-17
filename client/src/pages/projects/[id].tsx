@@ -84,6 +84,13 @@ export default function ProjectDetailPage() {
     enabled: !!projectId,
   });
   
+  // Fetch stories for this project
+  const { data: stories = [], isLoading: storiesLoading } = useQuery({
+    queryKey: ['/api/stories'],
+    queryFn: getQueryFn(),
+    enabled: !!projectId,
+  });
+  
   // Get related data
   const { data: departments = [] } = useQuery({
     queryKey: ['/api/departments']
@@ -620,9 +627,98 @@ export default function ProjectDetailPage() {
             </Button>
           </div>
           
+          {storiesLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+              <span>Loading stories...</span>
+            </div>
+          ) : stories.filter((story: any) => story.projectId === projectId).length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-gray-500">No stories have been created for this project yet.</p>
+                <p className="text-gray-500 mt-1">Click the "Create Story" button to add a new story.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {stories
+                .filter((story: any) => story.projectId === projectId)
+                .map((story: any) => {
+                  // Find the epic that this story belongs to
+                  const epic = epics.find((epic: any) => epic.id === story.epicId);
+                  const assignee = users.find((user: any) => user.id === story.assigneeId);
+                  
+                  return (
+                    <Card key={story.id} className="overflow-hidden">
+                      <CardHeader className="p-4 pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg flex items-center">
+                              <span 
+                                className="cursor-pointer hover:text-primary-600 hover:underline"
+                                onClick={() => setLocation(`/stories/${story.id}`)}
+                              >
+                                {story.name}
+                              </span>
+                            </CardTitle>
+                            {epic && (
+                              <CardDescription className="flex items-center mt-1">
+                                <BookOpenIcon className="h-3 w-3 mr-1" />
+                                <span
+                                  className="cursor-pointer hover:text-primary-600 hover:underline"
+                                  onClick={() => setLocation(`/epics/${epic.id}`)}
+                                >
+                                  {epic.name}
+                                </span>
+                              </CardDescription>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`text-xs ${story.status === "DONE" ? "bg-green-100 text-green-800" : story.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
+                              {story.status}
+                            </Badge>
+                            <Badge variant="outline" className={`text-xs ${story.priority === "HIGH" ? "bg-red-100 text-red-800" : story.priority === "MEDIUM" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
+                              {story.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <p className="text-sm text-gray-600 line-clamp-2">{story.description}</p>
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center gap-2">
+                            {assignee ? (
+                              <div className="flex items-center">
+                                <div className={`flex items-center justify-center h-6 w-6 rounded-full text-white text-xs ${getAvatarColor(assignee.firstName)}`}>
+                                  {assignee.firstName.charAt(0)}{assignee.lastName.charAt(0)}
+                                </div>
+                                <span className="text-xs text-gray-600 ml-1">{assignee.firstName} {assignee.lastName}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">Unassigned</span>
+                            )}
+                            <div className="flex items-center text-xs text-gray-500">
+                              <span className="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded-full">
+                                {story.storyPoints} pts
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center text-xs text-gray-500">
+                            <CalendarIcon className="h-3 w-3 mr-1" />
+                            {formatDate(story.dueDate)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+            </div>
+          )}
+          
           <Button 
             variant="secondary" 
-            className="w-full mb-4"
+            className="w-full mt-4"
             onClick={() => setLocation('/stories')}
           >
             View All Project Stories
