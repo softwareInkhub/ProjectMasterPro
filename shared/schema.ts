@@ -229,9 +229,11 @@ export const insertStorySchema = createInsertSchema(stories)
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
-    // Make assigneeId and reporterId properly nullable
-    assigneeId: z.string().uuid().nullable().optional(),
-    reporterId: z.string().uuid().nullable().optional(),
+    // Create new schema definitions for the nullable UUID fields
+    // This replaces the auto-generated UUID validation with one that properly handles null/undefined
+    assigneeId: z.string().uuid().nullish(),
+    reporterId: z.string().uuid().nullish(),
+    // nullish = null or undefined are both valid
   });
 
 // Task schema

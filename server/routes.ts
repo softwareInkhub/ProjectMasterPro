@@ -772,7 +772,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.post("/stories", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log("Story creation request body:", JSON.stringify(req.body, null, 2));
+      
+      // Use the updated schema with proper handling of nullable fields
       const validatedData = insertStorySchema.parse(req.body);
+      console.log("Validated story data:", JSON.stringify(validatedData, null, 2));
+      
       const story = await storage.createStory(validatedData);
       
       // Broadcast the event to connected clients
@@ -784,8 +789,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       return res.status(201).json(story);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.log("Story validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
+      console.error("Story creation error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

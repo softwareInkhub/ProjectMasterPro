@@ -119,8 +119,18 @@ export default function NewStoryPage() {
       }
     });
     
+    // Make sure assigneeId and reporterId are correctly handled
+    // If they are present, they must be valid UUIDs, otherwise null
+    if (formattedStory.assigneeId && formattedStory.assigneeId === Placeholder.UNASSIGNED) {
+      delete formattedStory.assigneeId; // Remove entirely if UNASSIGNED
+    }
+    
+    if (formattedStory.reporterId && formattedStory.reporterId === Placeholder.UNASSIGNED) {
+      delete formattedStory.reporterId; // Remove entirely if UNASSIGNED
+    }
+    
     // Add debug info
-    console.log("Submitting story:", formattedStory);
+    console.log("Submitting story with these values:", JSON.stringify(formattedStory, null, 2));
     
     createStoryMutation.mutate(formattedStory);
   };
