@@ -229,11 +229,30 @@ export const insertStorySchema = createInsertSchema(stories)
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
-    // Create new schema definitions for the nullable UUID fields
-    // This replaces the auto-generated UUID validation with one that properly handles null/undefined
-    assigneeId: z.string().uuid().nullish(),
-    reporterId: z.string().uuid().nullish(),
-    // nullish = null or undefined are both valid
+    // Create new schema definitions for the nullable UUID fields with preprocessing
+    // This handles empty strings by converting them to null
+    assigneeId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    reporterId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    // Handle empty strings for story points too
+    storyPoints: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return undefined;
+        return val;
+      },
+      z.string().optional()
+    ),
   });
 
 // Task schema
@@ -273,6 +292,44 @@ export const insertTaskSchema = createInsertSchema(tasks)
     dueDate: z.preprocess(
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
+    ),
+    // Create new schema definitions for the nullable UUID fields with preprocessing
+    // This handles empty strings by converting them to null
+    assigneeId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    storyId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    parentTaskId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    // Handle empty strings for hours
+    estimatedHours: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().nullable().optional()
+    ),
+    actualHours: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().nullable().optional()
     ),
   });
 

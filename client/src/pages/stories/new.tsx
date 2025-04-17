@@ -103,34 +103,46 @@ export default function NewStoryPage() {
       return;
     }
     
-    // Prepare story data, handling nullable fields
-    const formattedStory = {
-      ...storyData,
-      assigneeId: storyData.assigneeId === Placeholder.UNASSIGNED ? undefined : storyData.assigneeId,
-      reporterId: storyData.reporterId === Placeholder.UNASSIGNED ? undefined : storyData.reporterId,
-      storyPoints: storyData.storyPoints === Placeholder.NOT_ESTIMATED ? undefined : storyData.storyPoints,
-    } as InsertStory;
+    // Create a clean copy to work with
+    const cleanData = { ...storyData };
     
-    // Remove any undefined or UNASSIGNED fields before sending to API
-    Object.keys(formattedStory).forEach(key => {
-      if (formattedStory[key as keyof InsertStory] === undefined || 
-          formattedStory[key as keyof InsertStory] === Placeholder.UNASSIGNED) {
-        delete formattedStory[key as keyof InsertStory];
+    // Process fields properly
+    
+    // Handle empty strings and placeholder values for UUIDs
+    if (!cleanData.assigneeId || cleanData.assigneeId === Placeholder.UNASSIGNED || cleanData.assigneeId === '') {
+      cleanData.assigneeId = null;
+    }
+    
+    if (!cleanData.reporterId || cleanData.reporterId === Placeholder.UNASSIGNED || cleanData.reporterId === '') {
+      cleanData.reporterId = null;
+    }
+    
+    // Handle story points
+    if (!cleanData.storyPoints || cleanData.storyPoints === Placeholder.NOT_ESTIMATED || cleanData.storyPoints === '') {
+      delete cleanData.storyPoints;
+    }
+    
+    // Handle dates
+    if (!cleanData.startDate || cleanData.startDate === '') {
+      cleanData.startDate = null;
+    }
+    
+    if (!cleanData.dueDate || cleanData.dueDate === '') {
+      cleanData.dueDate = null;
+    }
+    
+    // Remove any remaining empty strings
+    Object.keys(cleanData).forEach(key => {
+      if (cleanData[key as keyof typeof cleanData] === '') {
+        delete cleanData[key as keyof typeof cleanData];
       }
     });
     
-    // Make sure assigneeId and reporterId are correctly handled
-    // If they are present, they must be valid UUIDs, otherwise null
-    if (formattedStory.assigneeId && formattedStory.assigneeId === Placeholder.UNASSIGNED) {
-      delete formattedStory.assigneeId; // Remove entirely if UNASSIGNED
-    }
+    // Convert to final type
+    const formattedStory = cleanData as InsertStory;
     
-    if (formattedStory.reporterId && formattedStory.reporterId === Placeholder.UNASSIGNED) {
-      delete formattedStory.reporterId; // Remove entirely if UNASSIGNED
-    }
-    
-    // Add debug info
-    console.log("Submitting story with these values:", JSON.stringify(formattedStory, null, 2));
+    // Add detailed debug logging
+    console.log("Submitting story with cleaned values:", JSON.stringify(formattedStory, null, 2));
     
     createStoryMutation.mutate(formattedStory);
   };

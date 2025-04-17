@@ -78,14 +78,48 @@ export default function NewTaskPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prepare task data, handling nullable fields
-    const formattedTask = {
-      ...taskData,
-      storyId: taskData.storyId === Placeholder.NONE ? null : taskData.storyId,
-      assigneeId: taskData.assigneeId === Placeholder.UNASSIGNED ? null : taskData.assigneeId,
-      reporterId: taskData.reporterId === Placeholder.UNASSIGNED ? null : taskData.reporterId,
-      estimatedHours: taskData.estimatedHours === Placeholder.NOT_ESTIMATED ? null : taskData.estimatedHours,
-    } as InsertTask;
+    // Create a clean copy to work with
+    const cleanData = { ...taskData };
+    
+    // Handle all special fields properly
+    
+    // Handle story relationship
+    if (!cleanData.storyId || cleanData.storyId === Placeholder.NONE || cleanData.storyId === '') {
+      cleanData.storyId = null;
+    }
+    
+    // Handle assignee
+    if (!cleanData.assigneeId || cleanData.assigneeId === Placeholder.UNASSIGNED || cleanData.assigneeId === '') {
+      cleanData.assigneeId = null;
+    }
+    
+    // Handle reporter
+    if (!cleanData.reporterId || cleanData.reporterId === Placeholder.UNASSIGNED || cleanData.reporterId === '') {
+      cleanData.reporterId = null;
+    }
+    
+    // Handle estimated hours
+    if (!cleanData.estimatedHours || cleanData.estimatedHours === Placeholder.NOT_ESTIMATED || cleanData.estimatedHours === '') {
+      cleanData.estimatedHours = null;
+    }
+    
+    // Handle date
+    if (!cleanData.dueDate || cleanData.dueDate === '') {
+      cleanData.dueDate = null;
+    }
+    
+    // Remove any remaining empty strings
+    Object.keys(cleanData).forEach(key => {
+      if (cleanData[key as keyof typeof cleanData] === '') {
+        delete cleanData[key as keyof typeof cleanData];
+      }
+    });
+    
+    // Convert to final type
+    const formattedTask = cleanData as InsertTask;
+    
+    // Add detailed debug logging
+    console.log("Submitting task with cleaned values:", JSON.stringify(formattedTask, null, 2));
     
     createTaskMutation.mutate(formattedTask);
   };
