@@ -19,6 +19,48 @@ export const TEAM_MEMBER_ROLES = [
 
 export const TeamMemberRoleEnum = z.enum(TEAM_MEMBER_ROLES);
 
+// File types enum for attachments
+export const FILE_TYPES = [
+  "IMAGE",
+  "DOCUMENT",
+  "SPREADSHEET",
+  "PRESENTATION",
+  "PDF",
+  "ZIP",
+  "CODE",
+  "VIDEO",
+  "AUDIO",
+  "OTHER"
+] as const;
+
+export const FileTypeEnum = z.enum(FILE_TYPES);
+
+// Entity types for comments and attachments 
+export const ENTITY_TYPES = [
+  "PROJECT",
+  "EPIC",
+  "STORY",
+  "TASK"
+] as const;
+
+export const EntityTypeEnum = z.enum(ENTITY_TYPES);
+
+// Activity types for TimeEntry records
+export const ACTIVITY_TYPES = [
+  "DEVELOPMENT",
+  "DESIGN",
+  "TESTING",
+  "DOCUMENTATION",
+  "MEETING",
+  "PLANNING",
+  "REVIEW",
+  "BUGFIX",
+  "SUPPORT",
+  "OTHER"
+] as const;
+
+export const ActivityTypeEnum = z.enum(ACTIVITY_TYPES);
+
 // Company schema
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -359,16 +401,57 @@ export const insertTaskSchema = createInsertSchema(tasks)
     ),
   });
 
+// TimeEntry schema for tracking time spent on tasks
+export const timeEntries = pgTable("time_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  taskId: uuid("task_id").notNull().references(() => tasks.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  activityType: text("activity_type", { 
+    enum: ACTIVITY_TYPES 
+  }).notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  duration: text("duration"), // in minutes
+  description: text("description"),
+  billable: text("billable").default("true"),
+  tags: jsonb("tags"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+})
+.extend({
+  activityType: ActivityTypeEnum,
+  // Accept and transform string dates to Date objects
+  startTime: z.preprocess(
+    (val) => (val ? new Date(val as string) : null),
+    z.date().nullable().optional()
+  ),
+  endTime: z.preprocess(
+    (val) => (val ? new Date(val as string) : null),
+    z.date().nullable().optional()
+  ),
+  // Allow tags as array of strings
+  tags: z.array(z.string()).optional(),
+});
+
 // Comment schema
 export const comments = pgTable("comments", {
   id: uuid("id").defaultRandom().primaryKey(),
   content: text("content").notNull(),
   userId: uuid("user_id").notNull().references(() => users.id),
   entityType: text("entity_type", { 
-    enum: ["EPIC", "STORY", "TASK"] 
+    enum: ENTITY_TYPES
   }).notNull(),
   entityId: uuid("entity_id").notNull(),
   parentCommentId: uuid("parent_comment_id").references(() => comments.id),
+  isEdited: text("is_edited").default("false"),
+  mentions: jsonb("mentions"),
+  reactions: jsonb("reactions"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -377,6 +460,15 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+})
+.extend({
+  entityType: EntityTypeEnum,
+  mentions: z.array(z.string().uuid()).optional(),
+  reactions: z.object({
+    likes: z.array(z.string().uuid()).optional(),
+    dislikes: z.array(z.string().uuid()).optional(),
+    emojis: z.record(z.string(), z.array(z.string().uuid())).optional()
+  }).optional()
 });
 
 // Attachment schema
@@ -384,12 +476,15 @@ export const attachments = pgTable("attachments", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   fileUrl: text("file_url").notNull(),
-  fileType: text("file_type").notNull(),
+  fileType: text("file_type", { 
+    enum: FILE_TYPES
+  }).notNull(),
   size: text("size").notNull(),
   entityType: text("entity_type", { 
-    enum: ["EPIC", "STORY", "TASK"] 
+    enum: ENTITY_TYPES
   }).notNull(),
   entityId: uuid("entity_id").notNull(),
+  description: text("description"),
   uploadedById: uuid("uploaded_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -397,6 +492,10 @@ export const attachments = pgTable("attachments", {
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({
   id: true,
   createdAt: true,
+})
+.extend({
+  fileType: FileTypeEnum,
+  entityType: EntityTypeEnum
 });
 
 // Notification schema
@@ -502,6 +601,9 @@ export type InsertStory = z.infer<typeof insertStorySchema>;
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
+
+export type TimeEntry = typeof timeEntries.$inferSelect;
+export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
 
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
