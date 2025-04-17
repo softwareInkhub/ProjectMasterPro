@@ -128,6 +128,13 @@ export interface IStorage {
   deleteDevice(id: string): Promise<boolean>;
   assignDevice(id: string, userId: string): Promise<Device | undefined>;
   unassignDevice(id: string): Promise<Device | undefined>;
+  
+  // TimeEntry operations
+  getTimeEntries(taskId?: string, userId?: string): Promise<TimeEntry[]>;
+  getTimeEntry(id: string): Promise<TimeEntry | undefined>;
+  createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry>;
+  updateTimeEntry(id: string, timeEntry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
+  deleteTimeEntry(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
