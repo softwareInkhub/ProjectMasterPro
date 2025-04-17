@@ -510,7 +510,7 @@ export default function TaskDetailPage() {
           </Card>
           
           <Tabs defaultValue="checklist" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="checklist">
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Checklist
@@ -518,6 +518,10 @@ export default function TaskDetailPage() {
               <TabsTrigger value="comments">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Comments ({comments.length})
+              </TabsTrigger>
+              <TabsTrigger value="timetracking">
+                <Timer className="h-4 w-4 mr-2" />
+                Time Tracking
               </TabsTrigger>
             </TabsList>
             
@@ -602,6 +606,10 @@ export default function TaskDetailPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="timetracking" className="mt-4">
+              {taskId && <TimeEntryForm taskId={taskId} />}
             </TabsContent>
           </Tabs>
         </div>
