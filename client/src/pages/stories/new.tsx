@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useState, useEffect } from 'react';
+import { useLocation, useRoute } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { 
   Card, 
@@ -30,13 +30,18 @@ export default function NewStoryPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
+  // Extract epicId from URL if passed as a query parameter
+  const [, params] = useRoute("/stories/new");
+  const urlParams = new URLSearchParams(window.location.search);
+  const epicIdFromUrl = urlParams.get('epicId');
+  
   // Story data
   const [storyData, setStoryData] = useState<Partial<InsertStory>>({
     name: '',
     description: '',
     status: 'BACKLOG',
     priority: 'MEDIUM',
-    epicId: '',
+    epicId: epicIdFromUrl || '',
     assigneeId: '',
     reporterId: '',
     storyPoints: '',

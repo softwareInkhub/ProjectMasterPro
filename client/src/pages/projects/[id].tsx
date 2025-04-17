@@ -600,7 +600,21 @@ export default function ProjectDetailPage() {
         <TabsContent value="stories" className="mt-4">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Stories</h2>
-            <Button onClick={() => setLocation('/stories/new')}>
+            <Button 
+              onClick={() => {
+                // Check if there are any epics for this project
+                const projectEpics = epics.filter((epic: any) => epic.projectId === projectId);
+                if (projectEpics.length > 0) {
+                  // Create a story with the first epic's ID
+                  const epicId = projectEpics[0].id;
+                  setLocation(`/stories/new?epicId=${epicId}`);
+                } else {
+                  // Show message that epic is required
+                  alert("Please create an Epic first. Stories must belong to an Epic.");
+                  setLocation('/epics/new');
+                }
+              }}
+            >
               <PlusIcon className="h-4 w-4 mr-1" />
               Create Story
             </Button>
