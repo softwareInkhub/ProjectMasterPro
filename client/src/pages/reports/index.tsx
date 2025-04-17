@@ -52,7 +52,7 @@ type DepartmentSizeData = {
 
 export default function ReportsPage() {
   const [, setLocation] = useLocation();
-  const { socket, lastMessage } = useContext(WebSocketContext);
+  const { connected, lastMessage } = useWebSocket();
 
   // Fetch real-time reports data
   const { data: summaryStats, isLoading: isLoadingSummary, refetch: refetchSummary } = useQuery<SummaryStatData[]>({

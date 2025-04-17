@@ -19,6 +19,7 @@ import EditTeamPage from "@/pages/teams/edit/[id]";
 import NewTeamPage from "@/pages/teams/new";
 import UsersPage from "@/pages/users";
 import ReportsPage from "@/pages/reports";
+import SettingsPage from "@/pages/settings";
 import EpicsPage from "@/pages/epics";
 import EpicDetailPage from "@/pages/epics/[id]";
 import NewEpicPage from "@/pages/epics/new";
@@ -496,6 +497,13 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <ReportsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/settings">
+          <ProtectedRoute>
+            <Layout>
+              <SettingsPage />
             </Layout>
           </ProtectedRoute>
         </Route>
