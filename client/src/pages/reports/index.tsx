@@ -10,52 +10,117 @@ import {
   UsersIcon,
   BriefcaseIcon,
   ClipboardListIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  Loader2
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useWebSocket } from "@/context/websocket-context";
+
+type SummaryStatData = {
+  name: string;
+  value: number | string;
+  icon: string;
+  color: string;
+  trend: string;
+};
+
+type ProjectStatusData = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+type TaskCompletionData = {
+  name: string;
+  completed: number;
+  pending: number;
+};
+
+type TeamPerformanceData = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+type DepartmentSizeData = {
+  name: string;
+  value: number;
+  color: string;
+};
 
 export default function ReportsPage() {
   const [, setLocation] = useLocation();
+  const { socket, lastMessage } = useContext(WebSocketContext);
 
-  // Sample data for charts - this would come from API in the real application
-  const projectStatusData = [
-    { name: "Completed", value: 12, color: "#4ade80" }, // green-400
-    { name: "In Progress", value: 18, color: "#60a5fa" }, // blue-400
-    { name: "On Hold", value: 5, color: "#facc15" }, // yellow-400
-    { name: "Planning", value: 8, color: "#a78bfa" }, // violet-400
-    { name: "Cancelled", value: 2, color: "#f87171" }, // red-400
-  ];
+  // Fetch real-time reports data
+  const { data: summaryStats, isLoading: isLoadingSummary, refetch: refetchSummary } = useQuery<SummaryStatData[]>({
+    queryKey: ["/api/reports/summary"],
+  });
 
-  const taskCompletionData = [
-    { name: "Week 1", completed: 18, pending: 23 },
-    { name: "Week 2", completed: 24, pending: 27 },
-    { name: "Week 3", completed: 32, pending: 21 },
-    { name: "Week 4", completed: 38, pending: 15 },
-  ];
+  const { data: projectStatusData, isLoading: isLoadingProjectStatus, refetch: refetchProjectStatus } = useQuery<ProjectStatusData[]>({
+    queryKey: ["/api/reports/project-status"],
+  });
 
-  const teamPerformanceData = [
-    { name: "Frontend Development", value: 92, color: "#60a5fa" },
-    { name: "Backend Development", value: 88, color: "#34d399" },
-    { name: "DevOps", value: 95, color: "#a78bfa" },
-    { name: "QA", value: 78, color: "#f87171" },
-    { name: "Digital Marketing", value: 85, color: "#fbbf24" },
-  ];
+  const { data: taskCompletionData, isLoading: isLoadingTaskCompletion, refetch: refetchTaskCompletion } = useQuery<TaskCompletionData[]>({
+    queryKey: ["/api/reports/task-completion"],
+  });
 
-  const departmentAllocationData = [
-    { name: "Engineering", value: 45, color: "#60a5fa" },
-    { name: "Marketing", value: 22, color: "#34d399" },
-    { name: "Finance", value: 18, color: "#a78bfa" },
-    { name: "Human Resources", value: 12, color: "#f87171" },
-    { name: "R&D", value: 25, color: "#fbbf24" },
-  ];
+  const { data: teamPerformanceData, isLoading: isLoadingTeamPerformance, refetch: refetchTeamPerformance } = useQuery<TeamPerformanceData[]>({
+    queryKey: ["/api/reports/team-performance"],
+  });
 
-  // Summary stats
-  const summaryStats = [
-    { name: "Total Projects", value: 45, icon: BriefcaseIcon, color: "text-blue-600", trend: "+8% from last month" },
-    { name: "Active Tasks", value: 189, icon: ClipboardListIcon, color: "text-yellow-600", trend: "+12% from last month" },
-    { name: "Team Members", value: 78, icon: UsersIcon, color: "text-purple-600", trend: "+3 new this month" },
-    { name: "Completion Rate", value: "87%", icon: CheckCircleIcon, color: "text-green-600", trend: "+5% from last month" },
-  ];
+  const { data: departmentAllocationData, isLoading: isLoadingDepartmentSize, refetch: refetchDepartmentSize } = useQuery<DepartmentSizeData[]>({
+    queryKey: ["/api/reports/department-size"],
+  });
+
+  // Update reports when real-time events occur
+  useEffect(() => {
+    if (lastMessage) {
+      try {
+        const data = JSON.parse(lastMessage);
+        if (data && data.type) {
+          // Check for events that should update reports
+          const shouldRefresh = [
+            'PROJECT_CREATED', 'PROJECT_UPDATED', 'PROJECT_DELETED',
+            'TASK_CREATED', 'TASK_UPDATED', 'TASK_DELETED',
+            'USER_CREATED', 'USER_UPDATED', 'USER_DELETED',
+            'TEAM_CREATED', 'TEAM_UPDATED', 'TEAM_DELETED',
+            'TEAM_MEMBER_ADDED', 'TEAM_MEMBER_REMOVED',
+            'DEPARTMENT_CREATED', 'DEPARTMENT_UPDATED', 'DEPARTMENT_DELETED'
+          ].includes(data.type);
+          
+          if (shouldRefresh) {
+            console.log("Refreshing reports data due to event:", data.type);
+            refetchSummary();
+            refetchProjectStatus();
+            refetchTaskCompletion();
+            refetchTeamPerformance();
+            refetchDepartmentSize();
+          }
+        }
+      } catch (error) {
+        console.error("Error processing WebSocket message:", error);
+      }
+    }
+  }, [lastMessage, refetchSummary, refetchProjectStatus, refetchTaskCompletion, refetchTeamPerformance, refetchDepartmentSize]);
+
+  // Loading states
+  const isLoading = isLoadingSummary || isLoadingProjectStatus || isLoadingTaskCompletion || 
+                   isLoadingTeamPerformance || isLoadingDepartmentSize;
+
+  // Map icon strings to actual icon components
+  const getIconComponent = (iconName: string) => {
+    const iconMap: Record<string, React.FC<any>> = {
+      "BriefcaseIcon": BriefcaseIcon,
+      "ClipboardListIcon": ClipboardListIcon,
+      "UsersIcon": UsersIcon,
+      "CheckCircleIcon": CheckCircleIcon
+    };
+    
+    return iconMap[iconName] || BriefcaseIcon;
+  };
 
   // Create simple visualization components since we don't have a charting library
   const renderBarChart = (data: {name: string, value: number, color?: string}[], maxValue = 100) => (
@@ -186,149 +251,212 @@ export default function ReportsPage() {
             <Button variant="outline">
               <CalendarIcon className="mr-2 h-4 w-4" /> Last 30 Days
             </Button>
-            <Button variant="outline">
-              <DownloadIcon className="mr-2 h-4 w-4" /> Export
+            <Button variant="outline" onClick={() => {
+              refetchSummary();
+              refetchProjectStatus();
+              refetchTaskCompletion();
+              refetchTeamPerformance();
+              refetchDepartmentSize();
+            }}>
+              <DownloadIcon className="mr-2 h-4 w-4" /> Refresh Data
             </Button>
           </div>
         </div>
       </header>
       
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {summaryStats.map((stat, index) => (
-          <Card key={index}>
-            <CardContent className="pt-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">{stat.name}</p>
-                  <h3 className="text-3xl font-bold mt-1">{stat.value}</h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    <TrendingUpIcon className="inline h-3 w-3 mr-1" />
-                    {stat.trend}
-                  </p>
+      {/* Loading state */}
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-lg text-gray-600">Loading reports data...</p>
+        </div>
+      ) : (
+        <>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {summaryStats?.map((stat, index) => {
+              const IconComponent = getIconComponent(stat.icon);
+              return (
+                <Card key={index}>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">{stat.name}</p>
+                        <h3 className="text-3xl font-bold mt-1">{stat.value}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          <TrendingUpIcon className="inline h-3 w-3 mr-1" />
+                          {stat.trend}
+                        </p>
+                      </div>
+                      <div className={`p-3 rounded-full bg-gray-100 ${stat.color}`}>
+                        <IconComponent className="h-6 w-6" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Project Status Chart */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <PieChartIcon className="mr-2 h-5 w-5" />
+                      Project Status
+                    </CardTitle>
+                    <CardDescription>Distribution of projects by current status</CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => refetchProjectStatus()}
+                  >
+                    <FilterIcon className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className={`p-3 rounded-full bg-gray-100 ${stat.color}`}>
-                  <stat.icon className="h-6 w-6" />
+              </CardHeader>
+              <CardContent>
+                {projectStatusData && projectStatusData.length > 0 ? (
+                  renderPieChart(projectStatusData)
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                    <PieChartIcon className="h-10 w-10 mb-2 opacity-30" />
+                    <p>No project status data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Task Completion Chart */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <BarChart3Icon className="mr-2 h-5 w-5" />
+                      Task Completion
+                    </CardTitle>
+                    <CardDescription>Weekly task completion progress</CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => refetchTaskCompletion()}
+                  >
+                    <FilterIcon className="h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Project Status Chart */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle className="flex items-center">
-                  <PieChartIcon className="mr-2 h-5 w-5" />
-                  Project Status
-                </CardTitle>
-                <CardDescription>Distribution of projects by current status</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm">
-                <FilterIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {renderPieChart(projectStatusData)}
-          </CardContent>
-        </Card>
-        
-        {/* Task Completion Chart */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle className="flex items-center">
-                  <BarChart3Icon className="mr-2 h-5 w-5" />
-                  Task Completion
-                </CardTitle>
-                <CardDescription>Weekly task completion progress</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm">
-                <FilterIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {renderStackedBarChart(taskCompletionData)}
-          </CardContent>
-        </Card>
-        
-        {/* Team Performance Chart */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle className="flex items-center">
-                  <UsersIcon className="mr-2 h-5 w-5" />
-                  Team Performance
-                </CardTitle>
-                <CardDescription>Performance score by team (out of 100)</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm">
-                <FilterIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {renderBarChart(teamPerformanceData)}
-          </CardContent>
-        </Card>
-        
-        {/* Department Allocation Chart */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle className="flex items-center">
-                  <PieChartIcon className="mr-2 h-5 w-5" />
-                  Department Size
-                </CardTitle>
-                <CardDescription>Number of employees by department</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm">
-                <FilterIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {renderBarChart(departmentAllocationData)}
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Report Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { title: "Project Progress Report", icon: BriefcaseIcon, description: "Detailed analysis of project timelines and milestones" },
-          { title: "Team Productivity Report", icon: UsersIcon, description: "Insights into team efficiency and output" },
-          { title: "Resource Allocation Report", icon: BarChart3Icon, description: "Overview of resource distribution across projects" }
-        ].map((report, index) => (
-          <Card 
-            key={index} 
-            className="hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => setLocation(`/reports/${index + 1}`)}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-primary-100">
-                  <report.icon className="h-6 w-6 text-primary-600" />
+              </CardHeader>
+              <CardContent>
+                {taskCompletionData && taskCompletionData.length > 0 ? (
+                  renderStackedBarChart(taskCompletionData)
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                    <BarChart3Icon className="h-10 w-10 mb-2 opacity-30" />
+                    <p>No task completion data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Team Performance Chart */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <UsersIcon className="mr-2 h-5 w-5" />
+                      Team Performance
+                    </CardTitle>
+                    <CardDescription>Performance score by team (out of 100)</CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => refetchTeamPerformance()}
+                  >
+                    <FilterIcon className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="font-semibold">{report.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{report.description}</p>
+              </CardHeader>
+              <CardContent>
+                {teamPerformanceData && teamPerformanceData.length > 0 ? (
+                  renderBarChart(teamPerformanceData)
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                    <UsersIcon className="h-10 w-10 mb-2 opacity-30" />
+                    <p>No team performance data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Department Size Chart */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <PieChartIcon className="mr-2 h-5 w-5" />
+                      Department Size
+                    </CardTitle>
+                    <CardDescription>Number of employees by department</CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => refetchDepartmentSize()}
+                  >
+                    <FilterIcon className="h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardHeader>
+              <CardContent>
+                {departmentAllocationData && departmentAllocationData.length > 0 ? (
+                  renderBarChart(departmentAllocationData)
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                    <UsersIcon className="h-10 w-10 mb-2 opacity-30" />
+                    <p>No department size data available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Report Links */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { title: "Project Progress Report", icon: BriefcaseIcon, description: "Detailed analysis of project timelines and milestones" },
+              { title: "Team Productivity Report", icon: UsersIcon, description: "Insights into team efficiency and output" },
+              { title: "Resource Allocation Report", icon: BarChart3Icon, description: "Overview of resource distribution across projects" }
+            ].map((report, index) => (
+              <Card 
+                key={index} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setLocation(`/reports/${index + 1}`)}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-full bg-primary-100">
+                      <report.icon className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{report.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{report.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
