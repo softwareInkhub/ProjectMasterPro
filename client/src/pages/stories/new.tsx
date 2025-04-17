@@ -111,9 +111,10 @@ export default function NewStoryPage() {
       storyPoints: storyData.storyPoints === Placeholder.NOT_ESTIMATED ? undefined : storyData.storyPoints,
     } as InsertStory;
     
-    // Remove any undefined fields before sending to API
+    // Remove any undefined or UNASSIGNED fields before sending to API
     Object.keys(formattedStory).forEach(key => {
-      if (formattedStory[key as keyof InsertStory] === undefined) {
+      if (formattedStory[key as keyof InsertStory] === undefined || 
+          formattedStory[key as keyof InsertStory] === Placeholder.UNASSIGNED) {
         delete formattedStory[key as keyof InsertStory];
       }
     });

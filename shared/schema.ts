@@ -229,6 +229,9 @@ export const insertStorySchema = createInsertSchema(stories)
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
+    // Make assigneeId and reporterId properly nullable
+    assigneeId: z.string().uuid().nullable().optional(),
+    reporterId: z.string().uuid().nullable().optional(),
   });
 
 // Task schema
