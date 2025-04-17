@@ -100,8 +100,10 @@ export default function ProjectDetailPage() {
     queryKey: ['/api/teams']
   });
   
+  // Get users for team member selection
   const { data: users = [] } = useQuery({
-    queryKey: ['/api/users']
+    queryKey: ['/api/users'],
+    queryFn: getQueryFn()
   });
   
   // Create derived state from API data
@@ -260,45 +262,101 @@ export default function ProjectDetailPage() {
   };
   
   // Handle adding a team member
-  const handleAddTeamMember = () => {
-    // API call would go here
-    console.log("Adding team member:", newTeamMember);
+  const handleAddTeamMember = async () => {
+    if (!newTeamMember.userId || !projectData?.teamId) {
+      return;
+    }
     
-    // Sample new team member data
-    const newMember = {
-      id: parseInt(newTeamMember.userId),
-      name: "New Team Member",
-      role: newTeamMember.role,
-      avatar: "NM"
-    };
-    
-    // Update local state for demo purposes
-    setProject({
-      ...project,
-      members: [...project.members, newMember],
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
-    
-    setIsAddTeamMemberDialogOpen(false);
-    
-    // Reset form
-    setNewTeamMember({
-      userId: "",
-      role: ""
-    });
+    try {
+      // API call to add team member
+      console.log(`Adding user ${newTeamMember.userId} to team ${projectData.teamId}`);
+      
+      // POST to /api/teams/:id/members/:userId
+      const response = await fetch(`/api/teams/${projectData.teamId}/members/${newTeamMember.userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to add team member: ${response.statusText}`);
+      }
+      
+      // Refresh team members data
+      const refreshedTeamMembersResponse = await fetch(`/api/teams/${projectData.teamId}/members`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (refreshedTeamMembersResponse.ok) {
+        const refreshedMembers = await refreshedTeamMembersResponse.json();
+        // Update the project with the refreshed team members
+        setProject({
+          ...project,
+          members: refreshedMembers,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      setIsAddTeamMemberDialogOpen(false);
+      
+      // Reset form
+      setNewTeamMember({
+        userId: "",
+        role: ""
+      });
+    } catch (error) {
+      console.error("Error adding team member:", error);
+      alert("Failed to add team member. Please try again.");
+    }
   };
   
   // Handle removing a team member
-  const handleRemoveTeamMember = (memberId: number) => {
-    // API call would go here
-    console.log("Removing team member:", memberId);
+  const handleRemoveTeamMember = async (memberId: string) => {
+    if (!projectData?.teamId) {
+      return;
+    }
     
-    // Update local state for demo purposes
-    setProject({
-      ...project,
-      members: project.members.filter(member => member.id !== memberId),
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
+    try {
+      // API call to remove team member
+      console.log(`Removing user ${memberId} from team ${projectData.teamId}`);
+      
+      // DELETE to /api/teams/:id/members/:userId
+      const response = await fetch(`/api/teams/${projectData.teamId}/members/${memberId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to remove team member: ${response.statusText}`);
+      }
+      
+      // Refresh team members data
+      const refreshedTeamMembersResponse = await fetch(`/api/teams/${projectData.teamId}/members`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (refreshedTeamMembersResponse.ok) {
+        const refreshedMembers = await refreshedTeamMembersResponse.json();
+        // Update the project with the refreshed team members
+        setProject({
+          ...project,
+          members: refreshedMembers,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error("Error removing team member:", error);
+      alert("Failed to remove team member. Please try again.");
+    }
   };
 
   // Loading state
@@ -943,10 +1001,11 @@ export default function ProjectDetailPage() {
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="20">Fiona Wilson</SelectItem>
-                  <SelectItem value="21">George Brown</SelectItem>
-                  <SelectItem value="22">Hannah Lee</SelectItem>
-                  <SelectItem value="23">Ian Smith</SelectItem>
+                  {users.map((user: any) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
