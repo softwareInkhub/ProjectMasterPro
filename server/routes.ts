@@ -1,6 +1,7 @@
 import express, { Router, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupWebSocketServer, broadcastEvent, EventType } from "./websocket";
 import { 
   loginUserSchema, insertUserSchema, insertCompanySchema, 
   insertDepartmentSchema, insertGroupSchema, insertTeamSchema,
@@ -404,6 +405,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Don't send password back to client
       const { password, ...userWithoutPassword } = user;
       
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.USER_CREATED,
+        payload: userWithoutPassword
+      });
+      
       return res.status(201).json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -502,6 +509,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const validatedData = insertTeamSchema.parse(req.body);
       const team = await storage.createTeam(validatedData);
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.TEAM_CREATED,
+        payload: team
+      });
+      
       return res.status(201).json(team);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -606,6 +620,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         console.log("Data validated successfully, creating project:", validatedData);
         const project = await storage.createProject(validatedData);
         console.log("Project created successfully:", project);
+        
+        // Broadcast the event to connected clients
+        broadcastEvent({
+          type: EventType.PROJECT_CREATED,
+          payload: project
+        });
+        
         return res.status(201).json(project);
       } catch (validationError) {
         console.error("Project validation error:", validationError);
@@ -1223,6 +1244,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
   // Create HTTP server
   const httpServer = createServer(app);
+  
+  // Setup WebSocket server
+  const wss = setupWebSocketServer(httpServer);
+  console.log('WebSocket server initialized on path: /ws');
 
   return httpServer;
 }
