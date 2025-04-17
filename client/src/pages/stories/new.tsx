@@ -58,6 +58,19 @@ export default function NewStoryPage() {
     queryKey: ['/api/users'],
   });
   
+  // Get project ID from selected epic
+  const [projectId, setProjectId] = useState<string | null>(null);
+  
+  // When epic changes, fetch the associated project ID
+  useEffect(() => {
+    if (storyData.epicId) {
+      const selectedEpic = epics.find(epic => epic.id === storyData.epicId);
+      if (selectedEpic && selectedEpic.projectId) {
+        setProjectId(selectedEpic.projectId);
+      }
+    }
+  }, [storyData.epicId, epics]);
+  
   // Create mutation
   const createStoryMutation = useMutation({
     mutationFn: async (story: InsertStory) => {
@@ -105,6 +118,11 @@ export default function NewStoryPage() {
     
     // Create a clean copy to work with
     const cleanData = { ...storyData };
+    
+    // Add the project ID from the selected epic
+    if (projectId) {
+      cleanData.projectId = projectId;
+    }
     
     // Process fields properly
     

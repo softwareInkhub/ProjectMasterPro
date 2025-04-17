@@ -198,6 +198,7 @@ export const stories = pgTable("stories", {
   name: text("name").notNull(),
   description: text("description"),
   epicId: uuid("epic_id").notNull().references(() => epics.id),
+  projectId: uuid("project_id").references(() => projects.id),
   status: text("status", { 
     enum: ["BACKLOG", "READY", "IN_PROGRESS", "IN_REVIEW", "DONE"] 
   }).default("BACKLOG").notNull(),
@@ -239,6 +240,14 @@ export const insertStorySchema = createInsertSchema(stories)
       z.string().uuid().nullable().optional()
     ),
     reporterId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    // Also add projectId to story schema with the same preprocessing
+    projectId: z.preprocess(
       (val) => {
         if (val === undefined || val === null || val === '') return null;
         return val;
