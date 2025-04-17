@@ -79,14 +79,35 @@ export default function NewStoryPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!storyData.name) {
+      toast({
+        title: "Validation Error",
+        description: "Story name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!storyData.epicId) {
+      toast({
+        title: "Validation Error",
+        description: "Epic is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Prepare story data, handling nullable fields
     const formattedStory = {
       ...storyData,
-      epicId: storyData.epicId === Placeholder.NO_EPICS ? null : storyData.epicId,
       assigneeId: storyData.assigneeId === Placeholder.UNASSIGNED ? null : storyData.assigneeId,
       reporterId: storyData.reporterId === Placeholder.UNASSIGNED ? null : storyData.reporterId,
       storyPoints: storyData.storyPoints === Placeholder.NOT_ESTIMATED ? null : storyData.storyPoints,
     } as InsertStory;
+    
+    // Add debug info
+    console.log("Submitting story:", formattedStory);
     
     createStoryMutation.mutate(formattedStory);
   };
