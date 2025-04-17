@@ -776,7 +776,17 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       // Use the updated schema with proper handling of nullable fields
       const validatedData = insertStorySchema.parse(req.body);
-      console.log("Validated story data:", JSON.stringify(validatedData, null, 2));
+      
+      // If epicId is provided but projectId is not, fetch the epic and use its projectId
+      if (validatedData.epicId && !validatedData.projectId) {
+        const epic = await storage.getEpic(validatedData.epicId);
+        if (epic && epic.projectId) {
+          validatedData.projectId = epic.projectId;
+          console.log(`Retrieved projectId ${epic.projectId} from epic ${validatedData.epicId}`);
+        }
+      }
+      
+      console.log("Final validated story data:", JSON.stringify(validatedData, null, 2));
       
       const story = await storage.createStory(validatedData);
       
