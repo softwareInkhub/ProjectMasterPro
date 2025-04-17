@@ -106,10 +106,17 @@ export default function NewStoryPage() {
     // Prepare story data, handling nullable fields
     const formattedStory = {
       ...storyData,
-      assigneeId: storyData.assigneeId === Placeholder.UNASSIGNED ? null : storyData.assigneeId,
-      reporterId: storyData.reporterId === Placeholder.UNASSIGNED ? null : storyData.reporterId,
-      storyPoints: storyData.storyPoints === Placeholder.NOT_ESTIMATED ? null : storyData.storyPoints,
+      assigneeId: storyData.assigneeId === Placeholder.UNASSIGNED ? undefined : storyData.assigneeId,
+      reporterId: storyData.reporterId === Placeholder.UNASSIGNED ? undefined : storyData.reporterId,
+      storyPoints: storyData.storyPoints === Placeholder.NOT_ESTIMATED ? undefined : storyData.storyPoints,
     } as InsertStory;
+    
+    // Remove any undefined fields before sending to API
+    Object.keys(formattedStory).forEach(key => {
+      if (formattedStory[key as keyof InsertStory] === undefined) {
+        delete formattedStory[key as keyof InsertStory];
+      }
+    });
     
     // Add debug info
     console.log("Submitting story:", formattedStory);
