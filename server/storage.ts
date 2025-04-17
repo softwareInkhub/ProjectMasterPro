@@ -4,9 +4,11 @@ import {
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
   Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
+  TimeEntry, InsertTimeEntry,
   // Schema tables
   companies, departments, groups, users, teams, teamMembers, projects, epics,
-  stories, tasks, comments, attachments, notifications, locations, devices
+  stories, tasks, comments, attachments, notifications, locations, devices,
+  timeEntries
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
@@ -110,6 +112,13 @@ export interface IStorage {
   updateLocation(id: string, location: Partial<InsertLocation>): Promise<Location | undefined>;
   deleteLocation(id: string): Promise<boolean>;
   
+  // TimeEntry operations
+  getTimeEntries(taskId?: string, userId?: string): Promise<TimeEntry[]>;
+  getTimeEntry(id: string): Promise<TimeEntry | undefined>;
+  createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry>;
+  updateTimeEntry(id: string, timeEntry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
+  deleteTimeEntry(id: string): Promise<boolean>;
+  
   // Device operations
   getDevices(companyId?: string, departmentId?: string, locationId?: string, assignedToId?: string, status?: string): Promise<Device[]>;
   getDevice(id: string): Promise<Device | undefined>;
@@ -132,6 +141,7 @@ export class MemStorage implements IStorage {
   private epics: Map<string, Epic>;
   private stories: Map<string, Story>;
   private tasks: Map<string, Task>;
+  private timeEntries: Map<string, TimeEntry>;
   private comments: Map<string, Comment>;
   private attachments: Map<string, Attachment>;
   private notifications: Map<string, Notification>;
@@ -149,6 +159,7 @@ export class MemStorage implements IStorage {
     this.epics = new Map();
     this.stories = new Map();
     this.tasks = new Map();
+    this.timeEntries = new Map();
     this.comments = new Map();
     this.attachments = new Map();
     this.notifications = new Map();
@@ -637,6 +648,55 @@ export class MemStorage implements IStorage {
 
   async deleteTask(id: string): Promise<boolean> {
     return this.tasks.delete(id);
+  }
+
+  // TimeEntry operations
+  async getTimeEntries(taskId?: string, userId?: string): Promise<TimeEntry[]> {
+    let timeEntries = Array.from(this.timeEntries.values());
+    
+    if (taskId) {
+      timeEntries = timeEntries.filter(entry => entry.taskId === taskId);
+    }
+    
+    if (userId) {
+      timeEntries = timeEntries.filter(entry => entry.userId === userId);
+    }
+    
+    return timeEntries;
+  }
+
+  async getTimeEntry(id: string): Promise<TimeEntry | undefined> {
+    return this.timeEntries.get(id);
+  }
+
+  async createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry> {
+    const id = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    const newTimeEntry: TimeEntry = {
+      id,
+      ...timeEntry,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.timeEntries.set(id, newTimeEntry);
+    return newTimeEntry;
+  }
+
+  async updateTimeEntry(id: string, timeEntryUpdate: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined> {
+    const existingTimeEntry = this.timeEntries.get(id);
+    if (!existingTimeEntry) return undefined;
+
+    const updatedTimeEntry: TimeEntry = {
+      ...existingTimeEntry,
+      ...timeEntryUpdate,
+      updatedAt: new Date().toISOString()
+    };
+    this.timeEntries.set(id, updatedTimeEntry);
+    return updatedTimeEntry;
+  }
+
+  async deleteTimeEntry(id: string): Promise<boolean> {
+    return this.timeEntries.delete(id);
   }
 
   // Comment operations
