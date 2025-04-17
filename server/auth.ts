@@ -42,9 +42,14 @@ export function authenticateJwt(req: AuthRequest, res: Response, next: NextFunct
   const token = parts[1];
   
   // Check for demo token - for development purposes only
-  const demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZkNjk5MjBiLWEyMTQtNDc3Yi1iN2VjLTgwYTk3MDUzYzIwZSIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3MTI1MDQ4ODMsImV4cCI6MTc0NDA0MDg4M30.KSzp9MzJ2Lx0Rn8SSgRrkOzIgfDVtbUYrIBVl3Ceyt4";
+  const validDemoTokens = [
+    // Token from direct-login.tsx
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZkNjk5MjBiLWEyMTQtNDc3Yi1iN2VjLTgwYTk3MDUzYzIwZSIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3MTI1MDQ4ODMsImV4cCI6MTc0NDA0MDg4M30.KSzp9MzJ2Lx0Rn8SSgRrkOzIgfDVtbUYrIBVl3Ceyt4",
+    // Original demo token
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZkNjk5MjBiLWEyMTQtNDc3Yi1iN2VjLTgwYTk3MDUzYzIwZSIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJmaXJzdE5hbWUiOiJBZG1pbiIsImxhc3ROYW1lIjoiVXNlciIsInJvbGUiOiJBRE1JTiIsImNvbXBhbnlJZCI6IjFlZjZiNmYxLTM0YjMtNGFiNS1iYTk0LTg4MDRmOTA5MDNiZiIsImRlcGFydG1lbnRJZCI6bnVsbCwiaWF0IjoxNzQ0ODIzMTA2fQ.oF5vRQjt42NsDPNVDJHh-xjbcGgSB_XGmfSn3v9X0b4"
+  ];
   
-  if (token === demoToken) {
+  if (validDemoTokens.includes(token)) {
     // For demo token, create a demo user
     req.user = {
       id: "fd69920b-a214-477b-b7ec-80a97053c20e", // Valid UUID from the database
@@ -59,6 +64,7 @@ export function authenticateJwt(req: AuthRequest, res: Response, next: NextFunct
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    console.log("Authenticated with demo token for user:", req.user.email);
     return next();
   }
 
