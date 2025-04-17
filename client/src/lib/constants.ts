@@ -3,7 +3,8 @@ export enum Placeholder {
   UNASSIGNED = "UNASSIGNED",
   NOT_ESTIMATED = "NOT_ESTIMATED",
   NONE = "NONE",
-  ALL = "ALL"
+  ALL = "ALL",
+  NO_EPICS = "NO_EPICS"
 }
 
 // Status constants

@@ -135,16 +135,16 @@ export default function NewStoryPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="epic">Epic</Label>
+                <Label htmlFor="epic">Epic <span className="text-red-500">*</span></Label>
                 <Select 
-                  value={storyData.epicId || Placeholder.NO_EPICS}
+                  value={storyData.epicId || ''}
                   onValueChange={(value) => setStoryData({...storyData, epicId: value})}
+                  required
                 >
                   <SelectTrigger id="epic">
                     <SelectValue placeholder="Select epic" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={Placeholder.NO_EPICS}>No Epic</SelectItem>
                     {epics.map((epic: Epic) => (
                       <SelectItem key={epic.id} value={epic.id}>
                         {epic.name}
