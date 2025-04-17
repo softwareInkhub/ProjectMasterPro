@@ -1,0 +1,664 @@
+import {
+  Company, InsertCompany, Department, InsertDepartment,
+  Group, InsertGroup, User, InsertUser, Team, InsertTeam,
+  Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
+  Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
+  Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
+  // Schema tables
+  companies, departments, groups, users, teams, teamMembers, projects, epics,
+  stories, tasks, comments, attachments, notifications, locations, devices
+} from "@shared/schema";
+import { IStorage } from "./storage";
+import { db } from "./db";
+import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
+import * as bcrypt from "bcryptjs";
+
+/**
+ * PostgreSQL database implementation of the storage interface
+ */
+export class DatabaseStorage implements IStorage {
+  constructor() {
+    // Create default admin user if it doesn't exist
+    this.createDefaultAdminIfNotExists();
+  }
+
+  private async createDefaultAdminIfNotExists() {
+    try {
+      const adminExists = await this.getUserByEmail("admin@example.com");
+      
+      if (!adminExists) {
+        const hashedPassword = await bcrypt.hash("password", 10);
+        
+        await this.createUser({
+          email: "admin@example.com",
+          password: hashedPassword,
+          firstName: "Admin",
+          lastName: "User",
+          role: "ADMIN",
+          status: "ACTIVE"
+        });
+        
+        console.log("Default admin user created");
+      }
+    } catch (error) {
+      console.error("Error creating default admin:", error);
+    }
+  }
+
+  // Company operations
+  async getCompanies(): Promise<Company[]> {
+    return await db.select().from(companies);
+  }
+
+  async getCompany(id: string): Promise<Company | undefined> {
+    const result = await db.select().from(companies).where(eq(companies.id, id));
+    return result[0];
+  }
+
+  async createCompany(company: InsertCompany): Promise<Company> {
+    const result = await db.insert(companies).values(company).returning();
+    return result[0];
+  }
+
+  async updateCompany(id: string, companyUpdate: Partial<InsertCompany>): Promise<Company | undefined> {
+    const result = await db
+      .update(companies)
+      .set({ ...companyUpdate, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    const result = await db.delete(companies).where(eq(companies.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Department operations
+  async getDepartments(companyId?: string): Promise<Department[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(departments)
+        .where(eq(departments.companyId, companyId));
+    }
+    return await db.select().from(departments);
+  }
+
+  async getDepartment(id: string): Promise<Department | undefined> {
+    const result = await db.select().from(departments).where(eq(departments.id, id));
+    return result[0];
+  }
+
+  async createDepartment(department: InsertDepartment): Promise<Department> {
+    const result = await db.insert(departments).values(department).returning();
+    return result[0];
+  }
+
+  async updateDepartment(id: string, departmentUpdate: Partial<InsertDepartment>): Promise<Department | undefined> {
+    const result = await db
+      .update(departments)
+      .set({ ...departmentUpdate, updatedAt: new Date() })
+      .where(eq(departments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteDepartment(id: string): Promise<boolean> {
+    const result = await db.delete(departments).where(eq(departments.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Group operations
+  async getGroups(companyId?: string): Promise<Group[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(groups)
+        .where(eq(groups.companyId, companyId));
+    }
+    return await db.select().from(groups);
+  }
+
+  async getGroup(id: string): Promise<Group | undefined> {
+    const result = await db.select().from(groups).where(eq(groups.id, id));
+    return result[0];
+  }
+
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const result = await db.insert(groups).values(group).returning();
+    return result[0];
+  }
+
+  async updateGroup(id: string, groupUpdate: Partial<InsertGroup>): Promise<Group | undefined> {
+    const result = await db
+      .update(groups)
+      .set({ ...groupUpdate, updatedAt: new Date() })
+      .where(eq(groups.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteGroup(id: string): Promise<boolean> {
+    const result = await db.delete(groups).where(eq(groups.id, id));
+    return result.rowCount > 0;
+  }
+
+  // User operations
+  async getUsers(companyId?: string, departmentId?: string): Promise<User[]> {
+    let query = db.select().from(users);
+    
+    if (companyId && departmentId) {
+      query = query.where(
+        and(
+          eq(users.companyId, companyId),
+          eq(users.departmentId, departmentId)
+        )
+      );
+    } else if (companyId) {
+      query = query.where(eq(users.companyId, companyId));
+    } else if (departmentId) {
+      query = query.where(eq(users.departmentId, departmentId));
+    }
+    
+    return await query;
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email));
+    return result[0];
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(user).returning();
+    return result[0];
+  }
+
+  async updateUser(id: string, userUpdate: Partial<InsertUser>): Promise<User | undefined> {
+    const result = await db
+      .update(users)
+      .set({ ...userUpdate, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Team operations
+  async getTeams(companyId?: string): Promise<Team[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(teams)
+        .where(eq(teams.companyId, companyId));
+    }
+    return await db.select().from(teams);
+  }
+
+  async getTeam(id: string): Promise<Team | undefined> {
+    const result = await db.select().from(teams).where(eq(teams.id, id));
+    return result[0];
+  }
+
+  async createTeam(team: InsertTeam): Promise<Team> {
+    const result = await db.insert(teams).values(team).returning();
+    return result[0];
+  }
+
+  async updateTeam(id: string, teamUpdate: Partial<InsertTeam>): Promise<Team | undefined> {
+    const result = await db
+      .update(teams)
+      .set({ ...teamUpdate, updatedAt: new Date() })
+      .where(eq(teams.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTeam(id: string): Promise<boolean> {
+    // First delete all team members
+    await db.delete(teamMembers).where(eq(teamMembers.teamId, id));
+    
+    // Then delete the team
+    const result = await db.delete(teams).where(eq(teams.id, id));
+    return result.rowCount > 0;
+  }
+
+  async addUserToTeam(teamId: string, userId: string): Promise<boolean> {
+    try {
+      await db.insert(teamMembers).values({
+        teamId,
+        userId
+      });
+      return true;
+    } catch (error) {
+      console.error("Error adding user to team:", error);
+      return false;
+    }
+  }
+
+  async removeUserFromTeam(teamId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.teamId, teamId),
+          eq(teamMembers.userId, userId)
+        )
+      );
+    return result.rowCount > 0;
+  }
+
+  async getTeamMembers(teamId: string): Promise<User[]> {
+    const result = await db
+      .select()
+      .from(teamMembers)
+      .innerJoin(users, eq(teamMembers.userId, users.id))
+      .where(eq(teamMembers.teamId, teamId));
+    
+    return result.map(row => row.users);
+  }
+
+  // Project operations
+  async getProjects(companyId?: string, teamId?: string): Promise<Project[]> {
+    let query = db.select().from(projects);
+    
+    if (companyId && teamId) {
+      query = query.where(
+        and(
+          eq(projects.companyId, companyId),
+          eq(projects.teamId, teamId)
+        )
+      );
+    } else if (companyId) {
+      query = query.where(eq(projects.companyId, companyId));
+    } else if (teamId) {
+      query = query.where(eq(projects.teamId, teamId));
+    }
+    
+    return await query;
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const result = await db.select().from(projects).where(eq(projects.id, id));
+    return result[0];
+  }
+
+  async createProject(project: InsertProject): Promise<Project> {
+    const projectToInsert = {
+      ...project,
+      progress: project.progress || { percentage: 0 }
+    };
+    
+    const result = await db.insert(projects).values(projectToInsert).returning();
+    return result[0];
+  }
+
+  async updateProject(id: string, projectUpdate: Partial<InsertProject>): Promise<Project | undefined> {
+    const result = await db
+      .update(projects)
+      .set({ ...projectUpdate, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const result = await db.delete(projects).where(eq(projects.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateProjectProgress(id: string, progress: number): Promise<boolean> {
+    const result = await db
+      .update(projects)
+      .set({ 
+        progress: { percentage: progress },
+        updatedAt: new Date()
+      })
+      .where(eq(projects.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Epic operations
+  async getEpics(projectId?: string): Promise<Epic[]> {
+    if (projectId) {
+      return await db
+        .select()
+        .from(epics)
+        .where(eq(epics.projectId, projectId));
+    }
+    return await db.select().from(epics);
+  }
+
+  async getEpic(id: string): Promise<Epic | undefined> {
+    const result = await db.select().from(epics).where(eq(epics.id, id));
+    return result[0];
+  }
+
+  async createEpic(epic: InsertEpic): Promise<Epic> {
+    const epicToInsert = {
+      ...epic,
+      progress: { percentage: 0 }
+    };
+    
+    const result = await db.insert(epics).values(epicToInsert).returning();
+    return result[0];
+  }
+
+  async updateEpic(id: string, epicUpdate: Partial<InsertEpic>): Promise<Epic | undefined> {
+    const result = await db
+      .update(epics)
+      .set({ ...epicUpdate, updatedAt: new Date() })
+      .where(eq(epics.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEpic(id: string): Promise<boolean> {
+    const result = await db.delete(epics).where(eq(epics.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateEpicProgress(id: string, progress: number): Promise<boolean> {
+    const result = await db
+      .update(epics)
+      .set({ 
+        progress: { percentage: progress },
+        updatedAt: new Date()
+      })
+      .where(eq(epics.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Story operations
+  async getStories(epicId?: string): Promise<Story[]> {
+    if (epicId) {
+      return await db
+        .select()
+        .from(stories)
+        .where(eq(stories.epicId, epicId));
+    }
+    return await db.select().from(stories);
+  }
+
+  async getStory(id: string): Promise<Story | undefined> {
+    const result = await db.select().from(stories).where(eq(stories.id, id));
+    return result[0];
+  }
+
+  async createStory(story: InsertStory): Promise<Story> {
+    const result = await db.insert(stories).values(story).returning();
+    return result[0];
+  }
+
+  async updateStory(id: string, storyUpdate: Partial<InsertStory>): Promise<Story | undefined> {
+    const result = await db
+      .update(stories)
+      .set({ ...storyUpdate, updatedAt: new Date() })
+      .where(eq(stories.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteStory(id: string): Promise<boolean> {
+    const result = await db.delete(stories).where(eq(stories.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Task operations
+  async getTasks(storyId?: string, assigneeId?: string): Promise<Task[]> {
+    let query = db.select().from(tasks);
+    
+    if (storyId && assigneeId) {
+      query = query.where(
+        and(
+          eq(tasks.storyId, storyId),
+          eq(tasks.assigneeId, assigneeId)
+        )
+      );
+    } else if (storyId) {
+      query = query.where(eq(tasks.storyId, storyId));
+    } else if (assigneeId) {
+      query = query.where(eq(tasks.assigneeId, assigneeId));
+    }
+    
+    return await query;
+  }
+
+  async getTask(id: string): Promise<Task | undefined> {
+    const result = await db.select().from(tasks).where(eq(tasks.id, id));
+    return result[0];
+  }
+
+  async createTask(task: InsertTask): Promise<Task> {
+    const result = await db.insert(tasks).values(task).returning();
+    return result[0];
+  }
+
+  async updateTask(id: string, taskUpdate: Partial<InsertTask>): Promise<Task | undefined> {
+    const result = await db
+      .update(tasks)
+      .set({ ...taskUpdate, updatedAt: new Date() })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await db.delete(tasks).where(eq(tasks.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Comment operations
+  async getComments(entityType: string, entityId: string): Promise<Comment[]> {
+    return await db
+      .select()
+      .from(comments)
+      .where(
+        and(
+          eq(comments.entityType, entityType as any),
+          eq(comments.entityId, entityId)
+        )
+      );
+  }
+
+  async getComment(id: string): Promise<Comment | undefined> {
+    const result = await db.select().from(comments).where(eq(comments.id, id));
+    return result[0];
+  }
+
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const result = await db.insert(comments).values(comment).returning();
+    return result[0];
+  }
+
+  async updateComment(id: string, commentUpdate: Partial<InsertComment>): Promise<Comment | undefined> {
+    const result = await db
+      .update(comments)
+      .set({ ...commentUpdate, updatedAt: new Date() })
+      .where(eq(comments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    const result = await db.delete(comments).where(eq(comments.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Attachment operations
+  async getAttachments(entityType: string, entityId: string): Promise<Attachment[]> {
+    return await db
+      .select()
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.entityType, entityType as any),
+          eq(attachments.entityId, entityId)
+        )
+      );
+  }
+
+  async getAttachment(id: string): Promise<Attachment | undefined> {
+    const result = await db.select().from(attachments).where(eq(attachments.id, id));
+    return result[0];
+  }
+
+  async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
+    const result = await db.insert(attachments).values(attachment).returning();
+    return result[0];
+  }
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    const result = await db.delete(attachments).where(eq(attachments.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Notification operations
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getNotification(id: string): Promise<Notification | undefined> {
+    const result = await db.select().from(notifications).where(eq(notifications.id, id));
+    return result[0];
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const result = await db.insert(notifications).values(notification).returning();
+    return result[0];
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ isRead: "true" })
+      .where(eq(notifications.id, id));
+    return result.rowCount > 0;
+  }
+
+  async deleteNotification(id: string): Promise<boolean> {
+    const result = await db.delete(notifications).where(eq(notifications.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Location operations
+  async getLocations(companyId?: string): Promise<Location[]> {
+    if (companyId) {
+      return await db
+        .select()
+        .from(locations)
+        .where(eq(locations.companyId, companyId));
+    }
+    return await db.select().from(locations);
+  }
+
+  async getLocation(id: string): Promise<Location | undefined> {
+    const result = await db.select().from(locations).where(eq(locations.id, id));
+    return result[0];
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    const result = await db.insert(locations).values(location).returning();
+    return result[0];
+  }
+
+  async updateLocation(id: string, locationUpdate: Partial<InsertLocation>): Promise<Location | undefined> {
+    const result = await db
+      .update(locations)
+      .set({ ...locationUpdate, updatedAt: new Date() })
+      .where(eq(locations.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteLocation(id: string): Promise<boolean> {
+    const result = await db.delete(locations).where(eq(locations.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Device operations
+  async getDevices(companyId?: string, departmentId?: string, locationId?: string, assignedToId?: string, status?: string): Promise<Device[]> {
+    let query = db.select().from(devices);
+    const conditions = [];
+    
+    if (companyId) conditions.push(eq(devices.companyId, companyId));
+    if (departmentId) conditions.push(eq(devices.departmentId, departmentId));
+    if (locationId) conditions.push(eq(devices.locationId, locationId));
+    if (assignedToId) conditions.push(eq(devices.assignedToId, assignedToId));
+    if (status) conditions.push(eq(devices.status, status as any));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query;
+  }
+
+  async getDevice(id: string): Promise<Device | undefined> {
+    const result = await db.select().from(devices).where(eq(devices.id, id));
+    return result[0];
+  }
+
+  async getDeviceBySerialNumber(serialNumber: string): Promise<Device | undefined> {
+    const result = await db.select().from(devices).where(eq(devices.serialNumber, serialNumber));
+    return result[0];
+  }
+
+  async createDevice(device: InsertDevice): Promise<Device> {
+    const result = await db.insert(devices).values(device).returning();
+    return result[0];
+  }
+
+  async updateDevice(id: string, deviceUpdate: Partial<InsertDevice>): Promise<Device | undefined> {
+    const result = await db
+      .update(devices)
+      .set({ ...deviceUpdate, updatedAt: new Date() })
+      .where(eq(devices.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteDevice(id: string): Promise<boolean> {
+    const result = await db.delete(devices).where(eq(devices.id, id));
+    return result.rowCount > 0;
+  }
+
+  async assignDevice(id: string, userId: string): Promise<Device | undefined> {
+    const result = await db
+      .update(devices)
+      .set({ 
+        assignedToId: userId,
+        status: "ASSIGNED",
+        updatedAt: new Date()
+      })
+      .where(eq(devices.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async unassignDevice(id: string): Promise<Device | undefined> {
+    const result = await db
+      .update(devices)
+      .set({ 
+        assignedToId: null,
+        status: "AVAILABLE",
+        updatedAt: new Date()
+      })
+      .where(eq(devices.id, id))
+      .returning();
+    return result[0];
+  }
+}

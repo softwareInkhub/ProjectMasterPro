@@ -4,10 +4,13 @@ import {
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
   Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
-  // String date interfaces for in-memory storage
-  TaskWithStringDates, CommentWithStringDates, UserWithStringDates, ProjectWithStringDates,
-  LocationWithStringDates, DeviceWithStringDates
+  // Schema tables
+  companies, departments, groups, users, teams, teamMembers, projects, epics,
+  stories, tasks, comments, attachments, notifications, locations, devices
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
+import * as bcrypt from "bcryptjs";
 
 // Interface for storage operations
 export interface IStorage {
