@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
+import { TEAM_MEMBER_ROLES } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -1010,13 +1011,22 @@ export default function ProjectDetailPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role-input">Role</Label>
-              <Input
-                id="role-input"
-                placeholder="Enter role (e.g. Developer, Designer)"
+              <Label htmlFor="role-select">Role</Label>
+              <Select 
                 value={newTeamMember.role}
-                onChange={(e) => setNewTeamMember({...newTeamMember, role: e.target.value})}
-              />
+                onValueChange={(value) => setNewTeamMember({...newTeamMember, role: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_MEMBER_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

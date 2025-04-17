@@ -2,6 +2,23 @@ import { pgTable, text, serial, uuid, timestamp, jsonb } from "drizzle-orm/pg-co
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Define common ENUM values that can be used across the application
+export const TEAM_MEMBER_ROLES = [
+  "Developer",
+  "Designer",
+  "Product Manager",
+  "Project Manager", 
+  "QA Engineer",
+  "DevOps Engineer",
+  "Tech Lead",
+  "Scrum Master",
+  "UX Researcher",
+  "Business Analyst",
+  "Content Writer"
+] as const;
+
+export const TeamMemberRoleEnum = z.enum(TEAM_MEMBER_ROLES);
+
 // Company schema
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
