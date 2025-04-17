@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -22,9 +23,13 @@ import {
   PlusIcon,
   EditIcon,
   TrashIcon,
-  ClipboardListIcon
+  ClipboardListIcon,
+  Loader2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { Epic, Story, Project, User, Comment, InsertStory } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { 
   Dialog,
@@ -44,148 +49,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Placeholder } from "@/lib/constants";
 
 export default function EpicDetailPage() {
   const [, params] = useRoute("/epics/:id");
   const [, setLocation] = useLocation();
   const epicId = params?.id;
+  const { toast } = useToast();
   
   // State for dialog modals
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isAddStoryDialogOpen, setIsAddStoryDialogOpen] = useState(false);
   
-  // Epic data - this would come from an API call in the real application
-  const [epic, setEpic] = useState({
-    id: 1,
-    name: "User Authentication System",
-    description: "Implement secure user authentication and authorization functionality including login, registration, password reset, and role-based access control. This will provide a foundation for all user-related features in the application.",
-    status: "IN_PROGRESS",
-    priority: "HIGH",
-    projectId: 1,
-    projectName: "Website Redesign",
-    startDate: "2023-09-15",
-    endDate: "2023-12-01",
-    progress: 40,
-    createdAt: "2023-09-01",
-    updatedAt: "2023-10-25",
-    storyCount: 12,
-    completedStories: 5,
-    assignees: [
-      { id: 5, name: "Alice Chen", avatar: "AC" },
-      { id: 8, name: "Bob Jackson", avatar: "BJ" }
-    ],
-    comments: [
-      { 
-        id: 1, 
-        content: "We should focus on security best practices for this epic.", 
-        createdAt: "2023-09-20",
-        user: { id: 5, name: "Alice Chen", avatar: "AC" }
-      },
-      { 
-        id: 2, 
-        content: "I've added the OAuth integration requirements to the stories.", 
-        createdAt: "2023-10-05",
-        user: { id: 8, name: "Bob Jackson", avatar: "BJ" }
-      }
-    ]
-  });
-  
-  // Sample stories data - this would come from an API in the real application
-  const [stories, setStories] = useState([
-    {
-      id: 101,
-      name: "User Registration",
-      description: "Implement user registration with email confirmation",
-      status: "DONE",
-      priority: "HIGH",
-      storyPoints: "8",
-      assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-      startDate: "2023-09-18",
-      dueDate: "2023-09-30",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-09-30",
-      taskCount: 5,
-      completedTasks: 5
-    },
-    {
-      id: 102,
-      name: "User Login",
-      description: "Implement secure login with JWT authentication",
-      status: "DONE",
-      priority: "HIGH",
-      storyPoints: "5",
-      assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-      startDate: "2023-10-01",
-      dueDate: "2023-10-10",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-10-10",
-      taskCount: 4,
-      completedTasks: 4
-    },
-    {
-      id: 103,
-      name: "Password Reset",
-      description: "Implement password reset functionality with email notifications",
-      status: "DONE",
-      priority: "MEDIUM",
-      storyPoints: "5",
-      assignee: { id: 8, name: "Bob Jackson", avatar: "BJ" },
-      startDate: "2023-10-11",
-      dueDate: "2023-10-20",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-10-20",
-      taskCount: 3,
-      completedTasks: 3
-    },
-    {
-      id: 104,
-      name: "User Profile Management",
-      description: "Allow users to view and edit their profile information",
-      status: "IN_PROGRESS",
-      priority: "MEDIUM",
-      storyPoints: "5",
-      assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-      startDate: "2023-10-21",
-      dueDate: "2023-10-30",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-10-25",
-      taskCount: 4,
-      completedTasks: 2
-    },
-    {
-      id: 105,
-      name: "Role-Based Authorization",
-      description: "Implement role-based access control for different user types",
-      status: "IN_PROGRESS",
-      priority: "HIGH",
-      storyPoints: "13",
-      assignee: { id: 8, name: "Bob Jackson", avatar: "BJ" },
-      startDate: "2023-10-21",
-      dueDate: "2023-11-10",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-10-25",
-      taskCount: 7,
-      completedTasks: 3
-    },
-    {
-      id: 106,
-      name: "OAuth Integration",
-      description: "Add support for Google and GitHub authentication",
-      status: "BACKLOG",
-      priority: "MEDIUM",
-      storyPoints: "8",
-      assignee: null,
-      startDate: "2023-11-11",
-      dueDate: "2023-11-25",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-10-05",
-      taskCount: 5,
-      completedTasks: 0
-    }
-  ]);
-  
-  // Edit form state
+  // State for editing epic
   const [editEpic, setEditEpic] = useState({
     name: "",
     description: "",
@@ -196,38 +73,165 @@ export default function EpicDetailPage() {
     endDate: ""
   });
   
-  // New story form state
-  const [newStory, setNewStory] = useState({
+  // State for adding a new story
+  const [newStory, setNewStory] = useState<Partial<InsertStory>>({
     name: "",
     description: "",
     status: "BACKLOG",
     priority: "MEDIUM",
-    storyPoints: "",
+    epicId: epicId || "",
     assigneeId: "",
+    reporterId: "",
+    storyPoints: "",
     startDate: "",
     dueDate: ""
   });
   
-  // Load epic data when component mounts or epicId changes
-  useEffect(() => {
-    // In a real application, this would be an API call
-    // For now, we're using the static data above
-    if (epicId) {
-      // Setup edit form with current epic data
-      setEditEpic({
-        name: epic.name,
-        description: epic.description,
-        status: epic.status,
-        priority: epic.priority,
-        projectId: epic.projectId.toString(),
-        startDate: epic.startDate,
-        endDate: epic.endDate
+  // Fetch epic data
+  const { 
+    data: epic,
+    isLoading: isLoadingEpic,
+    error: epicError,
+    isError: isEpicError
+  } = useQuery<Epic>({
+    queryKey: ['/api/epics', epicId],
+    enabled: !!epicId,
+  });
+  
+  // Fetch project data
+  const {
+    data: project
+  } = useQuery<Project>({
+    queryKey: ['/api/projects', epic?.projectId],
+    enabled: !!epic?.projectId,
+  });
+  
+  // Fetch stories related to this epic
+  const {
+    data: stories = [],
+    isLoading: isLoadingStories
+  } = useQuery<Story[]>({
+    queryKey: ['/api/stories'],
+    select: (data) => data.filter(story => story.epicId === epicId),
+    enabled: !!epicId,
+  });
+  
+  // Fetch users for assignments
+  const {
+    data: users = []
+  } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
+  
+  // Fetch projects for dropdown
+  const {
+    data: projects = []
+  } = useQuery<Project[]>({
+    queryKey: ['/api/projects'],
+  });
+  
+  // Update epic mutation
+  const updateEpicMutation = useMutation({
+    mutationFn: async (updatedEpic: any) => {
+      const response = await apiRequest('PUT', `/api/epics/${epicId}`, updatedEpic);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/epics', epicId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+      toast({
+        title: "Epic updated",
+        description: "The epic has been updated successfully."
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating epic",
+        description: error.message,
+        variant: "destructive"
       });
     }
-  }, [epicId, epic]);
+  });
+  
+  // Delete epic mutation
+  const deleteEpicMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', `/api/epics/${epicId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+      toast({
+        title: "Epic deleted",
+        description: "The epic has been deleted successfully."
+      });
+      setIsConfirmDeleteOpen(false);
+      setLocation('/epics');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error deleting epic",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Create story mutation
+  const createStoryMutation = useMutation({
+    mutationFn: async (story: InsertStory) => {
+      const response = await apiRequest('POST', '/api/stories', story);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+      toast({
+        title: "Story created",
+        description: "New story has been successfully created."
+      });
+      setIsAddStoryDialogOpen(false);
+      setNewStory({
+        name: "",
+        description: "",
+        status: "BACKLOG",
+        priority: "MEDIUM",
+        epicId: epicId || "",
+        assigneeId: "",
+        reporterId: "",
+        storyPoints: "",
+        startDate: "",
+        dueDate: ""
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating story",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Update state for edit form when epic data is loaded
+  useEffect(() => {
+    if (epic) {
+      setEditEpic({
+        name: epic.name || "",
+        description: epic.description || "",
+        status: epic.status || "",
+        priority: epic.priority || "",
+        projectId: epic.projectId || "",
+        startDate: epic.startDate ? new Date(epic.startDate).toISOString().split('T')[0] : "",
+        endDate: epic.endDate ? new Date(epic.endDate).toISOString().split('T')[0] : ""
+      });
+    }
+  }, [epic]);
   
   // Format date string to more readable format
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return 'Not set';
+    
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
@@ -262,8 +266,6 @@ export default function EpicDetailPage() {
   
   // Get random color for avatar background
   const getAvatarColor = (name: string) => {
-    if (!name) return "bg-gray-400";
-    
     const colors = [
       "bg-blue-500", "bg-green-500", "bg-yellow-500", 
       "bg-red-500", "bg-purple-500", "bg-pink-500", 
@@ -277,74 +279,89 @@ export default function EpicDetailPage() {
   
   // Handle editing the epic
   const handleEditEpic = () => {
-    // API call would go here
-    console.log("Updating epic:", editEpic);
+    const formattedEpic = {
+      ...editEpic,
+      startDate: editEpic.startDate ? new Date(editEpic.startDate).toISOString() : null,
+      endDate: editEpic.endDate ? new Date(editEpic.endDate).toISOString() : null
+    };
     
-    // Update local state for demo purposes
-    setEpic({
-      ...epic,
-      name: editEpic.name,
-      description: editEpic.description,
-      status: editEpic.status,
-      priority: editEpic.priority,
-      projectId: parseInt(editEpic.projectId),
-      startDate: editEpic.startDate,
-      endDate: editEpic.endDate,
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
-    
-    setIsEditDialogOpen(false);
+    updateEpicMutation.mutate(formattedEpic);
   };
   
   // Handle deleting the epic
   const handleDeleteEpic = () => {
-    // API call would go here
-    console.log("Deleting epic:", epicId);
-    setIsConfirmDeleteOpen(false);
-    // Navigate back to epics list
-    setLocation("/epics");
+    deleteEpicMutation.mutate();
   };
   
   // Handle creating a new story
   const handleAddStory = () => {
-    // API call would go here
-    console.log("Creating new story:", newStory);
+    // Prepare story data, handling nullable fields
+    const formattedStory = {
+      ...newStory,
+      epicId: epicId,
+      assigneeId: newStory.assigneeId === Placeholder.UNASSIGNED ? null : newStory.assigneeId,
+      reporterId: newStory.reporterId === Placeholder.UNASSIGNED ? null : newStory.reporterId,
+      storyPoints: newStory.storyPoints === Placeholder.NOT_ESTIMATED ? null : newStory.storyPoints,
+    } as InsertStory;
     
-    // Update local state for demo purposes
-    const newStoryObject = {
-      id: Math.max(...stories.map(s => s.id)) + 1,
-      name: newStory.name,
-      description: newStory.description,
-      status: newStory.status,
-      priority: newStory.priority,
-      storyPoints: newStory.storyPoints,
-      assignee: newStory.assigneeId ? { id: parseInt(newStory.assigneeId), name: "New Assignee", avatar: "NA" } : null,
-      startDate: newStory.startDate,
-      dueDate: newStory.dueDate,
-      createdAt: new Date().toISOString().substring(0, 10),
-      updatedAt: new Date().toISOString().substring(0, 10),
-      taskCount: 0,
-      completedTasks: 0
-    };
-    
-    setStories([...stories, newStoryObject]);
-    setIsAddStoryDialogOpen(false);
-    
-    // Reset form
-    setNewStory({
-      name: "",
-      description: "",
-      status: "BACKLOG",
-      priority: "MEDIUM",
-      storyPoints: "",
-      assigneeId: "",
-      startDate: "",
-      dueDate: ""
-    });
+    createStoryMutation.mutate(formattedStory);
+  };
+  
+  // Loading state
+  if (isLoadingEpic) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Loading epic details...</span>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (isEpicError || !epic) {
+    return (
+      <div className="container mx-auto p-6">
+        <Button 
+          variant="ghost" 
+          className="mb-4"
+          onClick={() => setLocation("/epics")}
+        >
+          <ArrowLeftIcon className="h-4 w-4 mr-1" /> Back to Epics
+        </Button>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Epic</h2>
+              <p className="mb-4">{(epicError as Error)?.message || "Epic not found or could not be loaded."}</p>
+              <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/epics', epicId] })}>
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  // Calculate metrics
+  const completedStories = stories.filter(story => story.status === "DONE").length;
+  const totalStories = stories.length;
+  const progressPercentage = totalStories > 0 
+    ? Math.round((completedStories / totalStories) * 100) 
+    : 0;
+  
+  // Get initials for user avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
   };
 
   return (
-    <div>
+    <div className="container mx-auto p-6">
       {/* Header */}
       <header className="mb-8">
         <div className="flex items-center mb-4">
@@ -376,14 +393,16 @@ export default function EpicDetailPage() {
                 {epic.priority}
               </Badge>
             </div>
-            <p className="text-gray-600 mt-1">
-              <span 
-                className="font-medium cursor-pointer hover:text-primary-600"
-                onClick={() => setLocation(`/projects/${epic.projectId}`)}
-              >
-                {epic.projectName}
-              </span>
-            </p>
+            {project && (
+              <p className="text-gray-600 mt-1">
+                <span 
+                  className="font-medium cursor-pointer hover:text-primary-600"
+                  onClick={() => setLocation(`/projects/${epic.projectId}`)}
+                >
+                  {project.name}
+                </span>
+              </p>
+            )}
             <p className="text-gray-600 mt-1">{epic.description}</p>
           </div>
           
@@ -421,7 +440,7 @@ export default function EpicDetailPage() {
                     ? epic.progress.percentage 
                     : (typeof epic.progress === 'string' 
                       ? JSON.parse(epic.progress).percentage 
-                      : epic.progress)}%
+                      : progressPercentage)}%
                 </span>
               </div>
               <Progress 
@@ -429,21 +448,21 @@ export default function EpicDetailPage() {
                   ? epic.progress.percentage 
                   : (typeof epic.progress === 'string' 
                     ? JSON.parse(epic.progress).percentage 
-                    : epic.progress)} 
+                    : progressPercentage)} 
                 className="h-2 mb-4" 
               />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-4xl font-bold">{epic.storyCount}</div>
+                <div className="text-4xl font-bold">{totalStories}</div>
                 <div className="text-sm text-gray-600">Stories</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-4xl font-bold">{epic.completedStories}</div>
+                <div className="text-4xl font-bold">{completedStories}</div>
                 <div className="text-sm text-gray-600">Completed</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-4xl font-bold">{epic.storyCount - epic.completedStories}</div>
+                <div className="text-4xl font-bold">{totalStories - completedStories}</div>
                 <div className="text-sm text-gray-600">Remaining</div>
               </div>
             </div>
@@ -467,29 +486,14 @@ export default function EpicDetailPage() {
                   <div className="font-medium">{formatDate(epic.endDate)}</div>
                 </div>
               </div>
+              
               <div>
-                <div className="text-sm text-gray-500">Assignees</div>
-                <div className="flex mt-1 gap-1">
-                  {epic.assignees.map(assignee => (
-                    <div
-                      key={assignee.id}
-                      title={assignee.name}
-                      className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(assignee.name)} flex items-center justify-center text-white font-medium text-sm`}
-                    >
-                      {assignee.avatar}
-                    </div>
-                  ))}
-                </div>
+                <div className="text-sm text-gray-500">Created</div>
+                <div className="font-medium">{formatDate(epic.createdAt)}</div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-500">Created</div>
-                  <div className="font-medium">{formatDate(epic.createdAt)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Updated</div>
-                  <div className="font-medium">{formatDate(epic.updatedAt)}</div>
-                </div>
+              <div>
+                <div className="text-sm text-gray-500">Updated</div>
+                <div className="font-medium">{formatDate(epic.updatedAt)}</div>
               </div>
             </div>
           </CardContent>
@@ -518,10 +522,23 @@ export default function EpicDetailPage() {
             </Button>
           </div>
           
-          {stories.length === 0 ? (
+          {isLoadingStories ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span className="ml-2">Loading stories...</span>
+            </div>
+          ) : stories.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-gray-500">No stories found for this epic.</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsAddStoryDialogOpen(true)}
+                  className="mt-4"
+                >
+                  <PlusIcon className="h-4 w-4 mr-1" />
+                  Create First Story
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -567,26 +584,24 @@ export default function EpicDetailPage() {
                           
                           <div className="flex items-center gap-2">
                             <CalendarIcon className="h-4 w-4 text-gray-500" />
-                            <span className="text-gray-600">{formatDate(story.startDate)} - {formatDate(story.dueDate)}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <ClipboardListIcon className="h-4 w-4 text-gray-500" />
-                            <span className="text-gray-600">{story.completedTasks}/{story.taskCount} tasks</span>
+                            <span className="text-gray-600">
+                              {formatDate(story.startDate)} - {formatDate(story.dueDate)}
+                            </span>
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center justify-end">
-                        {story.assignee ? (
+                        {story.assigneeId && users.find(u => u.id === story.assigneeId) ? (
                           <div className="flex items-center gap-2">
                             <div 
-                              title={story.assignee.name}
-                              className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(story.assignee.name)} flex items-center justify-center text-white font-medium text-sm`}
+                              className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(users.find(u => u.id === story.assigneeId)?.firstName || '')} flex items-center justify-center text-white font-medium text-sm`}
                             >
-                              {story.assignee.avatar}
+                              {getInitials(`${users.find(u => u.id === story.assigneeId)?.firstName || ''} ${users.find(u => u.id === story.assigneeId)?.lastName || ''}`)}
                             </div>
-                            <div className="text-sm">{story.assignee.name}</div>
+                            <div className="text-sm">
+                              {users.find(u => u.id === story.assigneeId)?.firstName} {users.find(u => u.id === story.assigneeId)?.lastName}
+                            </div>
                           </div>
                         ) : (
                           <div className="text-sm text-gray-500">Unassigned</div>
@@ -604,28 +619,16 @@ export default function EpicDetailPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Comments</h2>
             
-            {epic.comments.map((comment) => (
-              <div key={comment.id} className="flex gap-3 p-4 border rounded-lg">
-                <div 
-                  className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(comment.user.name)} flex items-center justify-center text-white font-medium text-sm`}
-                >
-                  {comment.user.avatar}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between">
-                    <div className="font-medium">{comment.user.name}</div>
-                    <div className="text-sm text-gray-500">{formatDate(comment.createdAt)}</div>
-                  </div>
-                  <div className="mt-1">{comment.content}</div>
-                </div>
-              </div>
-            ))}
+            <div className="bg-gray-50 p-6 text-center rounded-lg">
+              <p className="text-gray-500">Comment functionality coming soon.</p>
+            </div>
             
             <Textarea 
               placeholder="Add a comment..." 
               className="mt-4"
+              disabled
             />
-            <Button className="mt-2">Add Comment</Button>
+            <Button className="mt-2" disabled>Add Comment</Button>
           </div>
         </TabsContent>
       </Tabs>
@@ -670,11 +673,11 @@ export default function EpicDetailPage() {
                     <SelectValue placeholder="Select project" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Website Redesign</SelectItem>
-                    <SelectItem value="2">CRM Integration</SelectItem>
-                    <SelectItem value="3">Q4 Marketing Campaign</SelectItem>
-                    <SelectItem value="4">Infrastructure Migration</SelectItem>
-                    <SelectItem value="5">Mobile App Development</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -739,7 +742,9 @@ export default function EpicDetailPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditEpic}>Update Epic</Button>
+            <Button onClick={handleEditEpic} disabled={updateEpicMutation.isPending}>
+              {updateEpicMutation.isPending ? "Updating..." : "Update Epic"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -765,8 +770,9 @@ export default function EpicDetailPage() {
             <Button 
               variant="destructive" 
               onClick={handleDeleteEpic}
+              disabled={deleteEpicMutation.isPending}
             >
-              Delete Epic
+              {deleteEpicMutation.isPending ? "Deleting..." : "Delete Epic"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -783,12 +789,13 @@ export default function EpicDetailPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="story-name">Story Name</Label>
+              <Label htmlFor="story-name">Story Name <span className="text-red-500">*</span></Label>
               <Input
                 id="story-name"
                 placeholder="Enter story name"
                 value={newStory.name}
                 onChange={(e) => setNewStory({...newStory, name: e.target.value})}
+                required
               />
             </div>
             <div className="grid gap-2">
@@ -796,16 +803,16 @@ export default function EpicDetailPage() {
               <Textarea
                 id="story-description"
                 placeholder="Enter story description"
-                rows={4}
+                rows={3}
                 value={newStory.description}
                 onChange={(e) => setNewStory({...newStory, description: e.target.value})}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="story-status">Status</Label>
+                <Label htmlFor="story-status">Status <span className="text-red-500">*</span></Label>
                 <Select 
-                  value={newStory.status}
+                  value={newStory.status || "BACKLOG"}
                   onValueChange={(value) => setNewStory({...newStory, status: value})}
                 >
                   <SelectTrigger>
@@ -821,9 +828,9 @@ export default function EpicDetailPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="story-priority">Priority</Label>
+                <Label htmlFor="story-priority">Priority <span className="text-red-500">*</span></Label>
                 <Select 
-                  value={newStory.priority}
+                  value={newStory.priority || "MEDIUM"}
                   onValueChange={(value) => setNewStory({...newStory, priority: value})}
                 >
                   <SelectTrigger>
@@ -842,37 +849,40 @@ export default function EpicDetailPage() {
               <div className="grid gap-2">
                 <Label htmlFor="story-points">Story Points</Label>
                 <Select 
-                  value={newStory.storyPoints}
+                  value={newStory.storyPoints?.toString() || Placeholder.NOT_ESTIMATED}
                   onValueChange={(value) => setNewStory({...newStory, storyPoints: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Estimate effort" />
+                    <SelectValue placeholder="Select points" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 - Very Small</SelectItem>
-                    <SelectItem value="2">2 - Small</SelectItem>
-                    <SelectItem value="3">3 - Small+</SelectItem>
-                    <SelectItem value="5">5 - Medium</SelectItem>
-                    <SelectItem value="8">8 - Large</SelectItem>
-                    <SelectItem value="13">13 - Very Large</SelectItem>
-                    <SelectItem value="21">21 - Extra Large</SelectItem>
+                    <SelectItem value={Placeholder.NOT_ESTIMATED}>Not Estimated</SelectItem>
+                    <SelectItem value="1">1 point</SelectItem>
+                    <SelectItem value="2">2 points</SelectItem>
+                    <SelectItem value="3">3 points</SelectItem>
+                    <SelectItem value="5">5 points</SelectItem>
+                    <SelectItem value="8">8 points</SelectItem>
+                    <SelectItem value="13">13 points</SelectItem>
+                    <SelectItem value="21">21 points</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="story-assignee">Assignee</Label>
                 <Select 
-                  value={newStory.assigneeId}
+                  value={newStory.assigneeId || Placeholder.UNASSIGNED}
                   onValueChange={(value) => setNewStory({...newStory, assigneeId: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Assign to" />
+                    <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="5">Alice Chen</SelectItem>
-                    <SelectItem value="8">Bob Jackson</SelectItem>
-                    <SelectItem value="12">Charlie Martinez</SelectItem>
+                    <SelectItem value={Placeholder.UNASSIGNED}>Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -902,7 +912,12 @@ export default function EpicDetailPage() {
             <Button variant="outline" onClick={() => setIsAddStoryDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddStory}>Create Story</Button>
+            <Button 
+              onClick={handleAddStory}
+              disabled={createStoryMutation.isPending || !newStory.name}
+            >
+              {createStoryMutation.isPending ? "Creating..." : "Create Story"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

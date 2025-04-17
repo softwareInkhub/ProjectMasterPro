@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -24,10 +25,15 @@ import {
   ClipboardListIcon,
   BriefcaseIcon,
   AlignLeftIcon,
-  Hash
+  Hash,
+  Loader2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { Placeholder, Status, Priority } from "@/lib/constants";
+import { Story, Task, Epic, Project, User, Comment, InsertTask } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { 
   Dialog,
@@ -52,125 +58,16 @@ export default function StoryDetailPage() {
   const [, params] = useRoute("/stories/:id");
   const [, setLocation] = useLocation();
   const storyId = params?.id;
+  const { toast } = useToast();
   
   // State for dialog modals
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false);
   const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
-  // Story data - this would come from an API call in the real application
-  const [story, setStory] = useState({
-    id: 101,
-    name: "User Registration",
-    description: "Implement user registration with email confirmation. The registration form should include fields for username, email, password, and password confirmation. After registration, an email with a verification link should be sent to the user.",
-    status: "DONE",
-    priority: "HIGH",
-    epicId: 1,
-    epicName: "User Authentication System",
-    projectId: 1,
-    projectName: "Website Redesign",
-    storyPoints: "8",
-    assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-    reporter: { id: 8, name: "Bob Jackson", avatar: "BJ" },
-    startDate: "2023-09-18",
-    dueDate: "2023-09-30",
-    createdAt: "2023-09-15",
-    updatedAt: "2023-09-30",
-    taskCount: 5,
-    completedTasks: 5,
-    comments: [
-      { 
-        id: 1, 
-        content: "Added validation requirements for the password field.", 
-        createdAt: "2023-09-20",
-        user: { id: 5, name: "Alice Chen", avatar: "AC" }
-      },
-      { 
-        id: 2, 
-        content: "Email confirmation template is ready for review.", 
-        createdAt: "2023-09-25",
-        user: { id: 8, name: "Bob Jackson", avatar: "BJ" }
-      }
-    ]
-  });
-  
-  // Sample tasks data - this would come from an API in the real application
-  const [tasks, setTasks] = useState([
-    {
-      id: 1001,
-      name: "Create registration form UI",
-      description: "Design and implement the registration form with all required fields",
-      status: "DONE",
-      priority: "HIGH",
-      assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-      estimatedHours: "4",
-      actualHours: "5",
-      startDate: "2023-09-18",
-      dueDate: "2023-09-20",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-09-20"
-    },
-    {
-      id: 1002,
-      name: "Implement client-side validation",
-      description: "Add validation for all form fields with appropriate error messages",
-      status: "DONE",
-      priority: "MEDIUM",
-      assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-      estimatedHours: "3",
-      actualHours: "3",
-      startDate: "2023-09-20",
-      dueDate: "2023-09-22",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-09-22"
-    },
-    {
-      id: 1003,
-      name: "Implement server-side validation",
-      description: "Create server-side validation for user registration data",
-      status: "DONE",
-      priority: "HIGH",
-      assignee: { id: 8, name: "Bob Jackson", avatar: "BJ" },
-      estimatedHours: "4",
-      actualHours: "5",
-      startDate: "2023-09-22",
-      dueDate: "2023-09-24",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-09-24"
-    },
-    {
-      id: 1004,
-      name: "Create email verification template",
-      description: "Design HTML email template for verification emails",
-      status: "DONE",
-      priority: "LOW",
-      assignee: { id: 5, name: "Alice Chen", avatar: "AC" },
-      estimatedHours: "2",
-      actualHours: "2",
-      startDate: "2023-09-24",
-      dueDate: "2023-09-26",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-09-26"
-    },
-    {
-      id: 1005,
-      name: "Implement email sending functionality",
-      description: "Add email service integration to send verification emails",
-      status: "DONE",
-      priority: "MEDIUM",
-      assignee: { id: 8, name: "Bob Jackson", avatar: "BJ" },
-      estimatedHours: "4",
-      actualHours: "5",
-      startDate: "2023-09-26",
-      dueDate: "2023-09-30",
-      createdAt: "2023-09-15",
-      updatedAt: "2023-09-30"
-    }
-  ]);
-  
-  // Edit story form state
+  // State for forms
   const [editStory, setEditStory] = useState({
     name: "",
     description: "",
@@ -185,11 +82,12 @@ export default function StoryDetailPage() {
   });
   
   // New task form state
-  const [newTask, setNewTask] = useState({
+  const [newTask, setNewTask] = useState<Partial<InsertTask>>({
     name: "",
     description: "",
     status: "TODO",
     priority: "MEDIUM",
+    storyId: storyId || "",
     assigneeId: "",
     estimatedHours: "",
     startDate: "",
@@ -197,8 +95,19 @@ export default function StoryDetailPage() {
   });
   
   // Edit task form state
-  const [editTask, setEditTask] = useState({
-    id: 0,
+  const [editTask, setEditTask] = useState<{
+    id: string;
+    name: string;
+    description: string | null;
+    status: string;
+    priority: string;
+    assigneeId: string | null;
+    estimatedHours: string | null;
+    actualHours: string | null;
+    startDate: string | null;
+    dueDate: string | null;
+  }>({
+    id: "",
     name: "",
     description: "",
     status: "",
@@ -210,29 +119,208 @@ export default function StoryDetailPage() {
     dueDate: ""
   });
   
-  // Load story data when component mounts or storyId changes
-  useEffect(() => {
-    // In a real application, this would be an API call
-    // For now, we're using the static data above
-    if (storyId) {
-      // Setup edit form with current story data
-      setEditStory({
-        name: story.name,
-        description: story.description,
-        status: story.status,
-        priority: story.priority,
-        epicId: story.epicId.toString(),
-        storyPoints: story.storyPoints,
-        assigneeId: story.assignee ? story.assignee.id.toString() : "",
-        reporterId: story.reporter ? story.reporter.id.toString() : "",
-        startDate: story.startDate,
-        dueDate: story.dueDate
+  // Fetch story data
+  const { 
+    data: story,
+    isLoading: isLoadingStory,
+    error: storyError,
+    isError: isStoryError
+  } = useQuery<Story>({
+    queryKey: ['/api/stories', storyId],
+    enabled: !!storyId,
+  });
+  
+  // Fetch epic data
+  const {
+    data: epic
+  } = useQuery<Epic>({
+    queryKey: ['/api/epics', story?.epicId],
+    enabled: !!story?.epicId,
+  });
+  
+  // Fetch project data
+  const {
+    data: project
+  } = useQuery<Project>({
+    queryKey: ['/api/projects', epic?.projectId],
+    enabled: !!epic?.projectId,
+  });
+  
+  // Fetch tasks related to this story
+  const {
+    data: tasks = [],
+    isLoading: isLoadingTasks
+  } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+    select: (data) => data.filter(task => task.storyId === storyId),
+    enabled: !!storyId,
+  });
+  
+  // Fetch users for assignments
+  const {
+    data: users = []
+  } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
+  
+  // Fetch epics for dropdown
+  const {
+    data: epics = []
+  } = useQuery<Epic[]>({
+    queryKey: ['/api/epics'],
+  });
+  
+  // Update story mutation
+  const updateStoryMutation = useMutation({
+    mutationFn: async (updatedStory: any) => {
+      const response = await apiRequest('PUT', `/api/stories/${storyId}`, updatedStory);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/stories', storyId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+      toast({
+        title: "Story updated",
+        description: "The story has been updated successfully."
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating story",
+        description: error.message,
+        variant: "destructive"
       });
     }
-  }, [storyId, story]);
+  });
+  
+  // Delete story mutation
+  const deleteStoryMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', `/api/stories/${storyId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+      toast({
+        title: "Story deleted",
+        description: "The story has been deleted successfully."
+      });
+      setIsConfirmDeleteOpen(false);
+      setLocation('/stories');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error deleting story",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Create task mutation
+  const createTaskMutation = useMutation({
+    mutationFn: async (task: InsertTask) => {
+      const response = await apiRequest('POST', '/api/tasks', task);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      toast({
+        title: "Task created",
+        description: "New task has been successfully created."
+      });
+      setIsAddTaskDialogOpen(false);
+      setNewTask({
+        name: "",
+        description: "",
+        status: "TODO",
+        priority: "MEDIUM",
+        storyId: storyId || "",
+        assigneeId: "",
+        estimatedHours: "",
+        startDate: "",
+        dueDate: ""
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating task",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Update task mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async (updatedTask: any) => {
+      const response = await apiRequest('PUT', `/api/tasks/${updatedTask.id}`, updatedTask);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      toast({
+        title: "Task updated",
+        description: "The task has been updated successfully."
+      });
+      setIsEditTaskDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating task",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Toggle task status mutation
+  const toggleTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, newStatus }: { taskId: string, newStatus: string }) => {
+      const response = await apiRequest('PUT', `/api/tasks/${taskId}`, { status: newStatus });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating task status",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Update state for edit form when story data is loaded
+  useEffect(() => {
+    if (story) {
+      setEditStory({
+        name: story.name || "",
+        description: story.description || "",
+        status: story.status || "",
+        priority: story.priority || "",
+        epicId: story.epicId || "",
+        storyPoints: story.storyPoints?.toString() || "",
+        assigneeId: story.assigneeId || "",
+        reporterId: story.reporterId || "",
+        startDate: story.startDate ? new Date(story.startDate).toISOString().split('T')[0] : "",
+        dueDate: story.dueDate ? new Date(story.dueDate).toISOString().split('T')[0] : ""
+      });
+      
+      // Update new task with story ID
+      setNewTask(task => ({
+        ...task,
+        storyId: story.id
+      }));
+    }
+  }, [story]);
   
   // Format date string to more readable format
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return 'Not set';
+    
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
@@ -282,86 +370,46 @@ export default function StoryDetailPage() {
     return colors[hash % colors.length];
   };
   
+  // Get initials for user avatar
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  };
+  
   // Handle editing the story
   const handleEditStory = () => {
-    // API call would go here
-    console.log("Updating story:", editStory);
+    const formattedStory = {
+      ...editStory,
+      startDate: editStory.startDate ? new Date(editStory.startDate).toISOString() : null,
+      dueDate: editStory.dueDate ? new Date(editStory.dueDate).toISOString() : null,
+      assigneeId: editStory.assigneeId === Placeholder.UNASSIGNED ? null : editStory.assigneeId,
+      reporterId: editStory.reporterId === Placeholder.UNASSIGNED ? null : editStory.reporterId,
+      storyPoints: editStory.storyPoints === Placeholder.NOT_ESTIMATED ? null : editStory.storyPoints
+    };
     
-    // Update local state for demo purposes
-    setStory({
-      ...story,
-      name: editStory.name,
-      description: editStory.description,
-      status: editStory.status,
-      priority: editStory.priority,
-      epicId: parseInt(editStory.epicId),
-      storyPoints: editStory.storyPoints,
-      assignee: editStory.assigneeId ? { id: parseInt(editStory.assigneeId), name: "Updated Assignee", avatar: "UA" } : null,
-      reporter: editStory.reporterId ? { id: parseInt(editStory.reporterId), name: "Updated Reporter", avatar: "UR" } : null,
-      startDate: editStory.startDate,
-      dueDate: editStory.dueDate,
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
-    
-    setIsEditDialogOpen(false);
+    updateStoryMutation.mutate(formattedStory);
   };
   
   // Handle deleting the story
   const handleDeleteStory = () => {
-    // API call would go here
-    console.log("Deleting story:", storyId);
-    setIsConfirmDeleteOpen(false);
-    // Navigate back to stories list
-    setLocation("/stories");
+    deleteStoryMutation.mutate();
   };
   
   // Handle creating a new task
   const handleAddTask = () => {
-    // API call would go here
-    console.log("Creating new task:", newTask);
+    const formattedTask = {
+      ...newTask,
+      storyId: storyId || '',
+      startDate: newTask.startDate ? new Date(newTask.startDate).toISOString() : null,
+      dueDate: newTask.dueDate ? new Date(newTask.dueDate).toISOString() : null,
+      assigneeId: newTask.assigneeId === Placeholder.UNASSIGNED ? null : newTask.assigneeId,
+      estimatedHours: newTask.estimatedHours || null
+    } as InsertTask;
     
-    // Update local state for demo purposes
-    const newTaskObject = {
-      id: Math.max(...tasks.map(t => t.id)) + 1,
-      name: newTask.name,
-      description: newTask.description,
-      status: newTask.status,
-      priority: newTask.priority,
-      assignee: newTask.assigneeId && newTask.assigneeId !== "unassigned" ? { id: parseInt(newTask.assigneeId), name: "New Assignee", avatar: "NA" } : null,
-      estimatedHours: newTask.estimatedHours,
-      actualHours: "0",
-      startDate: newTask.startDate,
-      dueDate: newTask.dueDate,
-      createdAt: new Date().toISOString().substring(0, 10),
-      updatedAt: new Date().toISOString().substring(0, 10)
-    };
-    
-    setTasks([...tasks, newTaskObject]);
-    
-    // Update story stats
-    setStory({
-      ...story,
-      taskCount: story.taskCount + 1,
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
-    
-    setIsAddTaskDialogOpen(false);
-    
-    // Reset form
-    setNewTask({
-      name: "",
-      description: "",
-      status: "TODO",
-      priority: "MEDIUM",
-      assigneeId: "",
-      estimatedHours: "",
-      startDate: "",
-      dueDate: ""
-    });
+    createTaskMutation.mutate(formattedTask);
   };
   
   // Initialize edit form when a task is selected for editing
-  const openEditTaskDialog = (task: any) => {
+  const openEditTaskDialog = (task: Task) => {
     setSelectedTask(task);
     setEditTask({
       id: task.id,
@@ -369,93 +417,93 @@ export default function StoryDetailPage() {
       description: task.description,
       status: task.status,
       priority: task.priority,
-      assigneeId: task.assignee ? task.assignee.id.toString() : "",
+      assigneeId: task.assigneeId,
       estimatedHours: task.estimatedHours,
       actualHours: task.actualHours,
-      startDate: task.startDate,
-      dueDate: task.dueDate
+      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : null,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null
     });
     setIsEditTaskDialogOpen(true);
   };
   
   // Handle editing a task
   const handleEditTask = () => {
-    // API call would go here
-    console.log("Updating task:", editTask);
+    const formattedTask = {
+      ...editTask,
+      startDate: editTask.startDate ? new Date(editTask.startDate).toISOString() : null,
+      dueDate: editTask.dueDate ? new Date(editTask.dueDate).toISOString() : null,
+      assigneeId: editTask.assigneeId === Placeholder.UNASSIGNED ? null : editTask.assigneeId,
+      estimatedHours: editTask.estimatedHours || null,
+      actualHours: editTask.actualHours || null
+    };
     
-    // Track if status changed to/from DONE
-    const wasCompleted = selectedTask.status === "DONE";
-    const isNowCompleted = editTask.status === "DONE";
-    let completedDelta = 0;
-    
-    // Update the completed count based on status changes
-    if (!wasCompleted && isNowCompleted) {
-      completedDelta = 1;
-    } else if (wasCompleted && !isNowCompleted) {
-      completedDelta = -1;
-    }
-    
-    // Update local state for demo purposes
-    const updatedTasks = tasks.map(task => 
-      task.id === editTask.id 
-        ? {
-            ...task,
-            name: editTask.name,
-            description: editTask.description,
-            status: editTask.status,
-            priority: editTask.priority,
-            assignee: editTask.assigneeId && editTask.assigneeId !== "unassigned" ? 
-              { id: parseInt(editTask.assigneeId), name: "Updated Assignee", avatar: "UA" } : 
-              null,
-            estimatedHours: editTask.estimatedHours,
-            actualHours: editTask.actualHours,
-            startDate: editTask.startDate,
-            dueDate: editTask.dueDate,
-            updatedAt: new Date().toISOString().substring(0, 10)
-          }
-        : task
-    );
-    
-    setTasks(updatedTasks);
-    
-    // Update story stats
-    setStory({
-      ...story,
-      completedTasks: story.completedTasks + completedDelta,
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
-    
-    setIsEditTaskDialogOpen(false);
+    updateTaskMutation.mutate(formattedTask);
   };
   
   // Handle toggling task status directly from checkbox
-  const handleToggleTaskStatus = (taskId: number, currentStatus: string) => {
-    // API call would go here
-    
+  const handleToggleTaskStatus = (taskId: string, currentStatus: string) => {
     // Toggle between DONE and TODO
     const newStatus = currentStatus === "DONE" ? "TODO" : "DONE";
     
-    // Update local state for demo purposes
-    const updatedTasks = tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, status: newStatus, updatedAt: new Date().toISOString().substring(0, 10) }
-        : task
-    );
-    
-    setTasks(updatedTasks);
-    
-    // Update story stats
-    setStory({
-      ...story,
-      completedTasks: newStatus === "DONE" 
-        ? story.completedTasks + 1 
-        : story.completedTasks - 1,
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
+    toggleTaskStatusMutation.mutate({ taskId, newStatus });
   };
+  
+  // Calculate completion percentage
+  const calculateCompletion = () => {
+    if (!tasks || tasks.length === 0) return 0;
+    
+    const completedTasks = tasks.filter(task => task.status === "DONE").length;
+    return Math.round((completedTasks / tasks.length) * 100);
+  };
+  
+  // Loading state
+  if (isLoadingStory) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Loading story details...</span>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (isStoryError || !story) {
+    return (
+      <div className="container mx-auto p-6">
+        <Button 
+          variant="ghost" 
+          className="mb-4"
+          onClick={() => setLocation("/stories")}
+        >
+          <ArrowLeftIcon className="h-4 w-4 mr-1" /> Back to Stories
+        </Button>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Story</h2>
+              <p className="mb-4">{(storyError as Error)?.message || "Story not found or could not be loaded."}</p>
+              <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/stories', storyId] })}>
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Get the assignee and reporter details
+  const assignee = users.find(user => user.id === story.assigneeId);
+  const reporter = users.find(user => user.id === story.reporterId);
+  
+  // Calculate task stats
+  const completedTasks = tasks.filter(task => task.status === "DONE").length;
+  const totalTasks = tasks.length;
+  const completionPercentage = calculateCompletion();
 
   return (
-    <div>
+    <div className="container mx-auto p-6">
       {/* Header */}
       <header className="mb-8">
         <div className="flex items-center mb-4">
@@ -488,20 +536,24 @@ export default function StoryDetailPage() {
               </Badge>
             </div>
             <div className="flex flex-wrap gap-3 mt-2 text-sm">
-              <p 
-                className="text-gray-600 cursor-pointer hover:text-primary-600"
-                onClick={() => setLocation(`/projects/${story.projectId}`)}
-              >
-                <BriefcaseIcon className="h-4 w-4 inline mr-1" />
-                {story.projectName}
-              </p>
-              <p 
-                className="text-gray-600 cursor-pointer hover:text-primary-600"
-                onClick={() => setLocation(`/epics/${story.epicId}`)}
-              >
-                <BookOpenIcon className="h-4 w-4 inline mr-1" />
-                {story.epicName}
-              </p>
+              {project && (
+                <p 
+                  className="text-gray-600 cursor-pointer hover:text-primary-600"
+                  onClick={() => setLocation(`/projects/${epic?.projectId}`)}
+                >
+                  <BriefcaseIcon className="h-4 w-4 inline mr-1" />
+                  {project.name}
+                </p>
+              )}
+              {epic && (
+                <p 
+                  className="text-gray-600 cursor-pointer hover:text-primary-600"
+                  onClick={() => setLocation(`/epics/${story.epicId}`)}
+                >
+                  <BookOpenIcon className="h-4 w-4 inline mr-1" />
+                  {epic.name}
+                </p>
+              )}
               {story.storyPoints && (
                 <p className="text-gray-600">
                   <Hash className="h-4 w-4 inline mr-1" />
@@ -509,7 +561,7 @@ export default function StoryDetailPage() {
                 </p>
               )}
             </div>
-            <p className="text-gray-600 mt-3">{story.description}</p>
+            <p className="text-gray-600 mt-1">{story.description}</p>
           </div>
           
           <div className="flex gap-2">
@@ -531,90 +583,108 @@ export default function StoryDetailPage() {
       </header>
       
       {/* Story details */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        {/* Status card */}
-        <Card className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Task stats card */}
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-4xl font-bold">{story.taskCount}</div>
-                <div className="text-sm text-gray-600">Total</div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Completion</span>
+                <span>{completionPercentage}%</span>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-4xl font-bold">{story.completedTasks}</div>
-                <div className="text-sm text-gray-600">Completed</div>
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary" 
+                  style={{ width: `${completionPercentage}%` }}
+                ></div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-4xl font-bold">{story.taskCount - story.completedTasks}</div>
-                <div className="text-sm text-gray-600">Remaining</div>
+              <div className="flex justify-between text-sm pt-2">
+                <span>{completedTasks}/{totalTasks} tasks completed</span>
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto text-primary" 
+                  onClick={() => setIsAddTaskDialogOpen(true)}
+                >
+                  + Add task
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
         
-        {/* Details card */}
-        <Card className="lg:col-span-2">
+        {/* Timeline card */}
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Details</CardTitle>
+            <CardTitle className="text-lg">Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm text-gray-500">Start Date</div>
+                <div className="font-medium">{formatDate(story.startDate)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Due Date</div>
+                <div className="font-medium">{formatDate(story.dueDate)}</div>
+              </div>
+            </div>
+            <div className="h-4"></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm text-gray-500">Created</div>
+                <div className="font-medium">{formatDate(story.createdAt)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Updated</div>
+                <div className="font-medium">{formatDate(story.updatedAt)}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* People card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">People</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-500">Start Date</div>
-                  <div className="font-medium">{formatDate(story.startDate)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Due Date</div>
-                  <div className="font-medium">{formatDate(story.dueDate)}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-500">Assignee</div>
-                  {story.assignee ? (
-                    <div className="flex mt-1 gap-2 items-center">
-                      <div
-                        title={story.assignee.name}
-                        className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(story.assignee.name)} flex items-center justify-center text-white font-medium text-sm`}
-                      >
-                        {story.assignee.avatar}
-                      </div>
-                      <span className="font-medium">{story.assignee.name}</span>
+              <div>
+                <div className="text-sm text-gray-500 mb-2">Assignee</div>
+                {assignee ? (
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(`${assignee.firstName} ${assignee.lastName}`)} flex items-center justify-center text-white font-medium text-sm`}
+                    >
+                      {getInitials(assignee.firstName, assignee.lastName)}
                     </div>
-                  ) : (
-                    <div className="text-gray-500">Unassigned</div>
-                  )}
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Reporter</div>
-                  {story.reporter ? (
-                    <div className="flex mt-1 gap-2 items-center">
-                      <div
-                        title={story.reporter.name}
-                        className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(story.reporter.name)} flex items-center justify-center text-white font-medium text-sm`}
-                      >
-                        {story.reporter.avatar}
-                      </div>
-                      <span className="font-medium">{story.reporter.name}</span>
+                    <div className="font-medium">
+                      {assignee.firstName} {assignee.lastName}
                     </div>
-                  ) : (
-                    <div className="text-gray-500">None</div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">Unassigned</div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-gray-500">Created</div>
-                  <div className="font-medium">{formatDate(story.createdAt)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500">Updated</div>
-                  <div className="font-medium">{formatDate(story.updatedAt)}</div>
-                </div>
+              <div>
+                <div className="text-sm text-gray-500 mb-2">Reporter</div>
+                {reporter ? (
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(`${reporter.firstName} ${reporter.lastName}`)} flex items-center justify-center text-white font-medium text-sm`}
+                    >
+                      {getInitials(reporter.firstName, reporter.lastName)}
+                    </div>
+                    <div className="font-medium">
+                      {reporter.firstName} {reporter.lastName}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">Not specified</div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -625,7 +695,7 @@ export default function StoryDetailPage() {
       <Tabs defaultValue="tasks" className="mt-6">
         <TabsList>
           <TabsTrigger value="tasks" className="flex items-center">
-            <ClipboardListIcon className="h-4 w-4 mr-2" />
+            <CheckSquareIcon className="h-4 w-4 mr-2" />
             Tasks
           </TabsTrigger>
           <TabsTrigger value="comments" className="flex items-center">
@@ -643,30 +713,53 @@ export default function StoryDetailPage() {
             </Button>
           </div>
           
-          {tasks.length === 0 ? (
+          {isLoadingTasks ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span className="ml-2">Loading tasks...</span>
+            </div>
+          ) : tasks.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-gray-500">No tasks found for this story.</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsAddTaskDialogOpen(true)}
+                  className="mt-4"
+                >
+                  <PlusIcon className="h-4 w-4 mr-1" />
+                  Create First Task
+                </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {tasks.map((task) => (
                 <Card 
-                  key={task.id}
+                  key={task.id} 
                   className="hover:shadow-md transition-shadow"
                 >
                   <CardContent className="p-4">
-                    <div className="flex gap-3">
+                    <div className="flex items-start gap-3">
                       <Checkbox 
-                        checked={task.status === "DONE"}
-                        onClick={() => handleToggleTaskStatus(task.id, task.status)}
+                        checked={task.status === "DONE"} 
+                        onCheckedChange={() => handleToggleTaskStatus(task.id, task.status)}
+                        className="mt-1"
+                        disabled={toggleTaskStatusMutation.isPending}
                       />
                       <div className="flex-1">
                         <div className="flex justify-between">
-                          <h3 className={`text-lg font-bold ${task.status === "DONE" ? "line-through text-gray-500" : "text-gray-900"}`}>
-                            {task.name}
-                          </h3>
+                          <div>
+                            <h3 
+                              className={`text-lg font-medium ${task.status === "DONE" ? "line-through text-gray-500" : "text-gray-900"}`}
+                              onClick={() => openEditTaskDialog(task)}
+                            >
+                              {task.name}
+                            </h3>
+                            {task.description && (
+                              <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                            )}
+                          </div>
                           <div className="flex gap-2">
                             <Badge 
                               variant="outline" 
@@ -683,53 +776,43 @@ export default function StoryDetailPage() {
                           </div>
                         </div>
                         
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                          {task.description}
-                        </p>
-                        
                         <div className="flex flex-wrap gap-4 mt-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4 text-gray-500" />
-                            <span className="text-gray-600">{formatDate(task.dueDate)}</span>
-                          </div>
+                          {(task.estimatedHours || task.actualHours) && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <ClockIcon className="h-4 w-4" />
+                              {task.actualHours ? `${task.actualHours}h spent` : `${task.estimatedHours}h estimated`}
+                            </div>
+                          )}
                           
-                          <div className="flex items-center gap-2">
-                            <ClockIcon className="h-4 w-4 text-gray-500" />
-                            <span className="text-gray-600">Est: {task.estimatedHours}h</span>
-                            {task.actualHours && (
-                              <span className="text-gray-600">/ Actual: {task.actualHours}h</span>
-                            )}
-                          </div>
+                          {task.startDate && task.dueDate && (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <CalendarIcon className="h-4 w-4" />
+                              {formatDate(task.startDate)} - {formatDate(task.dueDate)}
+                            </div>
+                          )}
+                          
+                          {task.assigneeId && users.find(u => u.id === task.assigneeId) && (
+                            <div className="flex items-center gap-2 ml-auto">
+                              <div 
+                                className={`flex-shrink-0 h-6 w-6 rounded-full ${getAvatarColor(`${users.find(u => u.id === task.assigneeId)?.firstName} ${users.find(u => u.id === task.assigneeId)?.lastName}`)} flex items-center justify-center text-white font-medium text-xs`}
+                              >
+                                {getInitials(
+                                  users.find(u => u.id === task.assigneeId)?.firstName || '', 
+                                  users.find(u => u.id === task.assigneeId)?.lastName || ''
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
-                      <div className="flex flex-col gap-2 items-end">
-                        {task.assignee ? (
-                          <div
-                            title={task.assignee.name}
-                            className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(task.assignee.name)} flex items-center justify-center text-white font-medium text-sm`}
-                          >
-                            {task.assignee.avatar}
-                          </div>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-8"
-                          >
-                            Assign
-                          </Button>
-                        )}
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => openEditTaskDialog(task)}
-                        >
-                          <EditIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-gray-500" 
+                        onClick={() => openEditTaskDialog(task)}
+                      >
+                        <EditIcon className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -742,28 +825,17 @@ export default function StoryDetailPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Comments</h2>
             
-            {story.comments.map((comment) => (
-              <div key={comment.id} className="flex gap-3 p-4 border rounded-lg">
-                <div 
-                  className={`flex-shrink-0 h-8 w-8 rounded-full ${getAvatarColor(comment.user.name)} flex items-center justify-center text-white font-medium text-sm`}
-                >
-                  {comment.user.avatar}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between">
-                    <div className="font-medium">{comment.user.name}</div>
-                    <div className="text-sm text-gray-500">{formatDate(comment.createdAt)}</div>
-                  </div>
-                  <div className="mt-1">{comment.content}</div>
-                </div>
-              </div>
-            ))}
+            {/* For now, show placeholder for comments */}
+            <div className="bg-gray-50 p-6 text-center rounded-lg">
+              <p className="text-gray-500">Comment functionality coming soon.</p>
+            </div>
             
             <Textarea 
               placeholder="Add a comment..." 
               className="mt-4"
+              disabled
             />
-            <Button className="mt-2">Add Comment</Button>
+            <Button className="mt-2" disabled>Add Comment</Button>
           </div>
         </TabsContent>
       </Tabs>
@@ -779,7 +851,7 @@ export default function StoryDetailPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-name">Story Name</Label>
+              <Label htmlFor="edit-name">Story Name <span className="text-red-500">*</span></Label>
               <Input
                 id="edit-name"
                 placeholder="Enter story name"
@@ -793,13 +865,13 @@ export default function StoryDetailPage() {
                 id="edit-description"
                 placeholder="Enter story description"
                 rows={4}
-                value={editStory.description}
+                value={editStory.description || ''}
                 onChange={(e) => setEditStory({...editStory, description: e.target.value})}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-epic">Epic</Label>
+                <Label htmlFor="edit-epic">Epic <span className="text-red-500">*</span></Label>
                 <Select 
                   value={editStory.epicId}
                   onValueChange={(value) => setEditStory({...editStory, epicId: value})}
@@ -808,16 +880,16 @@ export default function StoryDetailPage() {
                     <SelectValue placeholder="Select epic" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">User Authentication System</SelectItem>
-                    <SelectItem value="2">Dashboard Analytics</SelectItem>
-                    <SelectItem value="3">Mobile Responsiveness</SelectItem>
-                    <SelectItem value="4">Customer Management Interface</SelectItem>
-                    <SelectItem value="5">Social Media Integration</SelectItem>
+                    {epics.map((epic) => (
+                      <SelectItem key={epic.id} value={epic.id}>
+                        {epic.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-status">Status</Label>
+                <Label htmlFor="edit-status">Status <span className="text-red-500">*</span></Label>
                 <Select 
                   value={editStory.status}
                   onValueChange={(value) => setEditStory({...editStory, status: value})}
@@ -837,7 +909,7 @@ export default function StoryDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-priority">Priority</Label>
+                <Label htmlFor="edit-priority">Priority <span className="text-red-500">*</span></Label>
                 <Select 
                   value={editStory.priority}
                   onValueChange={(value) => setEditStory({...editStory, priority: value})}
@@ -854,22 +926,23 @@ export default function StoryDetailPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-storyPoints">Story Points</Label>
+                <Label htmlFor="edit-points">Story Points</Label>
                 <Select 
-                  value={editStory.storyPoints}
+                  value={editStory.storyPoints || Placeholder.NOT_ESTIMATED}
                   onValueChange={(value) => setEditStory({...editStory, storyPoints: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Estimate effort" />
+                    <SelectValue placeholder="Select points" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">1 - Very Small</SelectItem>
-                    <SelectItem value="2">2 - Small</SelectItem>
-                    <SelectItem value="3">3 - Small+</SelectItem>
-                    <SelectItem value="5">5 - Medium</SelectItem>
-                    <SelectItem value="8">8 - Large</SelectItem>
-                    <SelectItem value="13">13 - Very Large</SelectItem>
-                    <SelectItem value="21">21 - Extra Large</SelectItem>
+                    <SelectItem value={Placeholder.NOT_ESTIMATED}>Not Estimated</SelectItem>
+                    <SelectItem value="1">1 point</SelectItem>
+                    <SelectItem value="2">2 points</SelectItem>
+                    <SelectItem value="3">3 points</SelectItem>
+                    <SelectItem value="5">5 points</SelectItem>
+                    <SelectItem value="8">8 points</SelectItem>
+                    <SelectItem value="13">13 points</SelectItem>
+                    <SelectItem value="21">21 points</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -878,35 +951,38 @@ export default function StoryDetailPage() {
               <div className="grid gap-2">
                 <Label htmlFor="edit-assignee">Assignee</Label>
                 <Select 
-                  value={editStory.assigneeId}
+                  value={editStory.assigneeId || Placeholder.UNASSIGNED}
                   onValueChange={(value) => setEditStory({...editStory, assigneeId: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Assign to" />
+                    <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="5">Alice Chen</SelectItem>
-                    <SelectItem value="8">Bob Jackson</SelectItem>
-                    <SelectItem value="12">Charlie Martinez</SelectItem>
-                    <SelectItem value="21">Eric Thompson</SelectItem>
+                    <SelectItem value={Placeholder.UNASSIGNED}>Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-reporter">Reporter</Label>
                 <Select 
-                  value={editStory.reporterId}
+                  value={editStory.reporterId || Placeholder.UNASSIGNED}
                   onValueChange={(value) => setEditStory({...editStory, reporterId: value})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select reporter" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="5">Alice Chen</SelectItem>
-                    <SelectItem value="8">Bob Jackson</SelectItem>
-                    <SelectItem value="12">Charlie Martinez</SelectItem>
-                    <SelectItem value="21">Eric Thompson</SelectItem>
+                    <SelectItem value={Placeholder.UNASSIGNED}>Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -936,7 +1012,12 @@ export default function StoryDetailPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditStory}>Update Story</Button>
+            <Button 
+              onClick={handleEditStory}
+              disabled={updateStoryMutation.isPending || !editStory.name}
+            >
+              {updateStoryMutation.isPending ? "Updating..." : "Update Story"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -962,8 +1043,9 @@ export default function StoryDetailPage() {
             <Button 
               variant="destructive" 
               onClick={handleDeleteStory}
+              disabled={deleteStoryMutation.isPending}
             >
-              Delete Story
+              {deleteStoryMutation.isPending ? "Deleting..." : "Delete Story"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -980,7 +1062,7 @@ export default function StoryDetailPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="task-name">Task Name</Label>
+              <Label htmlFor="task-name">Task Name <span className="text-red-500">*</span></Label>
               <Input
                 id="task-name"
                 placeholder="Enter task name"
@@ -994,15 +1076,15 @@ export default function StoryDetailPage() {
                 id="task-description"
                 placeholder="Enter task description"
                 rows={3}
-                value={newTask.description}
+                value={newTask.description || ''}
                 onChange={(e) => setNewTask({...newTask, description: e.target.value})}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="task-status">Status</Label>
+                <Label htmlFor="task-status">Status <span className="text-red-500">*</span></Label>
                 <Select 
-                  value={newTask.status}
+                  value={newTask.status || "TODO"}
                   onValueChange={(value) => setNewTask({...newTask, status: value})}
                 >
                   <SelectTrigger>
@@ -1018,9 +1100,9 @@ export default function StoryDetailPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="task-priority">Priority</Label>
+                <Label htmlFor="task-priority">Priority <span className="text-red-500">*</span></Label>
                 <Select 
-                  value={newTask.priority}
+                  value={newTask.priority || "MEDIUM"}
                   onValueChange={(value) => setNewTask({...newTask, priority: value})}
                 >
                   <SelectTrigger>
@@ -1039,27 +1121,31 @@ export default function StoryDetailPage() {
               <div className="grid gap-2">
                 <Label htmlFor="task-assignee">Assignee</Label>
                 <Select 
-                  value={newTask.assigneeId}
+                  value={newTask.assigneeId || Placeholder.UNASSIGNED}
                   onValueChange={(value) => setNewTask({...newTask, assigneeId: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Assign to" />
+                    <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="5">Alice Chen</SelectItem>
-                    <SelectItem value="8">Bob Jackson</SelectItem>
-                    <SelectItem value="12">Charlie Martinez</SelectItem>
+                    <SelectItem value={Placeholder.UNASSIGNED}>Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="task-estimatedHours">Estimated Hours</Label>
+                <Label htmlFor="task-estimate">Estimated Hours</Label>
                 <Input
-                  id="task-estimatedHours"
+                  id="task-estimate"
                   type="number"
-                  placeholder="Estimated hours"
-                  value={newTask.estimatedHours}
+                  placeholder="0"
+                  min="0"
+                  step="0.5"
+                  value={newTask.estimatedHours || ''}
                   onChange={(e) => setNewTask({...newTask, estimatedHours: e.target.value})}
                 />
               </div>
@@ -1070,7 +1156,7 @@ export default function StoryDetailPage() {
                 <Input
                   id="task-startDate"
                   type="date"
-                  value={newTask.startDate}
+                  value={newTask.startDate || ''}
                   onChange={(e) => setNewTask({...newTask, startDate: e.target.value})}
                 />
               </div>
@@ -1079,7 +1165,7 @@ export default function StoryDetailPage() {
                 <Input
                   id="task-dueDate"
                   type="date"
-                  value={newTask.dueDate}
+                  value={newTask.dueDate || ''}
                   onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
                 />
               </div>
@@ -1089,7 +1175,12 @@ export default function StoryDetailPage() {
             <Button variant="outline" onClick={() => setIsAddTaskDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddTask}>Create Task</Button>
+            <Button 
+              onClick={handleAddTask}
+              disabled={createTaskMutation.isPending || !newTask.name}
+            >
+              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1100,12 +1191,12 @@ export default function StoryDetailPage() {
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
-              Update task details and track progress.
+              Update task details and progress.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-task-name">Task Name</Label>
+              <Label htmlFor="edit-task-name">Task Name <span className="text-red-500">*</span></Label>
               <Input
                 id="edit-task-name"
                 placeholder="Enter task name"
@@ -1119,13 +1210,13 @@ export default function StoryDetailPage() {
                 id="edit-task-description"
                 placeholder="Enter task description"
                 rows={3}
-                value={editTask.description}
+                value={editTask.description || ''}
                 onChange={(e) => setEditTask({...editTask, description: e.target.value})}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-task-status">Status</Label>
+                <Label htmlFor="edit-task-status">Status <span className="text-red-500">*</span></Label>
                 <Select 
                   value={editTask.status}
                   onValueChange={(value) => setEditTask({...editTask, status: value})}
@@ -1143,7 +1234,7 @@ export default function StoryDetailPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-task-priority">Priority</Label>
+                <Label htmlFor="edit-task-priority">Priority <span className="text-red-500">*</span></Label>
                 <Select 
                   value={editTask.priority}
                   onValueChange={(value) => setEditTask({...editTask, priority: value})}
@@ -1164,39 +1255,45 @@ export default function StoryDetailPage() {
               <div className="grid gap-2">
                 <Label htmlFor="edit-task-assignee">Assignee</Label>
                 <Select 
-                  value={editTask.assigneeId}
+                  value={editTask.assigneeId || Placeholder.UNASSIGNED}
                   onValueChange={(value) => setEditTask({...editTask, assigneeId: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Assign to" />
+                    <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="5">Alice Chen</SelectItem>
-                    <SelectItem value="8">Bob Jackson</SelectItem>
-                    <SelectItem value="12">Charlie Martinez</SelectItem>
+                    <SelectItem value={Placeholder.UNASSIGNED}>Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-task-estimatedHours">Estimated Hours</Label>
+                <Label htmlFor="edit-task-estimated">Estimated Hours</Label>
                 <Input
-                  id="edit-task-estimatedHours"
+                  id="edit-task-estimated"
                   type="number"
-                  placeholder="Estimated hours"
-                  value={editTask.estimatedHours}
+                  placeholder="0"
+                  min="0"
+                  step="0.5"
+                  value={editTask.estimatedHours || ''}
                   onChange={(e) => setEditTask({...editTask, estimatedHours: e.target.value})}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-task-actualHours">Actual Hours</Label>
+                <Label htmlFor="edit-task-actual">Actual Hours</Label>
                 <Input
-                  id="edit-task-actualHours"
+                  id="edit-task-actual"
                   type="number"
-                  placeholder="Actual hours"
-                  value={editTask.actualHours}
+                  placeholder="0"
+                  min="0"
+                  step="0.5"
+                  value={editTask.actualHours || ''}
                   onChange={(e) => setEditTask({...editTask, actualHours: e.target.value})}
                 />
               </div>
@@ -1207,7 +1304,7 @@ export default function StoryDetailPage() {
                 <Input
                   id="edit-task-startDate"
                   type="date"
-                  value={editTask.startDate}
+                  value={editTask.startDate || ''}
                   onChange={(e) => setEditTask({...editTask, startDate: e.target.value})}
                 />
               </div>
@@ -1216,7 +1313,7 @@ export default function StoryDetailPage() {
                 <Input
                   id="edit-task-dueDate"
                   type="date"
-                  value={editTask.dueDate}
+                  value={editTask.dueDate || ''}
                   onChange={(e) => setEditTask({...editTask, dueDate: e.target.value})}
                 />
               </div>
@@ -1226,7 +1323,12 @@ export default function StoryDetailPage() {
             <Button variant="outline" onClick={() => setIsEditTaskDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditTask}>Update Task</Button>
+            <Button 
+              onClick={handleEditTask}
+              disabled={updateTaskMutation.isPending || !editTask.name}
+            >
+              {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
