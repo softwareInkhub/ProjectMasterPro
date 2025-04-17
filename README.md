@@ -53,6 +53,82 @@ The application employs a modern, scalable architecture:
 
 ## Data Model
 
+The system uses a relational database model with the following core entities and relationships:
+
+### Entity Relationship Diagram
+
+```
++----------------+       +----------------+       +----------------+
+|    Company     |       |   Department   |       |     User       |
++----------------+       +----------------+       +----------------+
+| id             |<----->| id             |<----->| id             |
+| name           |       | name           |       | email          |
+| description    |       | description    |       | username       |
+| industry       |       | companyId      |       | password       |
+| logo           |       | managerId      |       | firstName      |
+| website        |       | budget         |       | lastName       |
+| address        |       | createdAt      |       | role           |
+| contactEmail   |       | updatedAt      |       | departmentId   |
+| contactPhone   |       +----------------+       | createdAt      |
+| createdAt      |                                | updatedAt      |
+| updatedAt      |                                +----------------+
++----------------+                                       ^
+       ^                                                 |
+       |                                                 |
+       |            +----------------+                   |
+       |            |      Team      |                   |
+       |            +----------------+                   |
+       +----------->| id             |<------------------+
+                    | name           |
+                    | description    |
+                    | departmentId   |
+                    | leadId         |
+                    | companyId      |
+                    | createdAt      |
+                    | updatedAt      |
+                    +----------------+
+                           ^
+                           |
+                           |
++----------------+       +----------------+       +----------------+
+|    Project     |       |      Epic      |       |     Story      |
++----------------+       +----------------+       +----------------+
+| id             |       | id             |       | id             |
+| name           |       | name           |       | name           |
+| description    |       | description    |       | description    |
+| status         |       | status         |       | status         |
+| priority       |       | priority       |       | priority       |
+| companyId      |<----->| projectId      |<----->| epicId         |
+| teamId         |       | startDate      |       | assigneeId     |
+| startDate      |       | endDate        |       | reporterId     |
+| endDate        |       | progress       |       | storyPoints    |
+| budget         |       | createdAt      |       | startDate      |
+| managerId      |       | updatedAt      |       | dueDate        |
+| progress       |       +----------------+       | createdAt      |
+| createdAt      |                                | updatedAt      |
+| updatedAt      |                                +----------------+
++----------------+                                       ^
+                                                         |
+                                                         |
+                                                +----------------+
+                                                |      Task      |
+                                                +----------------+
+                                                | id             |
+                                                | name           |
+                                                | description    |
+                                                | status         |
+                                                | priority       |
+                                                | storyId        |
+                                                | assigneeId     |
+                                                | estimatedHours |
+                                                | actualHours    |
+                                                | startDate      |
+                                                | dueDate        |
+                                                | createdAt      |
+                                                | updatedAt      |
+                                                +----------------+
+```
+
 The system uses a relational database model with the following core entities:
 
 ### Core Entities
@@ -242,7 +318,43 @@ interface Device {
 }
 ```
 
-### Entity Relationships
+### Entity Relationships & Data Flow
+
+#### Core Project Management Hierarchy
+The system follows a hierarchical structure for project management:
+
+**Projects → Epics → Stories → Tasks**
+
+1. **Project** is the highest level container
+   - Contains multiple **Epics**
+   - Tracked at the company level
+   - Assigned to a **Team** for execution
+   - Managed by a specific **User** (usually with MANAGER role)
+   - Has its own progress tracking, budget, and timeline
+
+2. **Epic** represents a significant body of work
+   - Always belongs to exactly one **Project**
+   - Contains multiple **Stories**
+   - Has its own progress tracking (calculated from child Stories)
+   - Has its own timeline, which should fall within the parent Project timeline
+   - Progress is automatically updated based on completion of child Stories
+
+3. **Story** represents a discrete feature or requirement
+   - Always belongs to exactly one **Epic**
+   - Contains multiple **Tasks** for implementation
+   - Assigned to a specific **User** for ownership
+   - Reported by a **User** who requested the feature
+   - Has story points for effort estimation
+   - Progress is calculated from completion of child Tasks
+
+4. **Task** represents a specific action item
+   - Always belongs to exactly one **Story**
+   - Assigned to a specific **User** for execution
+   - Has estimated and actual hours tracking
+   - Has a specific status (TODO, IN_PROGRESS, DONE, BLOCKED)
+   - When all Tasks for a Story are marked DONE, the Story can be completed
+
+#### Database Relationship Details
 
 - **User** belongs to one **Department** (optional)
 - **Department** belongs to one **Company**
@@ -269,6 +381,35 @@ interface Device {
 - **Device** belongs to one **Company**
 - **Device** belongs to one **Location** (optional)
 - **Device** is assigned to one **User** (optional)
+
+#### Data Propagation & Cascading Effects
+
+When changes occur in the hierarchy, they propagate as follows:
+
+1. **Task Status Changes**:
+   - When all Tasks in a Story change to DONE, the Story's status can be updated to DONE
+   - Task completion affects the Story's progress percentage
+
+2. **Story Updates**:
+   - When Stories are completed, the parent Epic's progress percentage is updated
+   - Story status changes may trigger notifications to assignees and watchers
+
+3. **Epic Updates**:
+   - When Epics are completed, the parent Project's progress percentage is updated
+   - Epic completions may trigger milestone notifications and reporting
+
+4. **Project Completion**:
+   - When all Epics in a Project are completed, the Project can be marked as COMPLETED
+   - Project status changes affect company-level reporting and metrics
+
+5. **User Reassignments**:
+   - When a User is reassigned or removed, all their Tasks, Stories, and managed Projects must be reassigned or flagged
+
+6. **Deletion Cascades**:
+   - Deleting a Project cascades to delete all child Epics, Stories, and Tasks
+   - Deleting an Epic cascades to delete all child Stories and Tasks
+   - Deleting a Story cascades to delete all child Tasks
+   - Comments remain in the system with references to deleted entities marked as unavailable
 
 ## API Reference
 
@@ -399,6 +540,32 @@ The API follows RESTful principles with JSON responses. All endpoints are prefix
 | `/api/devices/:id/unassign`      | POST   | Unassign device from user   | -                             | `{ success: true }`        |
 
 ## UI Components
+
+### Component Interaction and Data Flow
+
+The UI components interact with the data model through a consistent pattern:
+
+#### Data Loading Flow
+1. **API Request** → User visits a page, triggering API requests via React Query
+2. **Server Processing** → Express backend processes the request, accessing the database via Drizzle ORM
+3. **Data Validation** → Both request and response data are validated using Zod schemas
+4. **Component Rendering** → React components receive and display the validated data
+5. **State Updates** → UI state is managed through React Query cache and local state hooks
+
+#### Form Submission Flow
+1. **Form Validation** → Client-side validation using Zod schemas
+2. **API Mutation** → Data submitted via React Query mutations
+3. **Server Validation** → Additional validation on the server side
+4. **Database Operation** → Data stored in PostgreSQL via Drizzle ORM
+5. **UI Feedback** → Success/error messages displayed to user
+6. **Cache Invalidation** → Related data queries invalidated to refresh views
+
+#### Cross-Component Communication
+- **Project → Epic**: When viewing a project, Epics are loaded and displayed as child elements
+- **Epic → Story**: When viewing an Epic, Stories are loaded and displayed as child elements
+- **Story → Task**: When viewing a Story, Tasks are loaded and displayed as child elements
+- **Sidebar Navigation**: Provides quick access to all levels of the hierarchy
+- **Breadcrumb Navigation**: Shows the current position in the hierarchy and allows navigation upward
 
 ### Dashboard
 
@@ -851,3 +1018,186 @@ project-management-system/
    - Lighthouse for frontend performance
    - Node.js profiling for backend bottlenecks
    - Database query analysis tools
+
+## API Usage Examples
+
+### Creating a New Project
+
+#### Request
+```http
+POST /api/projects HTTP/1.1
+Host: example.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "name": "E-Commerce Platform Redesign",
+  "description": "Complete overhaul of the company's e-commerce platform with improved UX and mobile responsiveness",
+  "status": "PLANNING",
+  "priority": "HIGH",
+  "companyId": "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf",
+  "teamId": "a2b4c6d8-e0f2-11eb-8529-0242ac130003",
+  "startDate": "2025-05-01T00:00:00.000Z",
+  "endDate": "2025-10-31T00:00:00.000Z",
+  "budget": 150000,
+  "managerId": "fd69920b-a214-477b-b7ec-80a97053c20e"
+}
+```
+
+#### Response
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": "7ec54e1a-2bd3-41a1-a495-b59d7b15444f",
+  "name": "E-Commerce Platform Redesign",
+  "description": "Complete overhaul of the company's e-commerce platform with improved UX and mobile responsiveness",
+  "status": "PLANNING",
+  "priority": "HIGH",
+  "companyId": "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf",
+  "teamId": "a2b4c6d8-e0f2-11eb-8529-0242ac130003",
+  "startDate": "2025-05-01T00:00:00.000Z",
+  "endDate": "2025-10-31T00:00:00.000Z",
+  "budget": 150000,
+  "managerId": "fd69920b-a214-477b-b7ec-80a97053c20e",
+  "progress": {
+    "percentage": 0,
+    "lastUpdated": "2025-04-17T09:30:42.123Z"
+  },
+  "createdAt": "2025-04-17T09:30:42.123Z",
+  "updatedAt": "2025-04-17T09:30:42.123Z"
+}
+```
+
+### Creating an Epic within a Project
+
+#### Request
+```http
+POST /api/epics HTTP/1.1
+Host: example.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "name": "User Authentication System",
+  "description": "Implement secure user authentication with social login options",
+  "status": "BACKLOG",
+  "priority": "HIGH",
+  "projectId": "7ec54e1a-2bd3-41a1-a495-b59d7b15444f",
+  "startDate": "2025-05-15T00:00:00.000Z",
+  "endDate": "2025-06-30T00:00:00.000Z"
+}
+```
+
+#### Response
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": "ce919fdd-26a6-4c1d-b28c-1233e5a5a530",
+  "name": "User Authentication System",
+  "description": "Implement secure user authentication with social login options",
+  "status": "BACKLOG",
+  "priority": "HIGH",
+  "projectId": "7ec54e1a-2bd3-41a1-a495-b59d7b15444f",
+  "startDate": "2025-05-15T00:00:00.000Z",
+  "endDate": "2025-06-30T00:00:00.000Z",
+  "progress": {
+    "percentage": 0,
+    "lastUpdated": "2025-04-17T09:45:23.456Z"
+  },
+  "createdAt": "2025-04-17T09:45:23.456Z",
+  "updatedAt": "2025-04-17T09:45:23.456Z"
+}
+```
+
+### Creating a Story within an Epic
+
+#### Request
+```http
+POST /api/stories HTTP/1.1
+Host: example.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "name": "Implement OAuth 2.0 with Google",
+  "description": "Add Google login option using OAuth 2.0 protocol",
+  "status": "BACKLOG",
+  "priority": "MEDIUM",
+  "epicId": "ce919fdd-26a6-4c1d-b28c-1233e5a5a530",
+  "assigneeId": "3f7e9d1c-b2a5-4e6f-8g3h-1i2j3k4l5m6n",
+  "reporterId": "fd69920b-a214-477b-b7ec-80a97053c20e",
+  "storyPoints": "5",
+  "startDate": "2025-05-20T00:00:00.000Z",
+  "dueDate": "2025-06-10T00:00:00.000Z"
+}
+```
+
+#### Response
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": "9b8a7c6d-5e4f-3g2h-1i0j-9k8l7m6n5o4p",
+  "name": "Implement OAuth 2.0 with Google",
+  "description": "Add Google login option using OAuth 2.0 protocol",
+  "status": "BACKLOG",
+  "priority": "MEDIUM",
+  "epicId": "ce919fdd-26a6-4c1d-b28c-1233e5a5a530",
+  "assigneeId": "3f7e9d1c-b2a5-4e6f-8g3h-1i2j3k4l5m6n",
+  "reporterId": "fd69920b-a214-477b-b7ec-80a97053c20e",
+  "storyPoints": "5",
+  "startDate": "2025-05-20T00:00:00.000Z",
+  "dueDate": "2025-06-10T00:00:00.000Z",
+  "createdAt": "2025-04-17T10:15:42.789Z",
+  "updatedAt": "2025-04-17T10:15:42.789Z"
+}
+```
+
+### Creating a Task within a Story
+
+#### Request
+```http
+POST /api/tasks HTTP/1.1
+Host: example.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "name": "Configure Google API credentials",
+  "description": "Create and configure Google API project and obtain OAuth credentials",
+  "status": "TODO",
+  "priority": "HIGH",
+  "storyId": "9b8a7c6d-5e4f-3g2h-1i0j-9k8l7m6n5o4p",
+  "assigneeId": "3f7e9d1c-b2a5-4e6f-8g3h-1i2j3k4l5m6n",
+  "estimatedHours": "3",
+  "startDate": "2025-05-20T00:00:00.000Z",
+  "dueDate": "2025-05-21T00:00:00.000Z"
+}
+```
+
+#### Response
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p",
+  "name": "Configure Google API credentials",
+  "description": "Create and configure Google API project and obtain OAuth credentials",
+  "status": "TODO",
+  "priority": "HIGH",
+  "storyId": "9b8a7c6d-5e4f-3g2h-1i0j-9k8l7m6n5o4p",
+  "assigneeId": "3f7e9d1c-b2a5-4e6f-8g3h-1i2j3k4l5m6n",
+  "estimatedHours": "3",
+  "actualHours": null,
+  "startDate": "2025-05-20T00:00:00.000Z",
+  "dueDate": "2025-05-21T00:00:00.000Z",
+  "createdAt": "2025-04-17T10:30:15.987Z",
+  "updatedAt": "2025-04-17T10:30:15.987Z"
+}
+```
