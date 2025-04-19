@@ -555,16 +555,50 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.post("/teams/:id/members/:userId", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log(`Adding user ${req.params.userId} to team ${req.params.id} with request body:`, JSON.stringify(req.body, null, 2));
+      
       // Get role from request body, default to DEVELOPER if not provided
       const { role = "DEVELOPER" } = req.body;
+      console.log(`Using role: ${role}`);
+      
+      // Check if team and user exist
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        console.error(`Team ${req.params.id} not found`);
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        console.error(`User ${req.params.userId} not found`);
+        return res.status(404).json({ message: "User not found" });
+      }
       
       const success = await storage.addUserToTeam(req.params.id, req.params.userId, role);
       if (!success) {
-        return res.status(404).json({ message: "Team or user not found" });
+        console.error(`Failed to add user ${req.params.userId} to team ${req.params.id}`);
+        return res.status(500).json({ message: "Failed to add user to team" });
       }
+      
+      console.log(`Successfully added user ${req.params.userId} to team ${req.params.id} with role ${role}`);
+      
+      // Broadcast the team member addition via WebSocket
+      broadcastEvent({
+        type: EventType.TEAM_MEMBER_ADDED,
+        payload: {
+          teamId: req.params.id,
+          userId: req.params.userId,
+          role
+        }
+      });
+      
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Error adding user to team:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error", details: error instanceof Error ? error.message : String(error) });
     }
   });
   

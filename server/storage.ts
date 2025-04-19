@@ -1181,8 +1181,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addUserToTeam(teamId: string, userId: string, role: string): Promise<boolean> {
-    await db.insert(schema.teamMembers).values({ teamId, userId, role });
-    return true;
+    try {
+      // First check if team and user exist
+      const teamExists = await db.select({ id: schema.teams.id }).from(schema.teams).where(eq(schema.teams.id, teamId));
+      const userExists = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.id, userId));
+      
+      if (teamExists.length === 0 || userExists.length === 0) {
+        console.error(`Team ${teamId} or user ${userId} does not exist`);
+        return false;
+      }
+      
+      // Check if the user is already a member of the team
+      const existingMember = await db.select()
+        .from(schema.teamMembers)
+        .where(
+          and(
+            eq(schema.teamMembers.teamId, teamId),
+            eq(schema.teamMembers.userId, userId)
+          )
+        );
+        
+      if (existingMember.length > 0) {
+        // User is already a member, update their role instead
+        console.log(`User ${userId} is already a member of team ${teamId}, updating role to ${role}`);
+        await db.update(schema.teamMembers)
+          .set({ role })
+          .where(
+            and(
+              eq(schema.teamMembers.teamId, teamId),
+              eq(schema.teamMembers.userId, userId)
+            )
+          );
+        return true;
+      }
+      
+      // If we got here, add the user to the team
+      console.log(`Adding user ${userId} to team ${teamId} with role ${role}`);
+      await db.insert(schema.teamMembers).values({ teamId, userId, role });
+      return true;
+    } catch (error) {
+      console.error("Error adding user to team:", error);
+      return false;
+    }
   }
 
   async removeUserFromTeam(teamId: string, userId: string): Promise<boolean> {
