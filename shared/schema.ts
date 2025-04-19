@@ -166,6 +166,7 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
 export const teamMembers = pgTable("team_members", {
   teamId: uuid("team_id").notNull().references(() => teams.id),
   userId: uuid("user_id").notNull().references(() => users.id),
+  role: text("role").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
