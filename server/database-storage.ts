@@ -415,9 +415,11 @@ export class DatabaseStorage implements IStorage {
     const allEpicsCompleted = projectEpics.every(epic => epic.status === 'COMPLETED');
     
     // Update the project
-    let projectUpdate: Partial<InsertProject> = { 
-      progress: { percentage: progressPercentage }
-    };
+    // Create the update object with correct typing
+    const projectUpdate: Record<string, any> = {};
+    
+    // Set the progress
+    projectUpdate.progress = { percentage: progressPercentage };
     
     // Only update status if all epics are completed
     if (allEpicsCompleted) {
@@ -503,10 +505,11 @@ export class DatabaseStorage implements IStorage {
     // Determine if all stories are done
     const allStoriesCompleted = epicStories.every(story => story.status === 'DONE');
     
-    // Update the epic
-    let epicUpdate: Partial<InsertEpic> = { 
-      progress: { percentage: progressPercentage }
-    };
+    // Create the update object with correct typing
+    const epicUpdate: Record<string, any> = {}; 
+    
+    // Set the progress
+    epicUpdate.progress = { percentage: progressPercentage };
     
     // Only update status if all stories are completed
     if (allStoriesCompleted) {
@@ -597,9 +600,11 @@ export class DatabaseStorage implements IStorage {
     const allTasksCompleted = storyTasks.every(task => task.status === 'DONE');
     
     // Update the story
-    let storyUpdate: Partial<InsertStory> = { 
-      progress: { percentage: progressPercentage }
-    };
+    // Create the update object with correct typing
+    const storyUpdate: Record<string, any> = {};
+    
+    // Set the progress
+    storyUpdate.progress = { percentage: progressPercentage };
     
     // Only update status if all tasks are completed
     if (allTasksCompleted) {
