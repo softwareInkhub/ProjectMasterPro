@@ -152,36 +152,59 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toast({
           title: "Project Updated",
           description: "Project information has been updated",
+          variant: message.payload?.status === 'COMPLETED' ? "destructive" : "default",
         });
         break;
         
       case EventType.EPIC_CREATED:
       case EventType.EPIC_UPDATED:
       case EventType.EPIC_DELETED:
+        // Invalidate epics query
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        
+        // Also invalidate projects since epic status changes affect them
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
         toast({
           title: "Epic Updated",
           description: "Epic information has been updated",
+          variant: message.payload?.status === 'COMPLETED' ? "destructive" : "default",
         });
         break;
         
       case EventType.STORY_CREATED:
       case EventType.STORY_UPDATED:
       case EventType.STORY_DELETED:
+        // Invalidate all relevant queries that might be affected by story status changes
         queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        
+        // Also invalidate epics and projects since story status changes affect them
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
         toast({
           title: "Story Updated",
           description: "Story information has been updated",
+          variant: message.payload?.status === 'DONE' ? "destructive" : "default",
         });
         break;
         
       case EventType.TASK_CREATED:
       case EventType.TASK_UPDATED:
       case EventType.TASK_DELETED:
+        // Invalidate all relevant queries that might be affected by task status changes
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+        
+        // Also invalidate stories, epics, and projects since task status changes affect them
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
+        // Show toast notification
         toast({
           title: "Task Updated",
           description: "Task information has been updated",
+          variant: message.payload?.status === 'DONE' ? "destructive" : "default",
         });
         break;
         
