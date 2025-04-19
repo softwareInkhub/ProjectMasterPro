@@ -4,6 +4,10 @@ import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "./components/ui/toaster";
+import { registerServiceWorker } from "./pwa-register";
+
+// Register service worker for PWA support
+registerServiceWorker();
 
 // Create the root element
 const rootElement = document.getElementById("root");
