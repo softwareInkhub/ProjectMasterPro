@@ -176,13 +176,41 @@ export default function StoryDetailPage() {
       const response = await apiRequest('PUT', `/api/stories/${storyId}`, updatedStory);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedStory) => {
+      // Invalidate this story
       queryClient.invalidateQueries({ queryKey: ['/api/stories', storyId] });
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
-      toast({
-        title: "Story updated",
-        description: "The story has been updated successfully."
-      });
+      
+      // If status is changing, ensure parent objects get updated too
+      if (updatedStory.status && story?.epicId) {
+        // Invalidate parent epic
+        queryClient.invalidateQueries({ queryKey: ['/api/epics', story.epicId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        
+        // If we know the project, invalidate it too
+        if (epic?.projectId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', epic.projectId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        }
+      }
+      
+      // Also invalidate child tasks as they might need to be refreshed
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      
+      // Enhanced toast notification for status changes
+      if (updatedStory.status && updatedStory.status !== story?.status) {
+        toast({
+          title: `Story status changed to ${updatedStory.status}`,
+          description: "Status updated and parent items recalculated.",
+          variant: updatedStory.status === 'DONE' ? "destructive" : "default"
+        });
+      } else {
+        toast({
+          title: "Story updated",
+          description: "The story has been updated successfully."
+        });
+      }
+      
       setIsEditDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -258,12 +286,46 @@ export default function StoryDetailPage() {
       const response = await apiRequest('PUT', `/api/tasks/${updatedTask.id}`, updatedTask);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
+      // Invalidate tasks
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      toast({
-        title: "Task updated",
-        description: "The task has been updated successfully."
-      });
+      
+      // If status is being changed to DONE, ensure parent objects get updated too
+      const selectedTaskPrevious = selectedTask;
+      if (updatedTask.status && 
+          selectedTaskPrevious?.status && 
+          updatedTask.status !== selectedTaskPrevious.status) {
+        
+        // Invalidate parent story
+        if (story?.id) {
+          queryClient.invalidateQueries({ queryKey: ['/api/stories', story.id] });
+          queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+          
+          // Also invalidate parent epic and project
+          if (story.epicId) {
+            queryClient.invalidateQueries({ queryKey: ['/api/epics', story.epicId] });
+            queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+          }
+          
+          if (epic?.projectId) {
+            queryClient.invalidateQueries({ queryKey: ['/api/projects', epic.projectId] });
+            queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+          }
+        }
+        
+        // Enhanced toast notification for status changes
+        toast({
+          title: `Task status changed to ${updatedTask.status}`,
+          description: "Task status updated and parent items recalculated.",
+          variant: updatedTask.status === 'DONE' ? "destructive" : "default"
+        });
+      } else {
+        toast({
+          title: "Task updated",
+          description: "The task has been updated successfully."
+        });
+      }
+      
       setIsEditTaskDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -281,8 +343,36 @@ export default function StoryDetailPage() {
       const response = await apiRequest('PUT', `/api/tasks/${taskId}`, { status: newStatus });
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
+      // Invalidate tasks
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      
+      // If a task is completed, we need to update story progress/status
+      if (updatedTask.status === 'DONE' && story?.id) {
+        // Invalidate parent story
+        queryClient.invalidateQueries({ queryKey: ['/api/stories', story.id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        
+        // Also invalidate parent epic and project
+        if (story.epicId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/epics', story.epicId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        }
+        
+        if (epic?.projectId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', epic.projectId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        }
+      }
+      
+      // Show status change notification
+      toast({
+        title: `Task status changed to ${updatedTask.status}`,
+        description: updatedTask.status === 'DONE' ? 
+          "Task completed! Story progress has been updated." : 
+          "Task status updated successfully.",
+        variant: updatedTask.status === 'DONE' ? "destructive" : "default"
+      });
     },
     onError: (error: Error) => {
       toast({

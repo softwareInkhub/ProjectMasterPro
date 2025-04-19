@@ -136,13 +136,35 @@ export default function EpicDetailPage() {
       const response = await apiRequest('PUT', `/api/epics/${epicId}`, updatedEpic);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedEpic) => {
+      // Invalidate this epic
       queryClient.invalidateQueries({ queryKey: ['/api/epics', epicId] });
       queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
-      toast({
-        title: "Epic updated",
-        description: "The epic has been updated successfully."
-      });
+      
+      // If status is changing, ensure parent project gets updated too
+      if (updatedEpic.status && epic?.status && updatedEpic.status !== epic.status) {
+        // Status is changing, so make sure to invalidate parent project
+        if (epic.projectId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', epic.projectId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        }
+        
+        // Also invalidate child stories since they might be affected
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        
+        // Enhanced toast notification for status changes
+        toast({
+          title: `Epic status changed to ${updatedEpic.status}`,
+          description: "Status updated and parent projects recalculated.",
+          variant: updatedEpic.status === 'COMPLETED' ? "destructive" : "default"
+        });
+      } else {
+        toast({
+          title: "Epic updated",
+          description: "The epic has been updated successfully."
+        });
+      }
+      
       setIsEditDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -184,12 +206,27 @@ export default function EpicDetailPage() {
       const response = await apiRequest('POST', '/api/stories', story);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newStory) => {
+      // Invalidate stories list
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+      
+      // New story will affect epic progress/status
+      if (epicId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/epics', epicId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        
+        // Also invalidate parent project if it exists
+        if (epic?.projectId) {
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', epic.projectId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        }
+      }
+      
       toast({
         title: "Story created",
-        description: "New story has been successfully created."
+        description: "New story has been successfully created and epic progress updated."
       });
+      
       setIsAddStoryDialogOpen(false);
       setNewStory({
         name: "",
