@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { TEAM_MEMBER_ROLES } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -54,6 +55,7 @@ export default function ProjectDetailPage() {
   const [, params] = useRoute("/projects/:id");
   const [, setLocation] = useLocation();
   const projectId = params?.id;
+  const { toast } = useToast();
   
   // State for dialog modals
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -229,37 +231,107 @@ export default function ProjectDetailPage() {
   };
   
   // Handle editing the project
-  const handleEditProject = () => {
-    // API call would go here
-    console.log("Updating project:", editProject);
-    
-    // Update local state for demo purposes
-    setProject({
-      ...project,
-      name: editProject.name,
-      description: editProject.description,
-      status: editProject.status,
-      priority: editProject.priority,
-      departmentId: parseInt(editProject.departmentId),
-      teamId: parseInt(editProject.teamId),
-      teamLeadId: parseInt(editProject.teamLeadId),
-      startDate: editProject.startDate,
-      endDate: editProject.endDate,
-      client: editProject.client,
-      budget: parseInt(editProject.budget),
-      updatedAt: new Date().toISOString().substring(0, 10)
-    });
-    
-    setIsEditDialogOpen(false);
+  const handleEditProject = async () => {
+    try {
+      // Format the data correctly for the API
+      const formattedProject = {
+        name: editProject.name,
+        description: editProject.description,
+        status: editProject.status,
+        priority: editProject.priority,
+        departmentId: editProject.departmentId,
+        teamId: editProject.teamId,
+        projectManagerId: editProject.teamLeadId,
+        startDate: editProject.startDate ? new Date(editProject.startDate).toISOString() : null,
+        endDate: editProject.endDate ? new Date(editProject.endDate).toISOString() : null
+      };
+      
+      // Track if status is changing for better notifications
+      const isStatusChanging = project?.status !== editProject.status;
+      const oldStatus = project?.status;
+      
+      console.log("Updating project:", formattedProject);
+      
+      // Make the actual API call
+      const response = await apiRequest('PUT', `/api/projects/${projectId}`, formattedProject);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update project: ${response.statusText}`);
+      }
+      
+      const updatedProject = await response.json();
+      
+      // Update local state with the server response
+      setProject({
+        ...project,
+        ...updatedProject,
+        department: departments?.find(d => d.id === updatedProject.departmentId)?.name || "Unknown Department",
+        team: teams?.find(t => t.id === updatedProject.teamId)?.name || "Unknown Team",
+        teamLead: users?.find(u => u.id === updatedProject.projectManagerId)?.firstName + " " + 
+                  users?.find(u => u.id === updatedProject.projectManagerId)?.lastName || "Unknown",
+      });
+      
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      
+      // Show appropriate toast notification
+      if (isStatusChanging) {
+        toast({
+          title: `Project Status Changed: ${editProject.status}`,
+          description: `Project status updated from ${oldStatus} to ${editProject.status}`,
+          variant: editProject.status === 'Completed' ? "destructive" : "default"
+        });
+      } else {
+        toast({
+          title: "Project Updated",
+          description: "Project information has been successfully updated."
+        });
+      }
+      
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      toast({
+        title: "Error Updating Project",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+    }
   };
   
   // Handle deleting the project
-  const handleDeleteProject = () => {
-    // API call would go here
-    console.log("Deleting project:", projectId);
-    setIsConfirmDeleteOpen(false);
-    // Navigate back to projects list
-    setLocation("/projects");
+  const handleDeleteProject = async () => {
+    try {
+      console.log("Deleting project:", projectId);
+      
+      // Make the actual API call
+      const response = await apiRequest('DELETE', `/api/projects/${projectId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete project: ${response.statusText}`);
+      }
+      
+      toast({
+        title: "Project Deleted",
+        description: "Project has been successfully deleted."
+      });
+      
+      // Invalidate projects list
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      
+      setIsConfirmDeleteOpen(false);
+      // Navigate back to projects list
+      setLocation("/projects");
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast({
+        title: "Error Deleting Project",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+      setIsConfirmDeleteOpen(false);
+    }
   };
   
   // Handle adding a team member
