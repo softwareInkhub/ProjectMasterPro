@@ -198,11 +198,11 @@ export default function ProjectDetailPage() {
   // Helper to get status badge color
   const getStatusColor = (status: string) => {
     switch(status) {
-      case "In Progress": return "bg-blue-100 text-blue-800";
-      case "Completed": return "bg-green-100 text-green-800";
-      case "On Hold": return "bg-yellow-100 text-yellow-800";
-      case "Planning": return "bg-purple-100 text-purple-800";
-      case "Cancelled": return "bg-red-100 text-red-800";
+      case "IN_PROGRESS": return "bg-blue-100 text-blue-800";
+      case "COMPLETED": return "bg-green-100 text-green-800";
+      case "ON_HOLD": return "bg-yellow-100 text-yellow-800";
+      case "PLANNING": return "bg-purple-100 text-purple-800";
+      case "CANCELLED": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -210,9 +210,10 @@ export default function ProjectDetailPage() {
   // Helper to get priority badge color
   const getPriorityColor = (priority: string) => {
     switch(priority) {
-      case "High": return "bg-red-100 text-red-800";
-      case "Medium": return "bg-yellow-100 text-yellow-800";
-      case "Low": return "bg-green-100 text-green-800";
+      case "HIGH": return "bg-red-100 text-red-800";
+      case "MEDIUM": return "bg-yellow-100 text-yellow-800";
+      case "LOW": return "bg-green-100 text-green-800";
+      case "CRITICAL": return "bg-purple-100 text-purple-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -897,11 +898,11 @@ export default function ProjectDetailPage() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Planning">Planning</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="On Hold">On Hold</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    <SelectItem value="PLANNING">Planning</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="ON_HOLD">On Hold</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -915,9 +916,10 @@ export default function ProjectDetailPage() {
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="CRITICAL">Critical</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
