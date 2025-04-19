@@ -654,7 +654,26 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   apiRouter.put("/projects/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
       console.log("Project update request:", JSON.stringify(req.body, null, 2));
+      
+      // Pre-process status field to handle display format to enum format conversion
+      if (req.body.status) {
+        // Convert "On Hold" or "In Progress" format to "ON_HOLD" or "IN_PROGRESS" format
+        const statusMap: Record<string, string> = {
+          "On Hold": "ON_HOLD",
+          "In Progress": "IN_PROGRESS",
+          "Planning": "PLANNING",
+          "Completed": "COMPLETED", 
+          "Cancelled": "CANCELLED"
+        };
+        
+        if (statusMap[req.body.status]) {
+          req.body.status = statusMap[req.body.status];
+        }
+      }
+      
       const validatedData = insertProjectSchema.partial().parse(req.body);
+      console.log("Validated data:", JSON.stringify(validatedData, null, 2));
+      
       const project = await storage.updateProject(req.params.id, validatedData);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
@@ -672,7 +691,11 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     } catch (error) {
       console.error("Project update error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors,
+          details: error.format() 
+        });
       }
       return res.status(500).json({ 
         message: "Internal server error",
@@ -757,7 +780,26 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.put("/epics/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log("Epic update request:", JSON.stringify(req.body, null, 2));
+      
+      // Pre-process status field to handle display format to enum format conversion
+      if (req.body.status) {
+        // Convert "On Hold" or "In Progress" format to "ON_HOLD" or "IN_PROGRESS" format
+        const statusMap: Record<string, string> = {
+          "In Progress": "IN_PROGRESS",
+          "Completed": "COMPLETED",
+          "Planning": "PLANNING", 
+          "Cancelled": "CANCELLED"
+        };
+        
+        if (statusMap[req.body.status]) {
+          req.body.status = statusMap[req.body.status];
+        }
+      }
+      
       const validatedData = insertEpicSchema.partial().parse(req.body);
+      console.log("Validated epic data:", JSON.stringify(validatedData, null, 2));
+      
       const epic = await storage.updateEpic(req.params.id, validatedData);
       if (!epic) {
         return res.status(404).json({ message: "Epic not found" });
@@ -771,10 +813,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       return res.json(epic);
     } catch (error) {
+      console.error("Epic update error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors,
+          details: error.format() 
+        });
       }
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
@@ -871,7 +921,27 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.put("/stories/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log("Story update request:", JSON.stringify(req.body, null, 2));
+      
+      // Pre-process status field to handle display format to enum format conversion
+      if (req.body.status) {
+        // Convert "In Progress" format to "IN_PROGRESS" format etc.
+        const statusMap: Record<string, string> = {
+          "In Progress": "IN_PROGRESS",
+          "In Review": "IN_REVIEW",
+          "Done": "DONE",
+          "To Do": "TODO",
+          "Blocked": "BLOCKED"
+        };
+        
+        if (statusMap[req.body.status]) {
+          req.body.status = statusMap[req.body.status];
+        }
+      }
+      
       const validatedData = insertStorySchema.partial().parse(req.body);
+      console.log("Validated story data:", JSON.stringify(validatedData, null, 2));
+      
       const story = await storage.updateStory(req.params.id, validatedData);
       if (!story) {
         return res.status(404).json({ message: "Story not found" });
@@ -885,10 +955,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       return res.json(story);
     } catch (error) {
+      console.error("Story update error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors,
+          details: error.format() 
+        });
       }
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
@@ -975,7 +1053,27 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.put("/tasks/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
     try {
+      console.log("Task update request:", JSON.stringify(req.body, null, 2));
+      
+      // Pre-process status field to handle display format to enum format conversion
+      if (req.body.status) {
+        // Convert "In Progress" format to "IN_PROGRESS" format etc.
+        const statusMap: Record<string, string> = {
+          "In Progress": "IN_PROGRESS",
+          "In Review": "IN_REVIEW",
+          "Done": "DONE",
+          "To Do": "TODO",
+          "Blocked": "BLOCKED"
+        };
+        
+        if (statusMap[req.body.status]) {
+          req.body.status = statusMap[req.body.status];
+        }
+      }
+      
       const validatedData = insertTaskSchema.partial().parse(req.body);
+      console.log("Validated task data:", JSON.stringify(validatedData, null, 2));
+      
       const task = await storage.updateTask(req.params.id, validatedData);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
@@ -989,10 +1087,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       return res.json(task);
     } catch (error) {
+      console.error("Task update error:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors,
+          details: error.format() 
+        });
       }
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
