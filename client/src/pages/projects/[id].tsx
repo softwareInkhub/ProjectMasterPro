@@ -338,12 +338,21 @@ export default function ProjectDetailPage() {
   // Handle adding a team member
   const handleAddTeamMember = async () => {
     if (!newTeamMember.userId || !projectData?.teamId) {
+      alert("Please select both a team member and a role");
       return;
     }
     
     try {
-      // API call to add team member
-      console.log(`Adding user ${newTeamMember.userId} to team ${projectData.teamId}`);
+      // Show more details about what we're trying to do for debugging
+      console.log("Adding team member with details:", {
+        teamId: projectData.teamId,
+        userId: newTeamMember.userId,
+        role: newTeamMember.role || "DEVELOPER" // Provide default role if empty
+      });
+      
+      if (!newTeamMember.role) {
+        console.warn("Role is empty, will use default 'DEVELOPER' role");
+      }
       
       // POST to /api/teams/:id/members/:userId with role in the body
       const response = await fetch(`/api/teams/${projectData.teamId}/members/${newTeamMember.userId}`, {
@@ -352,12 +361,18 @@ export default function ProjectDetailPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ role: newTeamMember.role })
+        body: JSON.stringify({ role: newTeamMember.role || "DEVELOPER" })
       });
       
+      // Get the response text for better error diagnostics
+      const responseText = await response.text();
+      console.log(`Team member add response (${response.status}):`, responseText);
+      
       if (!response.ok) {
-        throw new Error(`Failed to add team member: ${response.statusText}`);
+        throw new Error(`Failed to add team member: ${response.status} ${response.statusText}\nResponse: ${responseText}`);
       }
+      
+      console.log("Successfully added team member, refreshing team members list");
       
       // Refresh team members data
       const refreshedTeamMembersResponse = await fetch(`/api/teams/${projectData.teamId}/members`, {
@@ -368,12 +383,19 @@ export default function ProjectDetailPage() {
       
       if (refreshedTeamMembersResponse.ok) {
         const refreshedMembers = await refreshedTeamMembersResponse.json();
+        console.log("Refreshed team members:", refreshedMembers);
+        
         // Update the project with the refreshed team members
         setProject({
           ...project,
           members: refreshedMembers,
           updatedAt: new Date().toISOString()
         });
+        
+        // Show success message
+        alert("Team member added successfully!");
+      } else {
+        console.error("Failed to refresh team members:", refreshedTeamMembersResponse.status, refreshedTeamMembersResponse.statusText);
       }
       
       setIsAddTeamMemberDialogOpen(false);
@@ -385,7 +407,7 @@ export default function ProjectDetailPage() {
       });
     } catch (error) {
       console.error("Error adding team member:", error);
-      alert("Failed to add team member. Please try again.");
+      alert(`Failed to add team member: ${error.message}`);
     }
   };
   

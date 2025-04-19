@@ -604,13 +604,45 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.delete("/teams/:id/members/:userId", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log(`Removing user ${req.params.userId} from team ${req.params.id}`);
+      
+      // Check if team and user exist
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        console.error(`Team ${req.params.id} not found`);
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        console.error(`User ${req.params.userId} not found`);
+        return res.status(404).json({ message: "User not found" });
+      }
+      
       const success = await storage.removeUserFromTeam(req.params.id, req.params.userId);
       if (!success) {
+        console.error(`Failed to remove user ${req.params.userId} from team ${req.params.id}`);
         return res.status(404).json({ message: "Team member not found" });
       }
+      
+      console.log(`Successfully removed user ${req.params.userId} from team ${req.params.id}`);
+      
+      // Broadcast the team member removal via WebSocket
+      broadcastEvent({
+        type: EventType.TEAM_MEMBER_REMOVED,
+        payload: {
+          teamId: req.params.id,
+          userId: req.params.userId
+        }
+      });
+      
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Error removing user from team:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 

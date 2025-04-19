@@ -1201,6 +1201,16 @@ export class DatabaseStorage implements IStorage {
           )
         );
         
+      // Store exactly what the UI is sending in the database without trying to normalize it
+      // This way, we can display the same role string that was selected in the UI
+      console.log(`Role provided: "${role}"`);
+      
+      // Handle empty role value - default to "Developer"
+      if (!role || role.trim() === '') {
+        console.log("Empty role provided, defaulting to 'Developer'");
+        role = "Developer";
+      }
+      
       if (existingMember.length > 0) {
         // User is already a member, update their role instead
         console.log(`User ${userId} is already a member of team ${teamId}, updating role to ${role}`);
@@ -1237,9 +1247,12 @@ export class DatabaseStorage implements IStorage {
     return !!result;
   }
 
-  async getTeamMembers(teamId: string): Promise<User[]> {
+  async getTeamMembers(teamId: string): Promise<any[]> {
     const members = await db
-      .select({ user: schema.users })
+      .select({
+        user: schema.users,
+        role: schema.teamMembers.role
+      })
       .from(schema.teamMembers)
       .innerJoin(
         schema.users,
@@ -1247,7 +1260,14 @@ export class DatabaseStorage implements IStorage {
       )
       .where(eq(schema.teamMembers.teamId, teamId));
     
-    return members.map(m => m.user);
+    // Format the data to include both user data and role
+    return members.map(m => ({
+      id: m.user.id,
+      name: `${m.user.firstName} ${m.user.lastName}`,
+      email: m.user.email,
+      role: m.role,
+      avatar: m.user.firstName[0] + m.user.lastName[0]
+    }));
   }
 
   // Project operations
