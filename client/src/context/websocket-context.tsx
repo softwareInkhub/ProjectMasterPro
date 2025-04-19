@@ -147,7 +147,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
       case EventType.PROJECT_CREATED:
       case EventType.PROJECT_UPDATED:
-      case EventType.PROJECT_DELETED:
         // Invalidate projects collection
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
@@ -168,15 +167,31 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         } else {
           toast({
-            title: "Project Updated",
+            title: message.type === EventType.PROJECT_CREATED ? "Project Created" : "Project Updated",
             description: "Project information has been updated",
           });
         }
         break;
         
+      case EventType.PROJECT_DELETED:
+        // Invalidate projects collection
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
+        // If we have a specific project ID, remove it from cache
+        if (message.payload?.id) {
+          queryClient.removeQueries({ queryKey: [`/api/projects/${message.payload.id}`] });
+          console.log(`Removing deleted project from cache: ${message.payload.id}`);
+        }
+        
+        toast({
+          title: "Project Deleted",
+          description: "Project has been removed from the system",
+          variant: "destructive",
+        });
+        break;
+        
       case EventType.EPIC_CREATED:
       case EventType.EPIC_UPDATED:
-      case EventType.EPIC_DELETED:
         // Invalidate epics collection
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         
@@ -206,15 +221,40 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         } else {
           toast({
-            title: "Epic Updated",
+            title: message.type === EventType.EPIC_CREATED ? "Epic Created" : "Epic Updated",
             description: "Epic information has been updated",
           });
         }
         break;
         
+      case EventType.EPIC_DELETED:
+        // Invalidate epics collection
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        
+        // If we have a specific epic ID, remove it from cache
+        if (message.payload?.id) {
+          queryClient.removeQueries({ queryKey: [`/api/epics/${message.payload.id}`] });
+          console.log(`Removing deleted epic from cache: ${message.payload.id}`);
+        }
+        
+        // If we have a project ID, invalidate that specific project
+        if (message.payload?.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.projectId}`] });
+          console.log(`Invalidating parent project after epic deletion: ${message.payload.projectId}`);
+        }
+        
+        // Also invalidate all projects list since project counts may have changed
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
+        toast({
+          title: "Epic Deleted",
+          description: "Epic has been removed from the system",
+          variant: "destructive",
+        });
+        break;
+        
       case EventType.STORY_CREATED:
       case EventType.STORY_UPDATED:
-      case EventType.STORY_DELETED:
         // Invalidate stories collection
         queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
         
@@ -251,10 +291,43 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         } else {
           toast({
-            title: "Story Updated",
+            title: message.type === EventType.STORY_CREATED ? "Story Created" : "Story Updated",
             description: "Story information has been updated",
           });
         }
+        break;
+        
+      case EventType.STORY_DELETED:
+        // Invalidate stories collection
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        
+        // If we have a specific story ID, remove it from cache
+        if (message.payload?.id) {
+          queryClient.removeQueries({ queryKey: [`/api/stories/${message.payload.id}`] });
+          console.log(`Removing deleted story from cache: ${message.payload.id}`);
+        }
+        
+        // If we have an epic ID, invalidate that specific epic
+        if (message.payload?.epicId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/epics/${message.payload.epicId}`] });
+          console.log(`Invalidating parent epic after story deletion: ${message.payload.epicId}`);
+        }
+        
+        // If we have a project ID, invalidate that specific project
+        if (message.payload?.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.projectId}`] });
+          console.log(`Invalidating parent project after story deletion: ${message.payload.projectId}`);
+        }
+        
+        // Also invalidate lists since they need to be updated
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
+        toast({
+          title: "Story Deleted",
+          description: "Story has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.TASK_CREATED:
