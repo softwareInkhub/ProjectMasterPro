@@ -555,7 +555,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.post("/teams/:id/members/:userId", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
-      const success = await storage.addUserToTeam(req.params.id, req.params.userId);
+      // Get role from request body, default to DEVELOPER if not provided
+      const { role = "DEVELOPER" } = req.body;
+      
+      const success = await storage.addUserToTeam(req.params.id, req.params.userId, role);
       if (!success) {
         return res.status(404).json({ message: "Team or user not found" });
       }

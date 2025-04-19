@@ -345,13 +345,14 @@ export default function ProjectDetailPage() {
       // API call to add team member
       console.log(`Adding user ${newTeamMember.userId} to team ${projectData.teamId}`);
       
-      // POST to /api/teams/:id/members/:userId
+      // POST to /api/teams/:id/members/:userId with role in the body
       const response = await fetch(`/api/teams/${projectData.teamId}/members/${newTeamMember.userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        },
+        body: JSON.stringify({ role: newTeamMember.role })
       });
       
       if (!response.ok) {
