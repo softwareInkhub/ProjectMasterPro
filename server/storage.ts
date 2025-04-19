@@ -1355,8 +1355,69 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    const result = await db.delete(schema.projects).where(eq(schema.projects.id, id));
-    return !!result;
+    try {
+      // Begin a transaction to ensure data consistency
+      return await db.transaction(async (tx) => {
+        console.log(`Starting transaction to delete project ${id} and all related entities`);
+        
+        // First, get all epics belonging to this project
+        const epics = await tx
+          .select()
+          .from(schema.epics)
+          .where(eq(schema.epics.projectId, id));
+        
+        console.log(`Found ${epics.length} epics associated with project ${id}`);
+        
+        // For each epic, delete its related stories and tasks
+        for (const epic of epics) {
+          console.log(`Processing epic ${epic.id}`);
+          
+          // Get all stories for this epic
+          const stories = await tx
+            .select()
+            .from(schema.stories)
+            .where(eq(schema.stories.epicId, epic.id));
+          
+          console.log(`Found ${stories.length} stories for epic ${epic.id}`);
+          
+          // For each story, delete all associated tasks
+          for (const story of stories) {
+            console.log(`Deleting tasks for story ${story.id}`);
+            await tx
+              .delete(schema.tasks)
+              .where(eq(schema.tasks.storyId, story.id));
+          }
+          
+          // Delete all stories for this epic
+          if (stories.length > 0) {
+            console.log(`Deleting all stories for epic ${epic.id}`);
+            await tx
+              .delete(schema.stories)
+              .where(eq(schema.stories.epicId, epic.id));
+          }
+        }
+        
+        // Now delete all epics
+        if (epics.length > 0) {
+          console.log(`Deleting all epics for project ${id}`);
+          await tx
+            .delete(schema.epics)
+            .where(eq(schema.epics.projectId, id));
+        }
+        
+        // Finally, delete the project
+        console.log(`Deleting project ${id}`);
+        const result = await tx
+          .delete(schema.projects)
+          .where(eq(schema.projects.id, id));
+        
+        console.log(`Project ${id} deleted successfully with all related entities`);
+        return !!result;
+      });
+    } catch (error) {
+      console.error(`Error in deleteProject for project ${id}:`, error);
+      throw error; // Re-throw the error to be handled by the caller
+    }
   }
 
   async updateProjectProgress(id: string, progressPercentage: number): Promise<boolean> {
@@ -1410,8 +1471,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEpic(id: string): Promise<boolean> {
-    const result = await db.delete(schema.epics).where(eq(schema.epics.id, id));
-    return !!result;
+    try {
+      // Begin a transaction to ensure data consistency
+      return await db.transaction(async (tx) => {
+        console.log(`Starting transaction to delete epic ${id} and its related stories`);
+        
+        // First, get all stories belonging to this epic
+        const stories = await tx
+          .select()
+          .from(schema.stories)
+          .where(eq(schema.stories.epicId, id));
+        
+        console.log(`Found ${stories.length} stories associated with epic ${id}`);
+        
+        // For each story, delete all associated tasks first
+        for (const story of stories) {
+          console.log(`Deleting tasks for story ${story.id}`);
+          await tx
+            .delete(schema.tasks)
+            .where(eq(schema.tasks.storyId, story.id));
+        }
+        
+        // Then delete all the stories belonging to this epic
+        if (stories.length > 0) {
+          console.log(`Deleting all stories for epic ${id}`);
+          await tx
+            .delete(schema.stories)
+            .where(eq(schema.stories.epicId, id));
+        }
+        
+        // Now we can safely delete the epic
+        console.log(`Deleting epic ${id}`);
+        const result = await tx
+          .delete(schema.epics)
+          .where(eq(schema.epics.id, id));
+        
+        console.log(`Epic ${id} deleted successfully`);
+        return !!result;
+      });
+    } catch (error) {
+      console.error(`Error in deleteEpic for epic ${id}:`, error);
+      throw error; // Re-throw the error to be handled by the caller
+    }
   }
 
   async updateEpicProgress(id: string, progressPercentage: number): Promise<boolean> {
@@ -1459,8 +1560,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteStory(id: string): Promise<boolean> {
-    const result = await db.delete(schema.stories).where(eq(schema.stories.id, id));
-    return !!result;
+    try {
+      // Begin a transaction to ensure data consistency
+      return await db.transaction(async (tx) => {
+        console.log(`Starting transaction to delete story ${id} and its related tasks`);
+        
+        // First, delete all tasks associated with this story
+        console.log(`Deleting tasks for story ${id}`);
+        await tx
+          .delete(schema.tasks)
+          .where(eq(schema.tasks.storyId, id));
+        
+        // Now we can safely delete the story
+        console.log(`Deleting story ${id}`);
+        const result = await tx
+          .delete(schema.stories)
+          .where(eq(schema.stories.id, id));
+        
+        console.log(`Story ${id} deleted successfully`);
+        return !!result;
+      });
+    } catch (error) {
+      console.error(`Error in deleteStory for story ${id}:`, error);
+      throw error; // Re-throw the error to be handled by the caller
+    }
   }
 
   // Task operations
