@@ -145,14 +145,44 @@ export default function TaskDetailPage() {
       const res = await apiRequest('PUT', `/api/tasks/${taskId}`, updatedTask);
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
+      // Update this task
       queryClient.invalidateQueries({ queryKey: [`/api/tasks/${taskId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      
+      // If we're changing status (especially to DONE), also invalidate parent objects
+      if (updatedTask.status && task?.storyId) {
+        // Invalidate parent story
+        queryClient.invalidateQueries({ queryKey: [`/api/stories/${task.storyId}`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        
+        // If we know the epic and project, invalidate those too
+        if (task.epicId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/epics/${task.epicId}`] });
+          queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        }
+        
+        if (task.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${task.projectId}`] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        }
+      }
+      
       setIsEditDialogOpen(false);
-      toast({
-        title: "Task updated",
-        description: "Task has been updated successfully."
-      });
+      
+      // Enhanced toast notification for status changes
+      if (updatedTask.status && updatedTask.status !== task?.status) {
+        toast({
+          title: `Task status changed to ${updatedTask.status}`,
+          description: "Status updated and parent items recalculated.",
+          variant: updatedTask.status === 'DONE' ? "destructive" : "default"
+        });
+      } else {
+        toast({
+          title: "Task updated",
+          description: "Task has been updated successfully."
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
