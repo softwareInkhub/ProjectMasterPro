@@ -51,7 +51,7 @@ export interface IStorage {
   createTeam(team: InsertTeam): Promise<Team>;
   updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team | undefined>;
   deleteTeam(id: string): Promise<boolean>;
-  addUserToTeam(teamId: string, userId: string): Promise<boolean>;
+  addUserToTeam(teamId: string, userId: string, role: string): Promise<boolean>;
   removeUserFromTeam(teamId: string, userId: string): Promise<boolean>;
   getTeamMembers(teamId: string): Promise<User[]>;
 
@@ -421,7 +421,7 @@ export class MemStorage implements IStorage {
     return this.teams.delete(id);
   }
 
-  async addUserToTeam(teamId: string, userId: string): Promise<boolean> {
+  async addUserToTeam(teamId: string, userId: string, role: string): Promise<boolean> {
     if (!this.teams.has(teamId) || !this.users.has(userId)) {
       return false;
     }
@@ -1180,8 +1180,8 @@ export class DatabaseStorage implements IStorage {
     return !!result;
   }
 
-  async addUserToTeam(teamId: string, userId: string): Promise<boolean> {
-    await db.insert(schema.teamMembers).values({ teamId, userId });
+  async addUserToTeam(teamId: string, userId: string, role: string): Promise<boolean> {
+    await db.insert(schema.teamMembers).values({ teamId, userId, role });
     return true;
   }
 

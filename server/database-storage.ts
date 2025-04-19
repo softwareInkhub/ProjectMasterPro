@@ -234,11 +234,12 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async addUserToTeam(teamId: string, userId: string): Promise<boolean> {
+  async addUserToTeam(teamId: string, userId: string, role: string): Promise<boolean> {
     try {
       await db.insert(teamMembers).values({
         teamId,
-        userId
+        userId,
+        role
       });
       return true;
     } catch (error) {
