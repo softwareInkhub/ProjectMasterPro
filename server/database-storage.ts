@@ -304,12 +304,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProject(id: string, projectUpdate: Partial<InsertProject>): Promise<Project | undefined> {
+    // Get current project state before update to check for status changes
+    const currentProject = await db.select().from(projects).where(eq(projects.id, id)).then(res => res[0]);
+    
     const result = await db
       .update(projects)
       .set({ ...projectUpdate, updatedAt: new Date() })
       .where(eq(projects.id, id))
       .returning();
-    return result[0];
+    
+    const updatedProject = result[0];
+    
+    // If status changed to anything other than COMPLETED, make sure to update epics
+    if (updatedProject && 
+        projectUpdate.status && 
+        projectUpdate.status !== 'COMPLETED' && 
+        currentProject && 
+        currentProject.status === 'COMPLETED') {
+      
+      // Get all epics to update their status as needed
+      const projectEpics = await db.select().from(epics).where(eq(epics.projectId, id));
+      
+      // Update progress based on actual epic statuses
+      await this.updateProjectProgress(id);
+      
+      // Broadcast the project status change
+      // This will be handled by the WebSocket server to notify clients
+    }
+    
+    return updatedProject;
   }
 
   async deleteProject(id: string): Promise<boolean> {
@@ -317,7 +340,9 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async updateProjectProgress(id: string, progress: number): Promise<boolean> {
+  // This method is replaced by the private updateProjectProgress method
+  // which handles both progress percentage and status updates based on epic statuses
+  async setProjectProgress(id: string, progress: number): Promise<boolean> {
     const result = await db
       .update(projects)
       .set({ 
@@ -325,7 +350,7 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(projects.id, id));
-    return result.rowCount > 0;
+    return result.rowCount! > 0;
   }
 
   // Epic operations
@@ -360,7 +385,50 @@ export class DatabaseStorage implements IStorage {
       .set({ ...epicUpdate, updatedAt: new Date() })
       .where(eq(epics.id, id))
       .returning();
-    return result[0];
+    
+    const updatedEpic = result[0];
+    
+    // If epic status has changed, update parent project progress and status
+    if (updatedEpic && epicUpdate.status) {
+      await this.updateProjectProgress(updatedEpic.projectId);
+    }
+    
+    return updatedEpic;
+  }
+  
+  // Helper method to update project progress based on child epics status
+  private async updateProjectProgress(projectId: string): Promise<void> {
+    // Get all epics for this project
+    const projectEpics = await db.select().from(epics).where(eq(epics.projectId, projectId));
+    
+    // If there are no epics, don't try to update
+    if (projectEpics.length === 0) return;
+    
+    // Calculate the progress percentage based on completed epics
+    const completedEpics = projectEpics.filter(epic => 
+      epic.status === 'COMPLETED'
+    ).length;
+    
+    const progressPercentage = Math.round((completedEpics / projectEpics.length) * 100);
+    
+    // Determine if all epics are completed
+    const allEpicsCompleted = projectEpics.every(epic => epic.status === 'COMPLETED');
+    
+    // Update the project
+    let projectUpdate: Partial<InsertProject> = { 
+      progress: { percentage: progressPercentage }
+    };
+    
+    // Only update status if all epics are completed
+    if (allEpicsCompleted) {
+      projectUpdate.status = 'COMPLETED';
+    }
+    
+    // Update the project
+    await db
+      .update(projects)
+      .set({ ...projectUpdate, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
   }
 
   async deleteEpic(id: string): Promise<boolean> {
@@ -406,7 +474,56 @@ export class DatabaseStorage implements IStorage {
       .set({ ...storyUpdate, updatedAt: new Date() })
       .where(eq(stories.id, id))
       .returning();
-    return result[0];
+    
+    const updatedStory = result[0];
+    
+    // If story status has changed, update parent epic progress and status
+    if (updatedStory && storyUpdate.status) {
+      await this.updateEpicProgressAndStatus(updatedStory.epicId);
+    }
+    
+    return updatedStory;
+  }
+  
+  // Helper method to update epic progress based on child stories status
+  private async updateEpicProgressAndStatus(epicId: string): Promise<void> {
+    // Get all stories for this epic
+    const epicStories = await db.select().from(stories).where(eq(stories.epicId, epicId));
+    
+    // If there are no stories, don't try to update
+    if (epicStories.length === 0) return;
+    
+    // Calculate the progress percentage based on completed stories
+    const completedStories = epicStories.filter(story => 
+      story.status === 'DONE'
+    ).length;
+    
+    const progressPercentage = Math.round((completedStories / epicStories.length) * 100);
+    
+    // Determine if all stories are done
+    const allStoriesCompleted = epicStories.every(story => story.status === 'DONE');
+    
+    // Update the epic
+    let epicUpdate: Partial<InsertEpic> = { 
+      progress: { percentage: progressPercentage }
+    };
+    
+    // Only update status if all stories are completed
+    if (allStoriesCompleted) {
+      epicUpdate.status = 'COMPLETED';
+    }
+    
+    // Update the epic
+    const updatedEpic = await db
+      .update(epics)
+      .set({ ...epicUpdate, updatedAt: new Date() })
+      .where(eq(epics.id, epicId))
+      .returning();
+    
+    // If epic was updated and has a project, update project progress
+    if (updatedEpic[0] && updatedEpic[0].projectId) {
+      await this.updateProjectProgress(updatedEpic[0].projectId);
+    }
   }
 
   async deleteStory(id: string): Promise<boolean> {
@@ -450,7 +567,56 @@ export class DatabaseStorage implements IStorage {
       .set({ ...taskUpdate, updatedAt: new Date() })
       .where(eq(tasks.id, id))
       .returning();
-    return result[0];
+    
+    const updatedTask = result[0];
+    
+    // If task status has changed, update parent story progress and status
+    if (updatedTask && taskUpdate.status) {
+      await this.updateStoryProgressAndStatus(updatedTask.storyId);
+    }
+    
+    return updatedTask;
+  }
+  
+  // Helper method to update story progress based on child tasks status
+  private async updateStoryProgressAndStatus(storyId: string): Promise<void> {
+    // Get all tasks for this story
+    const storyTasks = await db.select().from(tasks).where(eq(tasks.storyId, storyId));
+    
+    // If there are no tasks, don't try to update
+    if (storyTasks.length === 0) return;
+    
+    // Calculate the progress percentage based on completed tasks
+    const completedTasks = storyTasks.filter(task => 
+      task.status === 'DONE'
+    ).length;
+    
+    const progressPercentage = Math.round((completedTasks / storyTasks.length) * 100);
+    
+    // Determine if all tasks are done
+    const allTasksCompleted = storyTasks.every(task => task.status === 'DONE');
+    
+    // Update the story
+    let storyUpdate: Partial<InsertStory> = { 
+      progress: { percentage: progressPercentage }
+    };
+    
+    // Only update status if all tasks are completed
+    if (allTasksCompleted) {
+      storyUpdate.status = 'DONE';
+    }
+    
+    // Update the story
+    const updatedStory = await db
+      .update(stories)
+      .set({ ...storyUpdate, updatedAt: new Date() })
+      .where(eq(stories.id, storyId))
+      .returning();
+    
+    // If status has changed, update parent epic
+    if (updatedStory[0] && updatedStory[0].epicId) {
+      await this.updateEpicProgressAndStatus(updatedStory[0].epicId);
+    }
   }
 
   async deleteTask(id: string): Promise<boolean> {

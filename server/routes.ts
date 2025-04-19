@@ -726,6 +726,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       if (!epic) {
         return res.status(404).json({ message: "Epic not found" });
       }
+      
+      // Broadcast the epic update via WebSocket
+      broadcastEvent({
+        type: EventType.EPIC_UPDATED,
+        payload: epic
+      });
+      
       return res.json(epic);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -814,6 +821,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       if (!story) {
         return res.status(404).json({ message: "Story not found" });
       }
+      
+      // Broadcast the story update via WebSocket
+      broadcastEvent({
+        type: EventType.STORY_UPDATED,
+        payload: story
+      });
+      
       return res.json(story);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -888,6 +902,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
+      
+      // Broadcast the task update via WebSocket
+      broadcastEvent({
+        type: EventType.TASK_UPDATED,
+        payload: task
+      });
+      
       return res.json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
