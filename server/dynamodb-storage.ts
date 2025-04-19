@@ -8,8 +8,11 @@ import {
   BatchGetCommand
 } from '@aws-sdk/lib-dynamodb';
 import { docClient } from './aws-config';
-import { 
-  IStorage, 
+// Import just the IStorage interface
+import { IStorage } from './storage';
+
+// Import the types from shared schema
+import {
   Company, InsertCompany,
   Department, InsertDepartment,
   Group, InsertGroup,
@@ -25,7 +28,7 @@ import {
   Notification, InsertNotification,
   Location, InsertLocation,
   Device, InsertDevice
-} from './storage';
+} from '@shared/schema';
 import { v4 as uuid } from 'uuid';
 import { randomBytes, scrypt } from 'crypto';
 import { promisify } from 'util';
@@ -94,9 +97,10 @@ export class DynamoDBStorage implements IStorage {
           firstName: 'Admin',
           lastName: 'User',
           role: 'ADMIN',
-          jobTitle: 'System Administrator',
-          department: 'IT',
-          phoneNumber: '',
+          // Note: jobTitle is not in the schema
+          // Instead, setting department and status
+          departmentId: null, 
+          companyId: null,
           status: 'ACTIVE',
         };
         

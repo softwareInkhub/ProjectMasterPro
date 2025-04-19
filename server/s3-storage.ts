@@ -194,9 +194,9 @@ export class S3FileStorage {
     }
   }
 
-  // Upload handler for Express
+  // Upload handler for Express with multer
   createUploadMiddleware(entityType: string, entityId: string) {
-    return async (req: Request, res: Response) => {
+    return async (req: Request & { file?: any, user?: any }, res: Response) => {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }

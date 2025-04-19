@@ -128,7 +128,7 @@ export function mapIAMUserToAppUser(iamUser: IAMUser): Partial<User> {
     email: iamUser.UserName,
     firstName: iamUser.UserName?.split('@')[0] || '',
     lastName: '',
-    role: 'USER',
+    role: 'ADMIN', // Using a valid role from the schema
     // Other fields would be populated from the database
   };
 }

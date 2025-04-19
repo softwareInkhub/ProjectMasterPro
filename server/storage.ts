@@ -1686,4 +1686,18 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Import our DynamoDB implementation
+import { DynamoDBStorage } from './dynamodb-storage';
+
+// Use the DynamoDB implementation when AWS credentials are available
+// Otherwise fallback to the existing database storage for compatibility
+const shouldUseAWS = process.env.AWS_ACCESS_KEY_ID && 
+                    process.env.AWS_SECRET_ACCESS_KEY && 
+                    process.env.AWS_REGION;
+
+// Export the appropriate storage implementation
+export const storage = shouldUseAWS 
+  ? new DynamoDBStorage() 
+  : new DatabaseStorage();
+
+console.log(`Using ${shouldUseAWS ? 'AWS DynamoDB' : 'PostgreSQL database'} for storage`);
