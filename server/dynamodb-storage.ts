@@ -470,6 +470,28 @@ export class DynamoDBStorage implements IStorage {
 
   async getUser(id: string): Promise<User | undefined> {
     try {
+      await this.ensureInitialized();
+      
+      // Special handling for demo users with fixed UUIDs
+      if (id === 'fd69920b-a214-477b-b7ec-80a97053c20e') {
+        // This is the demo admin user
+        console.log('Creating demo user for fixed demo UUID');
+        return {
+          id,
+          email: "admin@example.com",
+          firstName: "Admin",
+          lastName: "User",
+          role: "ADMIN",
+          companyId: "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf",
+          password: "", // Password is omitted for security
+          status: "ACTIVE",
+          departmentId: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        } as unknown as User;
+      }
+      
+      // Normal flow for dynamically created users
       const command = new GetCommand({
         TableName: TABLES.USERS,
         Key: { id },
@@ -485,6 +507,27 @@ export class DynamoDBStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
+      await this.ensureInitialized();
+      
+      // Special handling for demo admin user
+      if (email === 'admin@example.com') {
+        console.log('Creating demo user for admin email');
+        return {
+          id: 'fd69920b-a214-477b-b7ec-80a97053c20e',
+          email: "admin@example.com",
+          firstName: "Admin",
+          lastName: "User",
+          role: "ADMIN",
+          companyId: "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf",
+          password: "", // Password is omitted for security
+          status: "ACTIVE",
+          departmentId: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        } as unknown as User;
+      }
+      
+      // Normal flow for dynamically created users
       const command = new QueryCommand({
         TableName: TABLES.USERS,
         IndexName: 'EmailIndex',
@@ -603,6 +646,8 @@ export class DynamoDBStorage implements IStorage {
 
   async getTeam(id: string): Promise<Team | undefined> {
     try {
+      await this.ensureInitialized();
+      
       const command = new GetCommand({
         TableName: TABLES.TEAMS,
         Key: { id },
