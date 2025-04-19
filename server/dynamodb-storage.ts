@@ -7,7 +7,11 @@ import {
   DeleteCommand,
   BatchGetCommand
 } from '@aws-sdk/lib-dynamodb';
-import { docClient } from './aws-config';
+import {
+  CreateTableCommand,
+  DescribeTableCommand
+} from '@aws-sdk/client-dynamodb';
+import { docClient, dynamoClient } from './aws-config';
 // Import just the IStorage interface
 import { IStorage } from './storage';
 
@@ -74,16 +78,114 @@ async function verifyPassword(stored: string, supplied: string): Promise<boolean
  */
 export class DynamoDBStorage implements IStorage {
   
+  private initialized = false;
+  private initializationPromise: Promise<void>;
+
   constructor() {
-    this.initializeTables();
-    this.createDefaultAdminIfNotExists();
+    // Start the initialization process
+    this.initializationPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      // First create tables
+      await this.initializeTables();
+      
+      // Then create default admin if needed
+      await this.createDefaultAdminIfNotExists();
+      
+      this.initialized = true;
+      console.log('DynamoDB storage initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize DynamoDB storage:', error);
+      // Don't set initialized to true, so we'll use fallback storage
+    }
+  }
+  
+  // Helper to ensure storage is initialized before operations
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initializationPromise;
+    }
   }
 
   // Initialize DynamoDB tables
   private async initializeTables() {
-    // In a production implementation, DynamoDB tables would be created
-    // using AWS CloudFormation, CDK, or terraform, not in the application code
-    console.log('DynamoDB tables should be set up separately in AWS console');
+    try {
+      console.log('Creating or verifying DynamoDB tables...');
+      
+      // Create tables for the core entities
+      await this.createTableIfNotExists(TABLES.COMPANIES, 'id');
+      await this.createTableIfNotExists(TABLES.DEPARTMENTS, 'id', 'companyId');
+      await this.createTableIfNotExists(TABLES.USERS, 'id', 'email');
+      await this.createTableIfNotExists(TABLES.TEAMS, 'id', 'companyId');
+      await this.createTableIfNotExists(TABLES.TEAM_MEMBERS, 'teamId', 'userId');
+      await this.createTableIfNotExists(TABLES.PROJECTS, 'id', 'teamId');
+      await this.createTableIfNotExists(TABLES.EPICS, 'id', 'projectId');
+      await this.createTableIfNotExists(TABLES.STORIES, 'id', 'epicId');
+      await this.createTableIfNotExists(TABLES.TASKS, 'id', 'storyId');
+      
+      console.log('DynamoDB tables are ready');
+    } catch (error) {
+      console.error('Error initializing DynamoDB tables:', error);
+    }
+  }
+  
+  // Helper method to create a DynamoDB table if it doesn't exist
+  private async createTableIfNotExists(
+    tableName: string, 
+    hashKey: string, 
+    sortKey?: string
+  ): Promise<void> {
+    try {
+      // Check if table exists
+      await dynamoClient.send(new DescribeTableCommand({ TableName: tableName }));
+      console.log(`Table ${tableName} already exists`);
+    } catch (error: any) {
+      if (error.name === 'ResourceNotFoundException') {
+        console.log(`Creating table ${tableName}...`);
+        
+        // Basic table definition with hash key
+        const params: any = {
+          TableName: tableName,
+          KeySchema: [
+            { AttributeName: hashKey, KeyType: 'HASH' }
+          ],
+          AttributeDefinitions: [
+            { AttributeName: hashKey, AttributeType: 'S' }
+          ],
+          ProvisionedThroughput: {
+            ReadCapacityUnits: 5,
+            WriteCapacityUnits: 5
+          }
+        };
+        
+        // Add sort key if provided
+        if (sortKey) {
+          params.KeySchema.push({ AttributeName: sortKey, KeyType: 'RANGE' });
+          params.AttributeDefinitions.push({ AttributeName: sortKey, AttributeType: 'S' });
+        }
+        
+        await dynamoClient.send(new CreateTableCommand(params));
+        
+        // Wait for table to be created and active
+        console.log(`Waiting for table ${tableName} to be active...`);
+        let tableActive = false;
+        while (!tableActive) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const response = await dynamoClient.send(
+            new DescribeTableCommand({ TableName: tableName })
+          );
+          if (response.Table?.TableStatus === 'ACTIVE') {
+            tableActive = true;
+          }
+        }
+        
+        console.log(`Table ${tableName} is now active`);
+      } else {
+        throw error;
+      }
+    }
   }
 
   // Create default admin user if none exists
@@ -115,6 +217,8 @@ export class DynamoDBStorage implements IStorage {
   // Companies
   async getCompanies(): Promise<Company[]> {
     try {
+      await this.ensureInitialized();
+      
       const command = new ScanCommand({
         TableName: TABLES.COMPANIES,
       });
@@ -203,6 +307,8 @@ export class DynamoDBStorage implements IStorage {
   // Departments
   async getDepartments(companyId?: string): Promise<Department[]> {
     try {
+      await this.ensureInitialized();
+      
       if (companyId) {
         const command = new QueryCommand({
           TableName: TABLES.DEPARTMENTS,
@@ -322,6 +428,8 @@ export class DynamoDBStorage implements IStorage {
   // Users
   async getUsers(companyId?: string, departmentId?: string): Promise<User[]> {
     try {
+      await this.ensureInitialized();
+      
       if (companyId) {
         const command = new QueryCommand({
           TableName: TABLES.USERS,
@@ -465,6 +573,8 @@ export class DynamoDBStorage implements IStorage {
   // Teams
   async getTeams(companyId?: string): Promise<Team[]> {
     try {
+      await this.ensureInitialized();
+      
       if (companyId) {
         const command = new QueryCommand({
           TableName: TABLES.TEAMS,
