@@ -658,6 +658,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Create a new request body object rather than modifying the original
       let processedBody = { ...req.body };
       
+      // Remove empty string fields that are required enums or UUIDs
+      // This ensures that the partial schema validation won't try to validate them
+      Object.keys(processedBody).forEach(key => {
+        if (processedBody[key] === "") {
+          console.log(`Removing empty string field: ${key}`);
+          delete processedBody[key];
+        }
+      });
+      
       // Pre-process status field to handle display format to enum format conversion
       if (processedBody.status) {
         console.log("Status before normalization:", processedBody.status);
@@ -797,6 +806,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Create a new request body object rather than modifying the original
       let processedBody = { ...req.body };
       
+      // Remove empty string fields that are required enums or UUIDs
+      // This ensures that the partial schema validation won't try to validate them
+      Object.keys(processedBody).forEach(key => {
+        if (processedBody[key] === "") {
+          console.log(`Removing empty string field: ${key}`);
+          delete processedBody[key];
+        }
+      });
+      
       // Pre-process status field to handle display format to enum format conversion
       if (processedBody.status) {
         console.log("Epic status before normalization:", processedBody.status);
@@ -807,7 +825,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           "In Progress": "IN_PROGRESS",
           "Completed": "COMPLETED",
           "Planning": "PLANNING", 
-          "Cancelled": "CANCELLED"
+          "Cancelled": "CANCELLED",
+          "Backlog": "BACKLOG"
         };
         
         if (statusMap[processedBody.status]) {
@@ -822,6 +841,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         }
       }
       
+      console.log("Processed body after cleanup:", JSON.stringify(processedBody, null, 2));
       const validatedData = insertEpicSchema.partial().parse(processedBody);
       console.log("Validated epic data:", JSON.stringify(validatedData, null, 2));
       
@@ -951,6 +971,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Create a new request body object rather than modifying the original
       let processedBody = { ...req.body };
       
+      // Remove empty string fields that are required enums or UUIDs
+      // This ensures that the partial schema validation won't try to validate them
+      Object.keys(processedBody).forEach(key => {
+        if (processedBody[key] === "") {
+          console.log(`Removing empty string field: ${key}`);
+          delete processedBody[key];
+        }
+      });
+      
       // Pre-process status field to handle display format to enum format conversion
       if (processedBody.status) {
         console.log("Story status before normalization:", processedBody.status);
@@ -975,6 +1004,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           console.log("Story status after forced normalization:", processedBody.status);
         }
       }
+      
+      console.log("Processed body after cleanup:", JSON.stringify(processedBody, null, 2));
       
       const validatedData = insertStorySchema.partial().parse(processedBody);
       console.log("Validated story data:", JSON.stringify(validatedData, null, 2));
@@ -1095,6 +1126,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Create a new request body object rather than modifying the original
       let processedBody = { ...req.body };
       
+      // Remove empty string fields that are required enums or UUIDs
+      // This ensures that the partial schema validation won't try to validate them
+      Object.keys(processedBody).forEach(key => {
+        if (processedBody[key] === "") {
+          console.log(`Removing empty string field: ${key}`);
+          delete processedBody[key];
+        }
+      });
+      
       // Pre-process status field to handle display format to enum format conversion
       if (processedBody.status) {
         console.log("Task status before normalization:", processedBody.status);
@@ -1119,6 +1159,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           console.log("Task status after forced normalization:", processedBody.status);
         }
       }
+      
+      console.log("Processed body after cleanup:", JSON.stringify(processedBody, null, 2));
       
       const validatedData = insertTaskSchema.partial().parse(processedBody);
       console.log("Validated task data:", JSON.stringify(validatedData, null, 2));
