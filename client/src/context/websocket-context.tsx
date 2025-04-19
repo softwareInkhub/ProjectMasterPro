@@ -148,64 +148,165 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       case EventType.PROJECT_CREATED:
       case EventType.PROJECT_UPDATED:
       case EventType.PROJECT_DELETED:
+        // Invalidate projects collection
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-        toast({
-          title: "Project Updated",
-          description: "Project information has been updated",
-          variant: message.payload?.status === 'COMPLETED' ? "destructive" : "default",
-        });
+        
+        // If we have a specific project ID, invalidate that specific project
+        if (message.payload?.id) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.id}`] });
+          console.log(`Invalidating specific project: ${message.payload.id}`);
+        }
+        
+        // Show appropriate toast for status changes
+        if (message.payload?.status) {
+          toast({
+            title: `Project Status: ${message.payload.status}`,
+            description: message.payload.status === 'COMPLETED' 
+              ? 'Project has been marked as completed!' 
+              : `Project status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'COMPLETED' ? "destructive" : "default",
+          });
+        } else {
+          toast({
+            title: "Project Updated",
+            description: "Project information has been updated",
+          });
+        }
         break;
         
       case EventType.EPIC_CREATED:
       case EventType.EPIC_UPDATED:
       case EventType.EPIC_DELETED:
-        // Invalidate epics query
+        // Invalidate epics collection
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         
-        // Also invalidate projects since epic status changes affect them
+        // If we have a specific epic ID, invalidate that specific epic
+        if (message.payload?.id) {
+          queryClient.invalidateQueries({ queryKey: [`/api/epics/${message.payload.id}`] });
+          console.log(`Invalidating specific epic: ${message.payload.id}`);
+        }
+        
+        // If we have a project ID, invalidate that specific project
+        if (message.payload?.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.projectId}`] });
+          console.log(`Invalidating parent project: ${message.payload.projectId}`);
+        }
+        
+        // Also invalidate all projects since epic status changes affect them
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        toast({
-          title: "Epic Updated",
-          description: "Epic information has been updated",
-          variant: message.payload?.status === 'COMPLETED' ? "destructive" : "default",
-        });
+        // Show appropriate toast for status changes
+        if (message.payload?.status) {
+          toast({
+            title: `Epic Status: ${message.payload.status}`,
+            description: message.payload.status === 'COMPLETED' 
+              ? 'Epic has been marked as completed! Parent project progress updated.' 
+              : `Epic status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'COMPLETED' ? "destructive" : "default",
+          });
+        } else {
+          toast({
+            title: "Epic Updated",
+            description: "Epic information has been updated",
+          });
+        }
         break;
         
       case EventType.STORY_CREATED:
       case EventType.STORY_UPDATED:
       case EventType.STORY_DELETED:
-        // Invalidate all relevant queries that might be affected by story status changes
+        // Invalidate stories collection
         queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
         
-        // Also invalidate epics and projects since story status changes affect them
+        // If we have a specific story ID, invalidate that specific story
+        if (message.payload?.id) {
+          queryClient.invalidateQueries({ queryKey: [`/api/stories/${message.payload.id}`] });
+          console.log(`Invalidating specific story: ${message.payload.id}`);
+        }
+        
+        // If we have an epic ID, invalidate that specific epic
+        if (message.payload?.epicId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/epics/${message.payload.epicId}`] });
+          console.log(`Invalidating parent epic: ${message.payload.epicId}`);
+        }
+        
+        // If we have a project ID, invalidate that specific project
+        if (message.payload?.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.projectId}`] });
+          console.log(`Invalidating parent project: ${message.payload.projectId}`);
+        }
+        
+        // Also invalidate all epics and projects since story status changes affect them
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        toast({
-          title: "Story Updated",
-          description: "Story information has been updated",
-          variant: message.payload?.status === 'DONE' ? "destructive" : "default",
-        });
+        // Show appropriate toast for status changes
+        if (message.payload?.status) {
+          toast({
+            title: `Story Status: ${message.payload.status}`,
+            description: message.payload.status === 'DONE' 
+              ? 'Story has been marked as done! Parent epic progress updated.' 
+              : `Story status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'DONE' ? "destructive" : "default",
+          });
+        } else {
+          toast({
+            title: "Story Updated",
+            description: "Story information has been updated",
+          });
+        }
         break;
         
       case EventType.TASK_CREATED:
       case EventType.TASK_UPDATED:
       case EventType.TASK_DELETED:
-        // Invalidate all relevant queries that might be affected by task status changes
+        // Invalidate tasks collection
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
         
-        // Also invalidate stories, epics, and projects since task status changes affect them
+        // If we have a specific task ID, invalidate that specific task
+        if (message.payload?.id) {
+          queryClient.invalidateQueries({ queryKey: [`/api/tasks/${message.payload.id}`] });
+          console.log(`Invalidating specific task: ${message.payload.id}`);
+        }
+        
+        // If we have a story ID, invalidate that specific story
+        if (message.payload?.storyId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/stories/${message.payload.storyId}`] });
+          console.log(`Invalidating parent story: ${message.payload.storyId}`);
+        }
+        
+        // If we have an epic ID, invalidate that specific epic
+        if (message.payload?.epicId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/epics/${message.payload.epicId}`] });
+          console.log(`Invalidating parent epic: ${message.payload.epicId}`);
+        }
+        
+        // If we have a project ID, invalidate that specific project
+        if (message.payload?.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.projectId}`] });
+          console.log(`Invalidating parent project: ${message.payload.projectId}`);
+        }
+        
+        // Also invalidate all stories, epics, and projects since task status changes affect them
         queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Show toast notification
-        toast({
-          title: "Task Updated",
-          description: "Task information has been updated",
-          variant: message.payload?.status === 'DONE' ? "destructive" : "default",
-        });
+        // Show appropriate toast for status changes
+        if (message.payload?.status) {
+          toast({
+            title: `Task Status: ${message.payload.status}`,
+            description: message.payload.status === 'DONE' 
+              ? 'Task has been completed! Parent story progress updated.' 
+              : `Task status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'DONE' ? "destructive" : "default",
+          });
+        } else {
+          toast({
+            title: "Task Updated",
+            description: "Task information has been updated",
+          });
+        }
         break;
         
       case EventType.LOCATION_CREATED:
