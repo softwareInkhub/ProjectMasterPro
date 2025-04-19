@@ -259,7 +259,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
       case EventType.TASK_CREATED:
       case EventType.TASK_UPDATED:
-      case EventType.TASK_DELETED:
         // Invalidate tasks collection
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
         
@@ -287,7 +286,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           console.log(`Invalidating parent project: ${message.payload.projectId}`);
         }
         
-        // Also invalidate all stories, epics, and projects since task status changes affect them
+        // Also invalidate all stories, epics, and projects since task changes affect them
         queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
@@ -303,10 +302,51 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         } else {
           toast({
-            title: "Task Updated",
+            title: message.type === EventType.TASK_CREATED ? "Task Created" : "Task Updated",
             description: "Task information has been updated",
           });
         }
+        break;
+        
+      case EventType.TASK_DELETED:
+        // Invalidate tasks collection
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+        
+        // If we have a specific task ID, remove it from cache
+        if (message.payload?.id) {
+          queryClient.removeQueries({ queryKey: [`/api/tasks/${message.payload.id}`] });
+          console.log(`Removing deleted task from cache: ${message.payload.id}`);
+        }
+        
+        // If we have a story ID, invalidate that specific story
+        if (message.payload?.storyId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/stories/${message.payload.storyId}`] });
+          console.log(`Invalidating parent story after task deletion: ${message.payload.storyId}`);
+        }
+        
+        // If we have an epic ID, invalidate that specific epic
+        if (message.payload?.epicId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/epics/${message.payload.epicId}`] });
+          console.log(`Invalidating parent epic after task deletion: ${message.payload.epicId}`);
+        }
+        
+        // If we have a project ID, invalidate that specific project
+        if (message.payload?.projectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${message.payload.projectId}`] });
+          console.log(`Invalidating parent project after task deletion: ${message.payload.projectId}`);
+        }
+        
+        // Also invalidate lists since they need to be updated
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+        
+        // Show toast for deletion
+        toast({
+          title: "Task Deleted",
+          description: "Task has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.LOCATION_CREATED:

@@ -650,29 +650,62 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.put("/projects/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log("Project update request:", JSON.stringify(req.body, null, 2));
       const validatedData = insertProjectSchema.partial().parse(req.body);
       const project = await storage.updateProject(req.params.id, validatedData);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
+      
+      console.log("Project updated successfully:", project);
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.PROJECT_UPDATED,
+        payload: project
+      });
+      
       return res.json(project);
     } catch (error) {
+      console.error("Project update error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
   apiRouter.delete("/projects/:id", authenticateJwt, authorize(["ADMIN", "MANAGER"]), async (req: AuthRequest, res: Response) => {
     try {
-      const success = await storage.deleteProject(req.params.id);
+      const projectId = req.params.id;
+      console.log(`Deleting project: ${projectId}`);
+      
+      // First get the project for broadcasting
+      const project = await storage.getProject(projectId);
+      
+      const success = await storage.deleteProject(projectId);
       if (!success) {
         return res.status(404).json({ message: "Project not found" });
       }
+      
+      // If we had a project, broadcast the deletion
+      if (project) {
+        broadcastEvent({
+          type: EventType.PROJECT_DELETED,
+          payload: { id: projectId, ...project }
+        });
+      }
+      
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Project deletion error:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -744,13 +777,32 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.delete("/epics/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
-      const success = await storage.deleteEpic(req.params.id);
+      const epicId = req.params.id;
+      console.log(`Deleting epic: ${epicId}`);
+      
+      // First get the epic for broadcasting
+      const epic = await storage.getEpic(epicId);
+      
+      const success = await storage.deleteEpic(epicId);
       if (!success) {
         return res.status(404).json({ message: "Epic not found" });
       }
+      
+      // If we had an epic, broadcast the deletion
+      if (epic) {
+        broadcastEvent({
+          type: EventType.EPIC_DELETED,
+          payload: { id: epicId, ...epic }
+        });
+      }
+      
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Epic deletion error:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -839,13 +891,36 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.delete("/stories/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
-      const success = await storage.deleteStory(req.params.id);
+      const storyId = req.params.id;
+      console.log(`Deleting story: ${storyId}`);
+      
+      // First get the story for broadcasting
+      const story = await storage.getStory(storyId);
+      
+      const success = await storage.deleteStory(storyId);
       if (!success) {
         return res.status(404).json({ message: "Story not found" });
       }
+      
+      // If we had a story, broadcast the deletion
+      if (story) {
+        broadcastEvent({
+          type: EventType.STORY_DELETED,
+          payload: { 
+            id: storyId,
+            epicId: story.epicId,
+            projectId: story.projectId
+          }
+        });
+      }
+      
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Story deletion error:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -920,13 +995,37 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.delete("/tasks/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
-      const success = await storage.deleteTask(req.params.id);
+      const taskId = req.params.id;
+      console.log(`Deleting task: ${taskId}`);
+      
+      // First get the task for broadcasting
+      const task = await storage.getTask(taskId);
+      
+      const success = await storage.deleteTask(taskId);
       if (!success) {
         return res.status(404).json({ message: "Task not found" });
       }
+      
+      // If we had a task, broadcast the deletion
+      if (task) {
+        broadcastEvent({
+          type: EventType.TASK_DELETED,
+          payload: { 
+            id: taskId,
+            storyId: task.storyId,
+            epicId: task.epicId,
+            projectId: task.projectId
+          }
+        });
+      }
+      
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ message: "Internal server error" });
+      console.error("Task deletion error:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
