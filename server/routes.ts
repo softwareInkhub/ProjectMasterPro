@@ -655,8 +655,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       console.log("Project update request:", JSON.stringify(req.body, null, 2));
       
+      // Create a new request body object rather than modifying the original
+      let processedBody = { ...req.body };
+      
       // Pre-process status field to handle display format to enum format conversion
-      if (req.body.status) {
+      if (processedBody.status) {
+        console.log("Status before normalization:", processedBody.status);
+        
         // Convert "On Hold" or "In Progress" format to "ON_HOLD" or "IN_PROGRESS" format
         const statusMap: Record<string, string> = {
           "On Hold": "ON_HOLD",
@@ -666,12 +671,19 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           "Cancelled": "CANCELLED"
         };
         
-        if (statusMap[req.body.status]) {
-          req.body.status = statusMap[req.body.status];
+        if (statusMap[processedBody.status]) {
+          processedBody.status = statusMap[processedBody.status];
+          console.log("Status after normalization:", processedBody.status);
+        } else {
+          // If it's not in our map, try direct uppercase with underscores
+          processedBody.status = processedBody.status
+            .toUpperCase()
+            .replace(/ /g, '_');
+          console.log("Status after forced normalization:", processedBody.status);
         }
       }
       
-      const validatedData = insertProjectSchema.partial().parse(req.body);
+      const validatedData = insertProjectSchema.partial().parse(processedBody);
       console.log("Validated data:", JSON.stringify(validatedData, null, 2));
       
       const project = await storage.updateProject(req.params.id, validatedData);
@@ -782,22 +794,35 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       console.log("Epic update request:", JSON.stringify(req.body, null, 2));
       
+      // Create a new request body object rather than modifying the original
+      let processedBody = { ...req.body };
+      
       // Pre-process status field to handle display format to enum format conversion
-      if (req.body.status) {
+      if (processedBody.status) {
+        console.log("Epic status before normalization:", processedBody.status);
+        
         // Convert "On Hold" or "In Progress" format to "ON_HOLD" or "IN_PROGRESS" format
         const statusMap: Record<string, string> = {
+          "On Hold": "ON_HOLD",
           "In Progress": "IN_PROGRESS",
           "Completed": "COMPLETED",
           "Planning": "PLANNING", 
           "Cancelled": "CANCELLED"
         };
         
-        if (statusMap[req.body.status]) {
-          req.body.status = statusMap[req.body.status];
+        if (statusMap[processedBody.status]) {
+          processedBody.status = statusMap[processedBody.status];
+          console.log("Epic status after normalization:", processedBody.status);
+        } else {
+          // If it's not in our map, try direct uppercase with underscores
+          processedBody.status = processedBody.status
+            .toUpperCase()
+            .replace(/ /g, '_');
+          console.log("Epic status after forced normalization:", processedBody.status);
         }
       }
       
-      const validatedData = insertEpicSchema.partial().parse(req.body);
+      const validatedData = insertEpicSchema.partial().parse(processedBody);
       console.log("Validated epic data:", JSON.stringify(validatedData, null, 2));
       
       const epic = await storage.updateEpic(req.params.id, validatedData);
@@ -923,8 +948,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       console.log("Story update request:", JSON.stringify(req.body, null, 2));
       
+      // Create a new request body object rather than modifying the original
+      let processedBody = { ...req.body };
+      
       // Pre-process status field to handle display format to enum format conversion
-      if (req.body.status) {
+      if (processedBody.status) {
+        console.log("Story status before normalization:", processedBody.status);
+        
         // Convert "In Progress" format to "IN_PROGRESS" format etc.
         const statusMap: Record<string, string> = {
           "In Progress": "IN_PROGRESS",
@@ -934,12 +964,19 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           "Blocked": "BLOCKED"
         };
         
-        if (statusMap[req.body.status]) {
-          req.body.status = statusMap[req.body.status];
+        if (statusMap[processedBody.status]) {
+          processedBody.status = statusMap[processedBody.status];
+          console.log("Story status after normalization:", processedBody.status);
+        } else {
+          // If it's not in our map, try direct uppercase with underscores
+          processedBody.status = processedBody.status
+            .toUpperCase()
+            .replace(/ /g, '_');
+          console.log("Story status after forced normalization:", processedBody.status);
         }
       }
       
-      const validatedData = insertStorySchema.partial().parse(req.body);
+      const validatedData = insertStorySchema.partial().parse(processedBody);
       console.log("Validated story data:", JSON.stringify(validatedData, null, 2));
       
       const story = await storage.updateStory(req.params.id, validatedData);
@@ -1055,8 +1092,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       console.log("Task update request:", JSON.stringify(req.body, null, 2));
       
+      // Create a new request body object rather than modifying the original
+      let processedBody = { ...req.body };
+      
       // Pre-process status field to handle display format to enum format conversion
-      if (req.body.status) {
+      if (processedBody.status) {
+        console.log("Task status before normalization:", processedBody.status);
+        
         // Convert "In Progress" format to "IN_PROGRESS" format etc.
         const statusMap: Record<string, string> = {
           "In Progress": "IN_PROGRESS",
@@ -1066,12 +1108,19 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           "Blocked": "BLOCKED"
         };
         
-        if (statusMap[req.body.status]) {
-          req.body.status = statusMap[req.body.status];
+        if (statusMap[processedBody.status]) {
+          processedBody.status = statusMap[processedBody.status];
+          console.log("Task status after normalization:", processedBody.status);
+        } else {
+          // If it's not in our map, try direct uppercase with underscores
+          processedBody.status = processedBody.status
+            .toUpperCase()
+            .replace(/ /g, '_');
+          console.log("Task status after forced normalization:", processedBody.status);
         }
       }
       
-      const validatedData = insertTaskSchema.partial().parse(req.body);
+      const validatedData = insertTaskSchema.partial().parse(processedBody);
       console.log("Validated task data:", JSON.stringify(validatedData, null, 2));
       
       const task = await storage.updateTask(req.params.id, validatedData);
