@@ -2007,6 +2007,241 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Sprint routes
+  apiRouter.get("/sprints", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { projectId, teamId, status } = req.query;
+      const sprints = await storage.getSprints(
+        projectId as string,
+        teamId as string,
+        status as string
+      );
+      return res.json(sprints);
+    } catch (error) {
+      console.error("Error fetching sprints:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.get("/sprints/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const sprint = await storage.getSprint(req.params.id);
+      if (!sprint) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      return res.json(sprint);
+    } catch (error) {
+      console.error("Error fetching sprint:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.post("/sprints", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertSprintSchema.parse(req.body);
+      const sprint = await storage.createSprint(validatedData);
+      
+      // Broadcast the creation event
+      broadcastEvent({
+        type: EventType.SPRINT_CREATED,
+        payload: sprint
+      });
+      
+      return res.status(201).json(sprint);
+    } catch (error) {
+      console.error("Error creating sprint:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.put("/sprints/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertSprintSchema.partial().parse(req.body);
+      const sprint = await storage.updateSprint(req.params.id, validatedData);
+      
+      if (!sprint) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      
+      // Broadcast the update event
+      broadcastEvent({
+        type: EventType.SPRINT_UPDATED,
+        payload: sprint
+      });
+      
+      return res.json(sprint);
+    } catch (error) {
+      console.error("Error updating sprint:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.delete("/sprints/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const success = await storage.deleteSprint(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      
+      // Broadcast the deletion event
+      broadcastEvent({
+        type: EventType.SPRINT_DELETED,
+        payload: { id: req.params.id }
+      });
+      
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting sprint:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Sprint Items routes
+  apiRouter.get("/sprint-items/:sprintId", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { itemType } = req.query;
+      const sprintItems = await storage.getSprintItems(req.params.sprintId, itemType as string);
+      return res.json(sprintItems);
+    } catch (error) {
+      console.error("Error fetching sprint items:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.get("/sprint-items-details/:sprintId", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const items = await storage.getSprintItemDetails(req.params.sprintId);
+      return res.json(items);
+    } catch (error) {
+      console.error("Error fetching sprint item details:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.get("/backlog/:projectId", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const backlogItems = await storage.getBacklogItems(req.params.projectId);
+      return res.json(backlogItems);
+    } catch (error) {
+      console.error("Error fetching backlog items:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.post("/sprint-items", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertSprintItemSchema.parse(req.body);
+      const sprintItem = await storage.addItemToSprint(validatedData);
+      
+      // Broadcast the addition event
+      broadcastEvent({
+        type: EventType.SPRINT_ITEM_ADDED,
+        payload: sprintItem
+      });
+      
+      return res.status(201).json(sprintItem);
+    } catch (error) {
+      console.error("Error adding item to sprint:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.delete("/sprint-items/:sprintId/:itemType/:itemId", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const { sprintId, itemType, itemId } = req.params;
+      const success = await storage.removeItemFromSprint(sprintId, itemType, itemId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Sprint item not found" });
+      }
+      
+      // Broadcast the removal event
+      broadcastEvent({
+        type: EventType.SPRINT_ITEM_REMOVED,
+        payload: { sprintId, itemType, itemId }
+      });
+      
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error removing item from sprint:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.post("/sprint-items/move", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const { itemId, itemType, fromSprintId, toSprintId } = req.body;
+      
+      if (!itemId || !itemType || !fromSprintId || !toSprintId) {
+        return res.status(400).json({ 
+          message: "Missing required fields: itemId, itemType, fromSprintId, toSprintId"
+        });
+      }
+      
+      const success = await storage.moveItemToSprint(itemId, itemType, fromSprintId, toSprintId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Failed to move item between sprints" });
+      }
+      
+      // Broadcast the move event
+      broadcastEvent({
+        type: EventType.SPRINT_ITEM_MOVED,
+        payload: { itemId, itemType, fromSprintId, toSprintId }
+      });
+      
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error moving item between sprints:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.get("/active-sprints/user/:userId", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const activeSprints = await storage.getActiveSprintsByUser(req.params.userId);
+      return res.json(activeSprints);
+    } catch (error) {
+      console.error("Error fetching active sprints for user:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  apiRouter.post("/sprints/:id/complete", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const { nextSprintId } = req.body;
+      const success = await storage.completeSprintAndMoveUnfinishedItems(req.params.id, nextSprintId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Sprint not found or could not be completed" });
+      }
+      
+      // Broadcast the sprint completion event
+      broadcastEvent({
+        type: EventType.SPRINT_COMPLETED,
+        payload: { 
+          id: req.params.id,
+          nextSprintId 
+        }
+      });
+      
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing sprint:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Mount API router at /api prefix
   app.use("/api", apiRouter);
 
