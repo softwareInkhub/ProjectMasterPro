@@ -15,7 +15,9 @@ import { CalendarIcon, PlusIcon, SparklesIcon, CheckIcon, ClockIcon } from "luci
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
-import { DatePicker } from "@/components/ui/date-picker";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // Sprint type definition
 type Sprint = {
@@ -43,6 +45,54 @@ type Team = {
   id: string;
   name: string;
 };
+
+// Custom DatePicker component
+interface DatePickerProps {
+  date?: Date;
+  onSelect?: (date: Date) => void;
+  className?: string;
+}
+
+function DatePicker({ date, onSelect, className }: DatePickerProps) {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(date);
+
+  useEffect(() => {
+    setSelectedDate(date);
+  }, [date]);
+
+  const handleSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date && onSelect) {
+      onSelect(date);
+    }
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant={"outline"}
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !selectedDate && "text-muted-foreground",
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleSelect}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function SprintsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -90,7 +140,7 @@ export default function SprintsPage() {
   };
 
   // Handle date changes
-  const handleDateChange = (date: Date | undefined, field: 'startDate' | 'endDate') => {
+  const handleDateChange = (date: Date | undefined, field: 'startDate' | 'endDate'): void => {
     if (date) {
       setFormData((prev) => ({ ...prev, [field]: date }));
     }
@@ -327,9 +377,9 @@ export default function SprintsPage() {
                       Start Date
                     </Label>
                     <div className="col-span-3">
-                      <DatePicker
+                      <DatePicker 
                         date={formData.startDate}
-                        onSelect={(date) => handleDateChange(date, 'startDate')}
+                        onSelect={(date: Date) => handleDateChange(date, 'startDate')}
                       />
                     </div>
                   </div>
@@ -340,7 +390,7 @@ export default function SprintsPage() {
                     <div className="col-span-3">
                       <DatePicker
                         date={formData.endDate}
-                        onSelect={(date) => handleDateChange(date, 'endDate')}
+                        onSelect={(date: Date) => handleDateChange(date, 'endDate')}
                       />
                     </div>
                   </div>
