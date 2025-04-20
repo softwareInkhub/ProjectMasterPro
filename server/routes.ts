@@ -2246,6 +2246,111 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.use("/api", apiRouter);
 
   // Create HTTP server
+  // EMERGENCY DIRECT HTML SPRINTS PAGE
+  app.get('/api/emergency-sprints', async (req, res) => {
+    try {
+      // Get all sprints
+      const sprints = await storage.getSprints();
+      
+      // Get projects and teams for reference
+      const projects = await storage.getProjects();
+      const teams = await storage.getTeams();
+      
+      // Build HTML response
+      let sprintsHtml = '';
+      
+      if (sprints.length === 0) {
+        sprintsHtml = '<p>No sprints found.</p>';
+      } else {
+        sprintsHtml = sprints.map(sprint => {
+          const project = projects.find(p => p.id === sprint.projectId) || { name: 'Unknown' };
+          const team = teams.find(t => t.id === sprint.teamId) || { name: 'Unknown' };
+          
+          // Format dates
+          const startDate = new Date(sprint.startDate).toLocaleDateString();
+          const endDate = new Date(sprint.endDate).toLocaleDateString();
+          
+          return `
+            <div class="sprint-card">
+              <h3>${sprint.name}</h3>
+              <div class="sprint-meta">
+                <span class="project">Project: ${project.name}</span>
+                <span class="team">Team: ${team.name}</span>
+                <span class="status">Status: ${sprint.status}</span>
+              </div>
+              <div class="sprint-dates">
+                <span>Start: ${startDate}</span>
+                <span>End: ${endDate}</span>
+              </div>
+              <p class="sprint-goal">${sprint.goal || 'No goal specified'}</p>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      res.send(`
+        <html>
+          <head>
+            <title>Emergency Sprints View</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+              h1 { color: #333; }
+              h2 { color: #555; margin-top: 20px; }
+              .sprint-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+              .sprint-card { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .sprint-card h3 { margin-top: 0; color: #333; }
+              .sprint-meta { display: flex; flex-direction: column; margin-bottom: 10px; font-size: 14px; }
+              .sprint-meta span { margin-bottom: 5px; }
+              .sprint-dates { display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-bottom: 10px; }
+              .sprint-goal { font-size: 14px; color: #555; margin-bottom: 0; }
+              .create-form { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+              .form-group { margin-bottom: 15px; }
+              label { display: block; margin-bottom: 5px; font-weight: bold; }
+              input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+              button { background: #4A90E2; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+              button:hover { background: #3A80D2; }
+              .nav-section { margin-bottom: 20px; }
+              .nav-btn { display: inline-block; margin-right: 10px; padding: 10px 15px; background: #333; color: white; text-decoration: none; border-radius: 4px; }
+              .status-planning { background: #FFD700; padding: 2px 6px; border-radius: 4px; color: #333; }
+              .status-active { background: #4CAF50; padding: 2px 6px; border-radius: 4px; color: white; }
+              .status-completed { background: #2196F3; padding: 2px 6px; border-radius: 4px; color: white; }
+              .status-cancelled { background: #F44336; padding: 2px 6px; border-radius: 4px; color: white; }
+            </style>
+          </head>
+          <body>
+            <div class="nav-section">
+              <a href="/" class="nav-btn">Dashboard</a>
+              <a href="/projects" class="nav-btn">Projects</a>
+              <a href="/sprints" class="nav-btn">Sprints</a>
+              <a href="/backlog" class="nav-btn">Backlog</a>
+              <a href="/api/navigation" class="nav-btn">Navigation</a>
+            </div>
+            
+            <h1>Emergency Sprints View</h1>
+            <p>This is a direct server-rendered view of sprints that bypasses the React frontend.</p>
+            
+            <h2>Current Sprints</h2>
+            <div class="sprint-container">
+              ${sprintsHtml}
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error('Error rendering emergency sprints page:', error);
+      res.status(500).send(`
+        <html>
+          <head><title>Error</title></head>
+          <body>
+            <h1>An error occurred</h1>
+            <p>${error instanceof Error ? error.message : 'Unknown error'}</p>
+            <a href="/">Return to Dashboard</a>
+          </body>
+        </html>
+      `);
+    }
+  });
+  
   const httpServer = createServer(app);
   
   // Setup WebSocket server

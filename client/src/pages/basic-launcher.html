@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergency Navigation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <header class="bg-white border-b p-4 shadow-sm">
+    <div class="container mx-auto">
+      <h1 class="text-2xl font-bold">Project Management System</h1>
+    </div>
+  </header>
+
+  <main class="container mx-auto py-8 px-4">
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 class="text-xl font-bold mb-4">Emergency Navigation</h2>
+      <p class="text-gray-600 mb-6">Use this simple page to navigate to various parts of the application without relying on the sidebar navigation.</p>
+      
+      <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <a href="/" class="p-4 bg-blue-50 rounded-md border border-blue-100 hover:bg-blue-100 text-center">
+          <div class="font-medium">Dashboard</div>
+        </a>
+        <a href="/projects" class="p-4 bg-green-50 rounded-md border border-green-100 hover:bg-green-100 text-center">
+          <div class="font-medium">Projects</div>
+        </a>
+        <a href="/sprints" class="p-4 bg-purple-50 rounded-md border border-purple-100 hover:bg-purple-100 text-center">
+          <div class="font-medium">Sprints</div>
+        </a>
+        <a href="/backlog" class="p-4 bg-yellow-50 rounded-md border border-yellow-100 hover:bg-yellow-100 text-center">
+          <div class="font-medium">Backlog</div>
+        </a>
+        <a href="/epics" class="p-4 bg-indigo-50 rounded-md border border-indigo-100 hover:bg-indigo-100 text-center">
+          <div class="font-medium">Epics</div>
+        </a>
+        <a href="/stories" class="p-4 bg-pink-50 rounded-md border border-pink-100 hover:bg-pink-100 text-center">
+          <div class="font-medium">Stories</div>
+        </a>
+        <a href="/tasks" class="p-4 bg-red-50 rounded-md border border-red-100 hover:bg-red-100 text-center">
+          <div class="font-medium">Tasks</div>
+        </a>
+        <a href="/teams" class="p-4 bg-teal-50 rounded-md border border-teal-100 hover:bg-teal-100 text-center">
+          <div class="font-medium">Teams</div>
+        </a>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-xl font-bold mb-4">Authentication</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <a href="/simple-login" class="p-4 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100 text-center">
+          <div class="font-medium">Login</div>
+        </a>
+        <button 
+          onclick="localStorage.removeItem('authToken'); alert('Auth token removed!'); window.location.href='/simple-login';"
+          class="p-4 bg-red-50 rounded-md border border-red-200 hover:bg-red-100 text-center"
+        >
+          <div class="font-medium">Logout (Clear Token)</div>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-white border-t p-4 mt-8">
+    <div class="container mx-auto text-center text-gray-500">
+      &copy; 2023 Project Management System
+    </div>
+  </footer>
+
+  <script>
+    // Check if user is authenticated
+    document.addEventListener('DOMContentLoaded', function() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('You are not logged in. Redirecting to login page...');
+        window.location.href = '/simple-login';
+      } else {
+        console.log('User is authenticated with token:', token.substring(0, 10) + '...');
+      }
+    });
+
+    // Add direct API check
+    function checkSprints() {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Not logged in. Please login first.');
+        return;
+      }
+
+      fetch('/api/sprints', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Sprints API response:', data);
+        alert(`Found ${data.length} sprints. See console for details.`);
+      })
+      .catch(error => {
+        console.error('Error fetching sprints:', error);
+        alert('Error fetching sprints. See console for details.');
+      });
+    }
+
+    // Add button to page
+    const main = document.querySelector('main');
+    const apiSection = document.createElement('div');
+    apiSection.className = 'bg-white rounded-lg shadow-md p-6 mt-8';
+    apiSection.innerHTML = `
+      <h2 class="text-xl font-bold mb-4">API Tests</h2>
+      <button 
+        onclick="checkSprints()"
+        class="p-4 bg-blue-50 rounded-md border border-blue-200 hover:bg-blue-100 text-center w-full"
+      >
+        <div class="font-medium">Test Sprints API</div>
+      </button>
+    `;
+    main.appendChild(apiSection);
+  </script>
+</body>
+</html>

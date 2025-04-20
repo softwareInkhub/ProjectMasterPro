@@ -5,6 +5,7 @@ import Dashboard from "@/pages/dashboard";
 import Backlog from "@/pages/backlog";
 import SprintsPage from "@/pages/sprints";
 import StandaloneSprints from "@/pages/standalone-sprints";
+import LauncherPage from "@/pages/launcher";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
@@ -567,6 +568,13 @@ function App() {
             <Layout>
               <Backlog />
             </Layout>
+          </ProtectedRoute>
+        </Route>
+        
+        {/* App Launcher - NO LAYOUT DEPENDENCIES */}
+        <Route path="/launcher">
+          <ProtectedRoute>
+            <LauncherPage />
           </ProtectedRoute>
         </Route>
         
