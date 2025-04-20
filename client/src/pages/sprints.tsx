@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,6 +17,7 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Helmet } from "react-helmet";
 
 // Sprint type definition
 type Sprint = {
@@ -246,7 +246,10 @@ export default function SprintsPage() {
   };
 
   return (
-    <Layout>
+    <>
+      <Helmet>
+        <title>Sprints | Project Management</title>
+      </Helmet>
       <div className="container mx-auto py-8 px-4 md:px-6">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -513,6 +516,6 @@ export default function SprintsPage() {
           </div>
         )}
       </div>
-    </Layout>
+    </>
   );
 }
