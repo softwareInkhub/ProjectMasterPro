@@ -34,6 +34,7 @@ import DevicesPage from "@/pages/devices";
 import NewDevicePage from "@/pages/devices/new";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
+import AppLayout from "@/layouts/AppLayout";
 import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
@@ -543,18 +544,18 @@ function App() {
         {/* Sprints route */}
         <Route path="/sprints">
           <ProtectedRoute>
-            <Layout>
+            <AppLayout>
               <SprintsPage />
-            </Layout>
+            </AppLayout>
           </ProtectedRoute>
         </Route>
 
         {/* Backlog route */}
         <Route path="/backlog">
           <ProtectedRoute>
-            <Layout>
+            <AppLayout>
               <Backlog />
-            </Layout>
+            </AppLayout>
           </ProtectedRoute>
         </Route>
         
