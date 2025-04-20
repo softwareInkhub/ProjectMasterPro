@@ -34,7 +34,8 @@ import DevicesPage from "@/pages/devices";
 import NewDevicePage from "@/pages/devices/new";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
-import AppLayout from "@/layouts/AppLayout";
+// Comment out the unused layout to avoid any conflicts
+// import AppLayout from "@/layouts/AppLayout";
 import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";

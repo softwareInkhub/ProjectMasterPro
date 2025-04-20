@@ -19,6 +19,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 
+// Debug info - Log when this component is rendered
+console.log("SprintsPage component is being loaded/rendered");
+
 // Sprint type definition
 type Sprint = {
   id: string;

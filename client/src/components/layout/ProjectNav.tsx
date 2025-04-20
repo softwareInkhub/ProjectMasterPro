@@ -43,10 +43,15 @@ const navItems: NavItem[] = [
 ];
 
 export default function ProjectNav() {
-  const [location] = useLocation();
+  const currentPath = window.location.pathname;
+  
+  // Handler for navigation
+  const handleNavigation = (href: string) => {
+    window.location.href = href;
+  };
   
   return (
-    <div className="bg-white border-r h-full w-64 fixed top-0 left-0 overflow-y-auto">
+    <div className="bg-white border-r h-full w-64 fixed top-0 left-0 overflow-y-auto z-50">
       <div className="p-4 border-b">
         <h1 className="text-xl font-bold">Project Management</h1>
       </div>
@@ -54,14 +59,14 @@ export default function ProjectNav() {
       <nav className="p-4">
         <div className="space-y-1">
           {navItems.map((item) => {
-            const isActive = location === item.href;
+            const isActive = currentPath === item.href;
             
             return (
-              <a 
+              <button 
                 key={item.name}
-                href={item.href}
+                onClick={() => handleNavigation(item.href)}
                 className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-md",
+                  "flex items-center px-3 py-2 text-sm font-medium rounded-md w-full text-left",
                   isActive
                     ? "bg-primary-50 text-primary-600"
                     : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
@@ -76,7 +81,7 @@ export default function ProjectNav() {
                   )}
                 />
                 {item.name}
-              </a>
+              </button>
             );
           })}
         </div>
