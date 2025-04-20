@@ -109,7 +109,7 @@ const Backlog = () => {
   };
 
   return (
-    <Layout>
+    <>
       <Helmet>
         <title>Backlog | Project Management</title>
       </Helmet>
@@ -423,7 +423,7 @@ const Backlog = () => {
         </TabsContent>
       </Tabs>
       
-    </Layout>
+    </>
   );
 };
 
