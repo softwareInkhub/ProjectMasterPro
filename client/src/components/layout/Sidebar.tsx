@@ -29,6 +29,7 @@ type NavItem = {
   icon: React.ElementType;
 };
 
+// Define navigation items
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: HomeIcon },
   { name: "Projects", href: "/projects", icon: BriefcaseIcon },

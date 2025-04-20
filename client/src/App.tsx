@@ -541,7 +541,7 @@ function App() {
           </ProtectedRoute>
         </Route>
         
-        {/* Sprints route */}
+        {/* Sprints route - high priority */}
         <Route path="/sprints">
           <ProtectedRoute>
             <Layout>
@@ -550,7 +550,7 @@ function App() {
           </ProtectedRoute>
         </Route>
 
-        {/* Backlog route */}
+        {/* Backlog route - high priority */}
         <Route path="/backlog">
           <ProtectedRoute>
             <Layout>

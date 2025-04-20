@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import Sidebar from "./Sidebar";
 
 interface LayoutProps {
@@ -6,6 +6,11 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  // Force re-render of sidebar on mount
+  useEffect(() => {
+    console.log("Layout mounted - sidebar should be visible");
+  }, []);
+
   return (
     <div className="h-screen overflow-hidden bg-gray-50">
       <Sidebar />
