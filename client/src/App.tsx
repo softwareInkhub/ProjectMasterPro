@@ -37,7 +37,6 @@ import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WebSocketProvider } from "@/context/websocket-context";
-import { Toaster } from "@/components/ui/toaster";
 
 // Protected Route component
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -80,7 +79,6 @@ function App() {
   return (
     <AuthProvider>
       <WebSocketProvider>
-        <Toaster />
         <Switch>
         {/* Auth routes */}
         <Route path="/login">

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 
 // Define event types matching the server's EventType enum
 export enum EventType {
