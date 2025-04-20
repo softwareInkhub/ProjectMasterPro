@@ -63,6 +63,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const projectLinks = [
     { path: '/projects', label: 'All Projects', icon: <FolderKanban className="mr-2 h-5 w-5" /> },
     { path: '/projects/new', label: 'Create Project', icon: <FolderKanban className="mr-2 h-5 w-5" /> },
+    { path: '/sprints', label: 'Sprints', icon: <Calendar className="mr-2 h-5 w-5" /> },
+    { path: '/backlog', label: 'Backlog', icon: <ClipboardList className="mr-2 h-5 w-5" /> },
     { path: '/timeline', label: 'Timeline', icon: <Calendar className="mr-2 h-5 w-5" /> },
   ];
 
