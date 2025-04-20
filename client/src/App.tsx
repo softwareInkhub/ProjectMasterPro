@@ -544,18 +544,18 @@ function App() {
         {/* Sprints route */}
         <Route path="/sprints">
           <ProtectedRoute>
-            <AppLayout>
+            <Layout>
               <SprintsPage />
-            </AppLayout>
+            </Layout>
           </ProtectedRoute>
         </Route>
 
         {/* Backlog route */}
         <Route path="/backlog">
           <ProtectedRoute>
-            <AppLayout>
+            <Layout>
               <Backlog />
-            </AppLayout>
+            </Layout>
           </ProtectedRoute>
         </Route>
         
