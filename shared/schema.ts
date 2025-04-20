@@ -40,7 +40,8 @@ export const ENTITY_TYPES = [
   "PROJECT",
   "EPIC",
   "STORY",
-  "TASK"
+  "TASK",
+  "SPRINT"
 ] as const;
 
 export const EntityTypeEnum = z.enum(ENTITY_TYPES);
@@ -605,6 +606,72 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 
 export type TimeEntry = typeof timeEntries.$inferSelect;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
+
+// Sprint schema
+export const sprints = pgTable("sprints", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  goal: text("goal"),
+  projectId: uuid("project_id").notNull().references(() => projects.id),
+  teamId: uuid("team_id").notNull().references(() => teams.id),
+  status: text("status", { 
+    enum: ["PLANNING", "ACTIVE", "COMPLETED", "CANCELLED"] 
+  }).default("PLANNING").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSprintSchema = createInsertSchema(sprints)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Accept and transform string dates to Date objects
+    startDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date()
+    ),
+    endDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date()
+    ),
+  });
+
+export type Sprint = typeof sprints.$inferSelect;
+export type InsertSprint = z.infer<typeof insertSprintSchema>;
+
+// Sprint Items junction table - connects epics, stories, and tasks to sprints
+export const sprintItems = pgTable("sprint_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sprintId: uuid("sprint_id").notNull().references(() => sprints.id),
+  itemType: text("item_type", { enum: ["EPIC", "STORY", "TASK"] }).notNull(),
+  itemId: uuid("item_id").notNull(),
+  addedFromBacklog: text("added_from_backlog", { enum: ["YES", "NO"] }).default("NO").notNull(),
+  movedFromPreviousSprint: uuid("moved_from_previous_sprint").references(() => sprints.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSprintItemSchema = createInsertSchema(sprintItems)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    movedFromPreviousSprint: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+  });
+
+export type SprintItem = typeof sprintItems.$inferSelect;
+export type InsertSprintItem = z.infer<typeof insertSprintItemSchema>;
 
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;

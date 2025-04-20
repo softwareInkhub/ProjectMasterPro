@@ -4,11 +4,11 @@ import {
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
   Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
-  TimeEntry, InsertTimeEntry,
+  TimeEntry, InsertTimeEntry, Sprint, InsertSprint, SprintItem, InsertSprintItem,
   // Schema tables
   companies, departments, groups, users, teams, teamMembers, projects, epics,
   stories, tasks, comments, attachments, notifications, locations, devices,
-  timeEntries
+  timeEntries, sprints, sprintItems
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
@@ -135,6 +135,23 @@ export interface IStorage {
   createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry>;
   updateTimeEntry(id: string, timeEntry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
   deleteTimeEntry(id: string): Promise<boolean>;
+
+  // Sprint operations
+  getSprints(projectId?: string, teamId?: string, status?: string): Promise<Sprint[]>;
+  getSprint(id: string): Promise<Sprint | undefined>;
+  createSprint(sprint: InsertSprint): Promise<Sprint>;
+  updateSprint(id: string, sprint: Partial<InsertSprint>): Promise<Sprint | undefined>;
+  deleteSprint(id: string): Promise<boolean>;
+  
+  // Sprint Items operations
+  getSprintItems(sprintId: string, itemType?: string): Promise<SprintItem[]>;
+  getBacklogItems(projectId: string): Promise<{ epics: Epic[], stories: Story[], tasks: Task[] }>;
+  addItemToSprint(item: InsertSprintItem): Promise<SprintItem>;
+  removeItemFromSprint(sprintId: string, itemType: string, itemId: string): Promise<boolean>;
+  moveItemToSprint(itemId: string, itemType: string, fromSprintId: string, toSprintId: string): Promise<boolean>;
+  getSprintItemDetails(sprintId: string): Promise<{ epics: Epic[], stories: Story[], tasks: Task[] }>;
+  getActiveSprintsByUser(userId: string): Promise<Sprint[]>;
+  completeSprintAndMoveUnfinishedItems(sprintId: string, nextSprintId?: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
