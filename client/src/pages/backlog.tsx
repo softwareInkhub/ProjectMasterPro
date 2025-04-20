@@ -66,7 +66,7 @@ const Backlog = () => {
   });
 
   // Filter stories based on search term and priority
-  const filteredStories = stories?.filter((story) => {
+  const filteredStories = stories?.filter((story: Story) => {
     const matchesSearch = searchTerm === "" || 
       story.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (story.description && story.description.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -77,7 +77,7 @@ const Backlog = () => {
   });
 
   // Filter epics based on search term and priority
-  const filteredEpics = epics?.filter((epic) => {
+  const filteredEpics = epics?.filter((epic: Epic) => {
     const matchesSearch = searchTerm === "" || 
       epic.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (epic.description && epic.description.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -221,7 +221,7 @@ const Backlog = () => {
           ) : filteredStories && filteredStories.length > 0 ? (
             statusView === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredStories.map((story) => (
+                {filteredStories.map((story: Story) => (
                   <Link key={story.id} href={`/stories/${story.id}`}>
                     <Card className="h-full cursor-pointer hover:border-primary transition-all overflow-hidden">
                       <CardHeader className="p-4">
@@ -261,7 +261,7 @@ const Backlog = () => {
                   <div className="col-span-2">Created</div>
                 </div>
                 <ScrollArea className="h-[60vh]">
-                  {filteredStories.map((story, index) => (
+                  {filteredStories.map((story: Story, index: number) => (
                     <React.Fragment key={story.id}>
                       {index > 0 && <Separator />}
                       <Link href={`/stories/${story.id}`}>
@@ -337,7 +337,7 @@ const Backlog = () => {
           ) : filteredEpics && filteredEpics.length > 0 ? (
             statusView === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredEpics.map((epic) => (
+                {filteredEpics.map((epic: Epic) => (
                   <Link key={epic.id} href={`/epics/${epic.id}`}>
                     <Card className="h-full cursor-pointer hover:border-primary transition-all overflow-hidden">
                       <CardHeader className="p-4">
@@ -358,7 +358,7 @@ const Backlog = () => {
                       </CardContent>
                       <CardFooter className="p-4 flex justify-between text-sm">
                         <span className="text-muted-foreground">
-                          Progress: {epic.progress ? `${epic.progress.percentage}%` : "0%"}
+                          Progress: {epic.progress && typeof epic.progress === 'object' ? `${(epic.progress as {percentage: number}).percentage}%` : "0%"}
                         </span>
                         <span className="text-muted-foreground">
                           Created: {formatDate(epic.createdAt)}
@@ -377,7 +377,7 @@ const Backlog = () => {
                   <div className="col-span-2">Created</div>
                 </div>
                 <ScrollArea className="h-[60vh]">
-                  {filteredEpics.map((epic, index) => (
+                  {filteredEpics.map((epic: Epic, index: number) => (
                     <React.Fragment key={epic.id}>
                       {index > 0 && <Separator />}
                       <Link href={`/epics/${epic.id}`}>
@@ -394,7 +394,7 @@ const Backlog = () => {
                             </Badge>
                           </div>
                           <div className="col-span-2 flex items-center text-sm">
-                            {epic.progress ? `${epic.progress.percentage}%` : "0%"}
+                            {epic.progress && typeof epic.progress === 'object' ? `${(epic.progress as {percentage: number}).percentage}%` : "0%"}
                           </div>
                           <div className="col-span-2 flex items-center text-sm text-muted-foreground">
                             {formatDate(epic.createdAt)}
