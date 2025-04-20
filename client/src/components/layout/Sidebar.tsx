@@ -164,32 +164,201 @@ export default function Sidebar() {
             </Button>
           </div>
           <nav className="flex-1 px-4 py-4 overflow-y-auto">
-            {navItems.map((item) => {
-              const isActive = location === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
-                    isActive
-                      ? "bg-gray-100 text-primary-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
-                  )}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <item.icon
-                    className={cn(
-                      "mr-3 flex-shrink-0 h-5 w-5",
-                      isActive
-                        ? "text-primary-600"
-                        : "text-gray-500 group-hover:text-primary-600"
-                    )}
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
+            {/* Manually define mobile navigation items */}
+            <Link
+              href="/"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <HomeIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Dashboard
+            </Link>
+            
+            <Link
+              href="/projects"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/projects" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <BriefcaseIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/projects" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Projects
+            </Link>
+
+            <Link
+              href="/sprints"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/sprints" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <SparklesIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/sprints" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Sprints
+            </Link>
+
+            <Link
+              href="/backlog"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/backlog" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <ListIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/backlog" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Backlog
+            </Link>
+
+            <Link
+              href="/epics"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/epics" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <BookOpenIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/epics" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Epics
+            </Link>
+
+            <Link
+              href="/stories"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/stories" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <BookIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/stories" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Stories
+            </Link>
+
+            <Link
+              href="/tasks"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/tasks" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <ClipboardListIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/tasks" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Tasks
+            </Link>
+
+            <Link
+              href="/companies"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/companies" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <LandmarkIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/companies" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Companies
+            </Link>
+
+            <Link
+              href="/departments"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/departments" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <FolderIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/departments" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Departments
+            </Link>
+
+            <Link
+              href="/teams"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/teams" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <UsersIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/teams" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Teams
+            </Link>
+
+            <Link
+              href="/users"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/users" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <UserIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/users" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Users
+            </Link>
+
+            <Link
+              href="/reports"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/reports" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <BarChart3Icon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/reports" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Reports
+            </Link>
+
+            <Link
+              href="/settings"
+              className={cn(
+                "group flex items-center px-3 py-2 text-sm font-medium rounded-md my-1",
+                location === "/settings" ? "bg-gray-100 text-primary-600" : "text-gray-700 hover:bg-gray-50 hover:text-primary-600"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <SettingsIcon className={cn(
+                "mr-3 flex-shrink-0 h-5 w-5",
+                location === "/settings" ? "text-primary-600" : "text-gray-500 group-hover:text-primary-600"
+              )} />
+              Settings
+            </Link>
           </nav>
           <div className="flex-shrink-0 flex border-t p-4">
             <div className="flex items-center justify-between w-full">
