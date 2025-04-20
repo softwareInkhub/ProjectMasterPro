@@ -178,8 +178,8 @@ export const projects = pgTable("projects", {
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
   status: text("status", { 
-    enum: ["PLANNING", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"] 
-  }).default("PLANNING").notNull(),
+    enum: ["BACKLOG", "PLANNING", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"] 
+  }).default("BACKLOG").notNull(),
   priority: text("priority", { 
     enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] 
   }).default("MEDIUM").notNull(),
