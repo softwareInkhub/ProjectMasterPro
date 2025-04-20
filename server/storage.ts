@@ -154,7 +154,8 @@ export interface IStorage {
   completeSprintAndMoveUnfinishedItems(sprintId: string, nextSprintId?: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
+// Original in-memory storage implementation (not used anymore)
+class LegacyMemStorage implements IStorage {
   private companies: Map<string, Company>;
   private departments: Map<string, Department>;
   private groups: Map<string, Group>;
@@ -970,7 +971,11 @@ import * as schema from "@shared/schema";
 
 const PostgresSessionStore = connectPg(session);
 
-export class DatabaseStorage implements IStorage {
+// Import the actual DatabaseStorage from database-storage.ts
+import { DatabaseStorage } from "./database-storage";
+
+// Keeping the InMemoryStorage for reference (renamed to avoid conflicts)
+class InMemoryStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
@@ -1886,4 +1891,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+// Export the DatabaseStorage instance
 export const storage = new DatabaseStorage();
