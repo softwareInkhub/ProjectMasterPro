@@ -16,7 +16,8 @@ import {
   BookOpenIcon,
   BookIcon,
   LogOutIcon,
-  ListIcon
+  ListIcon,
+  SparklesIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // Use direct localStorage manipulation for logout
@@ -31,6 +32,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: HomeIcon },
   { name: "Projects", href: "/projects", icon: BriefcaseIcon },
+  { name: "Sprints", href: "/sprints", icon: SparklesIcon },
   { name: "Backlog", href: "/backlog", icon: ListIcon },
   { name: "Epics", href: "/epics", icon: BookOpenIcon },
   { name: "Stories", href: "/stories", icon: BookIcon },
