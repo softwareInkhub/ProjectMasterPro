@@ -3,6 +3,7 @@ import { useEffect, createContext, useContext, useState, ReactNode, lazy, Suspen
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Backlog from "@/pages/backlog";
+import SprintsPage from "@/pages/sprints";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
@@ -539,6 +540,15 @@ function App() {
           </ProtectedRoute>
         </Route>
         
+        {/* Sprints route */}
+        <Route path="/sprints">
+          <ProtectedRoute>
+            <Layout>
+              <SprintsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+
         {/* Backlog route */}
         <Route path="/backlog">
           <ProtectedRoute>
