@@ -541,7 +541,9 @@ function App() {
           </ProtectedRoute>
         </Route>
         
-        {/* Sprints route - high priority */}
+        {/* HIGH PRIORITY ROUTES - EXPLICITLY DEFINED FOR CLEAR NAVIGATION */}
+        
+        {/* SPRINT MANAGEMENT - HIGH PRIORITY */}
         <Route path="/sprints">
           <ProtectedRoute>
             <Layout>
@@ -550,7 +552,7 @@ function App() {
           </ProtectedRoute>
         </Route>
 
-        {/* Backlog route - high priority */}
+        {/* BACKLOG MANAGEMENT - HIGH PRIORITY */}
         <Route path="/backlog">
           <ProtectedRoute>
             <Layout>
