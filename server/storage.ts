@@ -4,11 +4,11 @@ import {
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
   Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
-  TimeEntry, InsertTimeEntry, Sprint, InsertSprint, SprintItem, InsertSprintItem,
+  TimeEntry, InsertTimeEntry,
   // Schema tables
   companies, departments, groups, users, teams, teamMembers, projects, epics,
   stories, tasks, comments, attachments, notifications, locations, devices,
-  timeEntries, sprints, sprintItems
+  timeEntries
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
@@ -135,27 +135,9 @@ export interface IStorage {
   createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry>;
   updateTimeEntry(id: string, timeEntry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
   deleteTimeEntry(id: string): Promise<boolean>;
-
-  // Sprint operations
-  getSprints(projectId?: string, teamId?: string, status?: string): Promise<Sprint[]>;
-  getSprint(id: string): Promise<Sprint | undefined>;
-  createSprint(sprint: InsertSprint): Promise<Sprint>;
-  updateSprint(id: string, sprint: Partial<InsertSprint>): Promise<Sprint | undefined>;
-  deleteSprint(id: string): Promise<boolean>;
-  
-  // Sprint Items operations
-  getSprintItems(sprintId: string, itemType?: string): Promise<SprintItem[]>;
-  getBacklogItems(projectId: string): Promise<{ epics: Epic[], stories: Story[], tasks: Task[] }>;
-  addItemToSprint(item: InsertSprintItem): Promise<SprintItem>;
-  removeItemFromSprint(sprintId: string, itemType: string, itemId: string): Promise<boolean>;
-  moveItemToSprint(itemId: string, itemType: string, fromSprintId: string, toSprintId: string): Promise<boolean>;
-  getSprintItemDetails(sprintId: string): Promise<{ epics: Epic[], stories: Story[], tasks: Task[] }>;
-  getActiveSprintsByUser(userId: string): Promise<Sprint[]>;
-  completeSprintAndMoveUnfinishedItems(sprintId: string, nextSprintId?: string): Promise<boolean>;
 }
 
-// Original in-memory storage implementation (not used anymore)
-class LegacyMemStorage implements IStorage {
+export class MemStorage implements IStorage {
   private companies: Map<string, Company>;
   private departments: Map<string, Department>;
   private groups: Map<string, Group>;
@@ -971,11 +953,7 @@ import * as schema from "@shared/schema";
 
 const PostgresSessionStore = connectPg(session);
 
-// Import the actual DatabaseStorage from database-storage.ts
-import { DatabaseStorage } from "./database-storage";
-
-// Keeping the InMemoryStorage for reference (renamed to avoid conflicts)
-class InMemoryStorage implements IStorage {
+export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
@@ -1891,5 +1869,4 @@ class InMemoryStorage implements IStorage {
   }
 }
 
-// Export the DatabaseStorage instance
 export const storage = new DatabaseStorage();

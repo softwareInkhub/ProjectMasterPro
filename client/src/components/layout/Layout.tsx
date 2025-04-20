@@ -1,23 +1,17 @@
-import { ReactNode, useEffect } from "react";
-import ProjectNav from "./ProjectNav";
+import { ReactNode } from "react";
+import Sidebar from "./Sidebar";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  // Force re-render of sidebar on mount and log for verification
-  useEffect(() => {
-    console.log("New Layout mounted - FIXED navigation should be visible");
-  }, []);
-
   return (
     <div className="h-screen overflow-hidden bg-gray-50">
-      {/* New ProjectNav Component */}
-      <ProjectNav />
+      <Sidebar />
 
       {/* Main content area with sidebar offset */}
-      <div className="pl-64 flex flex-col flex-1 h-screen overflow-y-auto">
+      <div className="lg:pl-64 flex flex-col flex-1 h-screen overflow-y-auto">
         <main className="flex-1 p-4 md:p-8">
           {children}
         </main>

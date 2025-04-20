@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 // Define event types matching the server's EventType enum
 export enum EventType {
@@ -61,6 +62,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Create WebSocket connection
@@ -137,7 +139,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       case EventType.TEAM_UPDATED:
       case EventType.TEAM_DELETED:
         queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
-        console.log("Team information has been updated");
+        toast({
+          title: "Team Updated",
+          description: "Team information has been updated",
+        });
         break;
         
       case EventType.PROJECT_CREATED:
@@ -151,11 +156,20 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           console.log(`Invalidating specific project: ${message.payload.id}`);
         }
         
-        // Log status changes
+        // Show appropriate toast for status changes
         if (message.payload?.status) {
-          console.log(`Project Status: ${message.payload.status}`);
+          toast({
+            title: `Project Status: ${message.payload.status}`,
+            description: message.payload.status === 'COMPLETED' 
+              ? 'Project has been marked as completed!' 
+              : `Project status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'COMPLETED' ? "destructive" : "default",
+          });
         } else {
-          console.log(message.type === EventType.PROJECT_CREATED ? "Project Created" : "Project Updated");
+          toast({
+            title: message.type === EventType.PROJECT_CREATED ? "Project Created" : "Project Updated",
+            description: "Project information has been updated",
+          });
         }
         break;
         
@@ -169,7 +183,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           console.log(`Removing deleted project from cache: ${message.payload.id}`);
         }
         
-        console.log("Project has been removed from the system");
+        toast({
+          title: "Project Deleted",
+          description: "Project has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.EPIC_CREATED:
@@ -192,11 +210,20 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Also invalidate all projects since epic status changes affect them
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Log status changes
+        // Show appropriate toast for status changes
         if (message.payload?.status) {
-          console.log(`Epic Status: ${message.payload.status}`);
+          toast({
+            title: `Epic Status: ${message.payload.status}`,
+            description: message.payload.status === 'COMPLETED' 
+              ? 'Epic has been marked as completed! Parent project progress updated.' 
+              : `Epic status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'COMPLETED' ? "destructive" : "default",
+          });
         } else {
-          console.log(message.type === EventType.EPIC_CREATED ? "Epic Created" : "Epic Updated");
+          toast({
+            title: message.type === EventType.EPIC_CREATED ? "Epic Created" : "Epic Updated",
+            description: "Epic information has been updated",
+          });
         }
         break;
         
@@ -219,7 +246,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Also invalidate all projects list since project counts may have changed
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        console.log("Epic has been removed from the system");
+        toast({
+          title: "Epic Deleted",
+          description: "Epic has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.STORY_CREATED:
@@ -249,11 +280,20 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Log status changes
+        // Show appropriate toast for status changes
         if (message.payload?.status) {
-          console.log(`Story Status: ${message.payload.status}`);
+          toast({
+            title: `Story Status: ${message.payload.status}`,
+            description: message.payload.status === 'DONE' 
+              ? 'Story has been marked as done! Parent epic progress updated.' 
+              : `Story status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'DONE' ? "destructive" : "default",
+          });
         } else {
-          console.log(message.type === EventType.STORY_CREATED ? "Story Created" : "Story Updated");
+          toast({
+            title: message.type === EventType.STORY_CREATED ? "Story Created" : "Story Updated",
+            description: "Story information has been updated",
+          });
         }
         break;
         
@@ -283,7 +323,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        console.log("Story has been removed from the system");
+        toast({
+          title: "Story Deleted",
+          description: "Story has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.TASK_CREATED:
@@ -320,11 +364,20 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Log status changes
+        // Show appropriate toast for status changes
         if (message.payload?.status) {
-          console.log(`Task Status: ${message.payload.status}`);
+          toast({
+            title: `Task Status: ${message.payload.status}`,
+            description: message.payload.status === 'DONE' 
+              ? 'Task has been completed! Parent story progress updated.' 
+              : `Task status changed to ${message.payload.status.toLowerCase()}`,
+            variant: message.payload.status === 'DONE' ? "destructive" : "default",
+          });
         } else {
-          console.log(message.type === EventType.TASK_CREATED ? "Task Created" : "Task Updated");
+          toast({
+            title: message.type === EventType.TASK_CREATED ? "Task Created" : "Task Updated",
+            description: "Task information has been updated",
+          });
         }
         break;
         
@@ -361,8 +414,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Log the deletion
-        console.log("Task has been removed from the system");
+        // Show toast for deletion
+        toast({
+          title: "Task Deleted",
+          description: "Task has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.LOCATION_CREATED:

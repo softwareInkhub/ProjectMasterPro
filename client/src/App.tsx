@@ -2,10 +2,6 @@ import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useEffect, createContext, useContext, useState, ReactNode, lazy, Suspense } from "react";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
-import Backlog from "@/pages/backlog";
-import SprintsPage from "@/pages/sprints";
-import StandaloneSprints from "@/pages/standalone-sprints";
-import LauncherPage from "@/pages/launcher";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
@@ -36,12 +32,11 @@ import DevicesPage from "@/pages/devices";
 import NewDevicePage from "@/pages/devices/new";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout/Layout";
-// Comment out the unused layout to avoid any conflicts
-// import AppLayout from "@/layouts/AppLayout";
 import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WebSocketProvider } from "@/context/websocket-context";
+import { Toaster } from "@/components/ui/toaster";
 
 // Protected Route component
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -84,6 +79,7 @@ function App() {
   return (
     <AuthProvider>
       <WebSocketProvider>
+        <Toaster />
         <Switch>
         {/* Auth routes */}
         <Route path="/login">
@@ -541,40 +537,6 @@ function App() {
             <Layout>
               <DevicesPage />
             </Layout>
-          </ProtectedRoute>
-        </Route>
-        
-        {/* HIGH PRIORITY ROUTES - EXPLICITLY DEFINED FOR CLEAR NAVIGATION */}
-        
-        {/* DIRECT STANDALONE SPRINT ROUTE WITHOUT LAYOUT - EMERGENCY FIX */}
-        <Route path="/standalone-sprints">
-          <ProtectedRoute>
-            <StandaloneSprints />
-          </ProtectedRoute>
-        </Route>
-        
-        {/* SPRINT MANAGEMENT - HIGH PRIORITY */}
-        <Route path="/sprints">
-          <ProtectedRoute>
-            <Layout>
-              <SprintsPage />
-            </Layout>
-          </ProtectedRoute>
-        </Route>
-
-        {/* BACKLOG MANAGEMENT - HIGH PRIORITY */}
-        <Route path="/backlog">
-          <ProtectedRoute>
-            <Layout>
-              <Backlog />
-            </Layout>
-          </ProtectedRoute>
-        </Route>
-        
-        {/* App Launcher - NO LAYOUT DEPENDENCIES */}
-        <Route path="/launcher">
-          <ProtectedRoute>
-            <LauncherPage />
           </ProtectedRoute>
         </Route>
         
