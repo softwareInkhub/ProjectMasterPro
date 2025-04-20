@@ -320,20 +320,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Show appropriate toast for status changes
+        // Log status changes
         if (message.payload?.status) {
-          toast({
-            title: `Task Status: ${message.payload.status}`,
-            description: message.payload.status === 'DONE' 
-              ? 'Task has been completed! Parent story progress updated.' 
-              : `Task status changed to ${message.payload.status.toLowerCase()}`,
-            variant: message.payload.status === 'DONE' ? "destructive" : "default",
-          });
+          console.log(`Task Status: ${message.payload.status}`);
         } else {
-          toast({
-            title: message.type === EventType.TASK_CREATED ? "Task Created" : "Task Updated",
-            description: "Task information has been updated",
-          });
+          console.log(message.type === EventType.TASK_CREATED ? "Task Created" : "Task Updated");
         }
         break;
         
@@ -370,12 +361,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         queryClient.invalidateQueries({ queryKey: ['/api/epics'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         
-        // Show toast for deletion
-        toast({
-          title: "Task Deleted",
-          description: "Task has been removed from the system",
-          variant: "destructive",
-        });
+        // Log the deletion
+        console.log("Task has been removed from the system");
         break;
         
       case EventType.LOCATION_CREATED:
