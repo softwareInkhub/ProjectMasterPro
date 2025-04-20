@@ -4,6 +4,7 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Backlog from "@/pages/backlog";
 import SprintsPage from "@/pages/sprints";
+import StandaloneSprints from "@/pages/standalone-sprints";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
@@ -543,6 +544,13 @@ function App() {
         </Route>
         
         {/* HIGH PRIORITY ROUTES - EXPLICITLY DEFINED FOR CLEAR NAVIGATION */}
+        
+        {/* DIRECT STANDALONE SPRINT ROUTE WITHOUT LAYOUT - EMERGENCY FIX */}
+        <Route path="/standalone-sprints">
+          <ProtectedRoute>
+            <StandaloneSprints />
+          </ProtectedRoute>
+        </Route>
         
         {/* SPRINT MANAGEMENT - HIGH PRIORITY */}
         <Route path="/sprints">
