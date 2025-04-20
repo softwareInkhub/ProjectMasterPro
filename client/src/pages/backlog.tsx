@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ChevronRight, Plus, Filter, List, Search } from "lucide-react";
 import { Helmet } from "react-helmet";
+import { Story, Epic } from "@shared/schema";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import DashboardLayout from "@/layouts/dashboard-layout";
+import Layout from "@/components/layout/Layout";
 import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -49,9 +50,9 @@ const Backlog = () => {
     data: stories,
     isLoading: storiesLoading,
     error: storiesError,
-  } = useQuery({
+  } = useQuery<Story[]>({
     queryKey: ["/api/stories"],
-    select: (data) => data.filter((story) => story.status === "BACKLOG"),
+    select: (data: Story[]) => data.filter((story: Story) => story.status === "BACKLOG"),
   });
 
   // Fetch all epics in Backlog status
@@ -59,9 +60,9 @@ const Backlog = () => {
     data: epics,
     isLoading: epicsLoading,
     error: epicsError,
-  } = useQuery({
+  } = useQuery<Epic[]>({
     queryKey: ["/api/epics"],
-    select: (data) => data.filter((epic) => epic.status === "BACKLOG"),
+    select: (data: Epic[]) => data.filter((epic: Epic) => epic.status === "BACKLOG"),
   });
 
   // Filter stories based on search term and priority
@@ -108,7 +109,7 @@ const Backlog = () => {
   };
 
   return (
-    <DashboardLayout>
+    <Layout>
       <Helmet>
         <title>Backlog | Project Management</title>
       </Helmet>
@@ -422,7 +423,7 @@ const Backlog = () => {
         </TabsContent>
       </Tabs>
       
-    </DashboardLayout>
+    </Layout>
   );
 };
 

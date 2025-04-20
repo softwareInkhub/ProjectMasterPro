@@ -2,6 +2,7 @@ import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useEffect, createContext, useContext, useState, ReactNode, lazy, Suspense } from "react";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
+import Backlog from "@/pages/backlog";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
@@ -536,6 +537,15 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <DevicesPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Backlog route */}
+        <Route path="/backlog">
+          <ProtectedRoute>
+            <Layout>
+              <Backlog />
             </Layout>
           </ProtectedRoute>
         </Route>
