@@ -329,6 +329,45 @@ function App() {
         </Route>
         
         {/* Sprint routes in correct order */}
+        <Route path="/sprints/new">
+          <ProtectedRoute>
+            <Layout>
+              {(() => {
+                const NewSprintPage = lazy(() => import('./pages/sprints/new'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <NewSprintPage />
+                  </Suspense>
+                );
+              })()}
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/sprints/retrospective/:id">
+          <ProtectedRoute>
+            <Layout>
+              {(() => {
+                const SprintRetrospectivePage = lazy(() => import('./pages/sprints/retrospective/[id]'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <SprintRetrospectivePage />
+                  </Suspense>
+                );
+              })()}
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/sprints/:id">
+          <ProtectedRoute>
+            <Layout>
+              <dynamic import={() => import('./pages/sprints/[id]')} />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
         <Route path="/sprints">
           <ProtectedRoute>
             <Layout>
@@ -338,6 +377,20 @@ function App() {
         </Route>
         
         {/* Backlog routes in correct order */}
+        <Route path="/backlog/new">
+          <ProtectedRoute>
+            <Layout>
+              <dynamic import={() => import('./pages/backlog/new')} />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/backlog/:id">
+          <ProtectedRoute>
+            <Layout>
+              <dynamic import={() => import('./pages/backlog/[id]')} />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
         <Route path="/backlog">
           <ProtectedRoute>
             <Layout>
