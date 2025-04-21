@@ -70,6 +70,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
     { path: '/tasks', label: 'My Tasks', icon: <ClipboardList className="mr-2 h-5 w-5" /> },
     { path: '/tasks/kanban', label: 'Kanban Board', icon: <ClipboardList className="mr-2 h-5 w-5" /> },
   ];
+  
+  // Agile management links
+  const agileLinks = [
+    { path: '/sprints', label: 'Sprints', icon: <Calendar className="mr-2 h-5 w-5" /> },
+    { path: '/backlog', label: 'Backlog', icon: <ClipboardList className="mr-2 h-5 w-5" /> },
+  ];
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
@@ -130,6 +136,30 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </h3>
             <div className="mt-2 space-y-1">
               {taskLinks.map((link) => (
+                <Link key={link.path} href={link.path}>
+                  <a 
+                    className={cn(
+                      "flex items-center px-2 py-2 text-sm font-medium rounded",
+                      location === link.path 
+                        ? "bg-primary-50 text-primary-700" 
+                        : "text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {link.icon}
+                    <span>{link.label}</span>
+                  </a>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Agile Management Group */}
+          <div className="pt-4 border-t border-gray-200 mt-4">
+            <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Agile Management
+            </h3>
+            <div className="mt-2 space-y-1">
+              {agileLinks.map((link) => (
                 <Link key={link.path} href={link.path}>
                   <a 
                     className={cn(
@@ -228,6 +258,31 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </h3>
             <div className="mt-2 space-y-1">
               {taskLinks.map((link) => (
+                <Link key={link.path} href={link.path}>
+                  <a 
+                    className={cn(
+                      "flex items-center px-2 py-2 text-sm font-medium rounded",
+                      location === link.path 
+                        ? "bg-primary-50 text-primary-700" 
+                        : "text-gray-600 hover:bg-gray-50"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {link.icon}
+                    <span>{link.label}</span>
+                  </a>
+                </Link>
+              ))}
+            </div>
+          </div>
+          
+          {/* Agile Management Group (Mobile) */}
+          <div className="pt-4 border-t border-gray-200 mt-4">
+            <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Agile Management
+            </h3>
+            <div className="mt-2 space-y-1">
+              {agileLinks.map((link) => (
                 <Link key={link.path} href={link.path}>
                   <a 
                     className={cn(
