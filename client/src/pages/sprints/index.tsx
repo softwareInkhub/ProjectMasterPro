@@ -1,269 +1,151 @@
-import { useEffect, useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Link, useLocation } from 'wouter';
-import { Plus, Filter, SearchIcon, CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { queryClient } from '@/lib/queryClient';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { Sprint } from '@shared/schema';
-import { ResponsiveGrid } from '@/components/ui/responsive-grid';
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, PlusCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 export default function SprintsPage() {
-  const [location, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState("active");
 
-  // Fetch sprints
-  const { data: sprints, isLoading, isError } = useQuery<Sprint[]>({
-    queryKey: ['/api/sprints'],
+  // Fetch sprints data
+  const { data: sprints, isLoading, error } = useQuery({
+    queryKey: ["/api/sprints"],
+    retry: 1,
   });
 
-  // Handle filtering and searching
-  const filteredSprints = sprints?.filter(sprint => {
-    // Apply search filter
-    const matchesSearch = !searchQuery || 
-      sprint.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      sprint.goal?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Apply status filter
-    const matchesStatus = !statusFilter || sprint.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+  // Fetch projects data for reference
+  const { data: projects } = useQuery({
+    queryKey: ["/api/projects"],
+    retry: 1,
   });
 
-  // Get unique projects to populate filter
-  const projects = sprints ? [...new Set(sprints.map(sprint => sprint.projectId))] : [];
-
-  // Helper function to determine status color
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'PLANNING': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE': return 'bg-green-100 text-green-800';
-      case 'REVIEW': return 'bg-yellow-100 text-yellow-800';
-      case 'COMPLETED': return 'bg-gray-100 text-gray-800'; 
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  // Helper function to get project name
+  const getProjectName = (projectId: string) => {
+    if (!projects) return "Unknown Project";
+    const project = projects.find((p: any) => p.id === projectId);
+    return project ? project.name : "Unknown Project";
   };
 
-  // Sprint delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/sprints/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete sprint');
-      }
-      
-      return id;
-    },
-    onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/sprints'] });
-      toast({
-        title: 'Sprint deleted',
-        description: 'The sprint has been successfully deleted',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: `Failed to delete sprint: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Handle deletion
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this sprint?')) {
-      deleteMutation.mutate(id);
-    }
-  };
-
-  if (isError) {
+  if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error!</strong>
-          <span className="block sm:inline"> Failed to load sprints.</span>
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-destructive">Error Loading Sprints</CardTitle>
+            <CardDescription>
+              There was a problem loading the sprint data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Please try refreshing the page or contact support if the problem persists.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const filteredSprints = sprints?.filter((sprint: any) => {
+    if (activeTab === "active") return sprint.status === "ACTIVE";
+    if (activeTab === "planned") return sprint.status === "PLANNED";
+    if (activeTab === "completed") return sprint.status === "COMPLETED";
+    return true;
+  }) || [];
+
   return (
-    <div className="container mx-auto p-4 md:p-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Sprints</h1>
-          <p className="text-muted-foreground mt-1 max-w-xl">
-            Plan and track your team's progress with sprints. Organize work into time-bound iterations.
-          </p>
-        </div>
-        <Button 
-          onClick={() => setLocation('/sprints/new')} 
-          className="mt-4 md:mt-0"
-        >
-          <Plus className="h-4 w-4 mr-2" /> Create Sprint
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Sprints</h1>
+        <Button onClick={() => setLocation("/sprints/new")}>
+          <PlusCircle className="h-4 w-4 mr-2" />
+          New Sprint
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-grow">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input
-            placeholder="Search sprints..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              {statusFilter ? `Status: ${statusFilter}` : 'Filter'}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => setStatusFilter(null)}>
-              All Statuses
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('PLANNING')}>
-              Planning
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('ACTIVE')}>
-              Active
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('REVIEW')}>
-              Review
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('COMPLETED')}>
-              Completed
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter('CANCELLED')}>
-              Cancelled
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <Tabs defaultValue="active" onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4 max-w-md">
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="planned">Planned</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
+        </TabsList>
 
-      {isLoading ? (
-        <ResponsiveGrid>
-          {Array(6).fill(0).map((_, i) => (
-            <Card key={i} className="min-h-[200px]">
-              <CardHeader>
-                <Skeleton className="h-6 w-2/3" />
-                <Skeleton className="h-4 w-1/3 mt-2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-2/3" />
-              </CardContent>
-              <CardFooter>
-                <Skeleton className="h-8 w-20" />
-              </CardFooter>
-            </Card>
-          ))}
-        </ResponsiveGrid>
-      ) : filteredSprints && filteredSprints.length > 0 ? (
-        <ResponsiveGrid>
-          {filteredSprints.map((sprint) => (
-            <Card key={sprint.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{sprint.name}</CardTitle>
-                  <Badge className={getStatusColor(sprint.status)}>
-                    {sprint.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-                {sprint.teamId && (
-                  <div className="flex items-center text-sm text-muted-foreground mt-1">
-                    Team ID: {sprint.teamId.substring(0, 8)}...
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="pb-3">
-                {sprint.goal && (
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {sprint.goal.length > 150
-                      ? `${sprint.goal.substring(0, 150)}...`
-                      : sprint.goal}
-                  </p>
-                )}
-                <div className="flex items-center gap-4 text-sm mt-3">
-                  <div className="flex items-center gap-1">
-                    <CalendarIcon className="h-4 w-4 text-gray-500" />
-                    <span>
-                      {sprint.startDate 
-                        ? format(new Date(sprint.startDate), 'MMM d') 
-                        : 'No start date'}
-                    </span>
-                  </div>
-                  <span>-</span>
-                  <div className="flex items-center gap-1">
-                    <CalendarIcon className="h-4 w-4 text-gray-500" />
-                    <span>
-                      {sprint.endDate 
-                        ? format(new Date(sprint.endDate), 'MMM d') 
-                        : 'No end date'}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between pt-2">
-                <Link href={`/sprints/${sprint.id}`}>
-                  <Button variant="outline" size="sm">View Details</Button>
-                </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      •••
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setLocation(`/sprints/edit/${sprint.id}`)}>
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onSelect={() => handleDelete(sprint.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardFooter>
-            </Card>
-          ))}
-        </ResponsiveGrid>
-      ) : (
-        <div className="text-center py-12 border rounded-lg bg-gray-50">
-          <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No sprints found</h3>
-          <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
-            {searchQuery || statusFilter
-              ? "No sprints match your search criteria. Try adjusting your filters."
-              : "Get started by creating your first sprint to organize your team's work."}
-          </p>
-          <div className="mt-6">
-            <Button onClick={() => setLocation('/sprints/new')}>Create Sprint</Button>
-          </div>
-        </div>
-      )}
+        {["active", "planned", "completed", "all"].map((tab) => (
+          <TabsContent key={tab} value={tab} className="space-y-4 pt-4">
+            {filteredSprints.length === 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>No Sprints Found</CardTitle>
+                  <CardDescription>
+                    {activeTab === "active" 
+                      ? "There are no active sprints currently." 
+                      : activeTab === "planned" 
+                      ? "There are no planned sprints currently."
+                      : activeTab === "completed"
+                      ? "There are no completed sprints."
+                      : "There are no sprints available."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>Click the "New Sprint" button to create a sprint.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSprints.map((sprint: any) => (
+                  <Card key={sprint.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex justify-between items-center">
+                        <Link href={`/sprints/${sprint.id}`} className="text-lg font-semibold text-primary hover:underline">
+                          {sprint.name}
+                        </Link>
+                        <Badge variant={sprint.status === "ACTIVE" ? "default" : 
+                                       sprint.status === "PLANNED" ? "outline" : 
+                                       "secondary"}>
+                          {sprint.status}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>{getProjectName(sprint.projectId)}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Start:</span>
+                          <span className="font-medium">{new Date(sprint.startDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">End:</span>
+                          <span className="font-medium">{new Date(sprint.endDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Progress:</span>
+                          <span className="font-medium">{sprint.progress}%</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Link href={`/sprints/${sprint.id}`} className="w-full">
+                        <Button variant="outline" className="w-full text-sm">View Details</Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
