@@ -29,17 +29,21 @@ type NavItem = {
   icon: React.ElementType;
 };
 
-// Updated navigation items with Sprint and Backlog management
+// TEST UPDATE: Navigation items with Agile Management sections
 const navItems: NavItem[] = [
+  // Dashboard & Projects
   { name: "Dashboard", href: "/", icon: HomeIcon },
   { name: "Projects", href: "/projects", icon: BriefcaseIcon },
-  // Sprint Management section
-  { name: "Sprints", href: "/sprints", icon: CalendarIcon },
-  { name: "Backlog", href: "/backlog", icon: ListIcon },
+  
+  // Agile Management section with Sprint and Backlog
+  { name: "⭐ SPRINTS", href: "/sprints", icon: CalendarIcon },
+  { name: "⭐ BACKLOG", href: "/backlog", icon: ListIcon },
+  
   // Development items
   { name: "Epics", href: "/epics", icon: BookOpenIcon },
   { name: "Stories", href: "/stories", icon: BookIcon },
   { name: "Tasks", href: "/tasks", icon: ClipboardListIcon },
+  
   // Organization items
   { name: "Companies", href: "/companies", icon: LandmarkIcon },
   { name: "Departments", href: "/departments", icon: FolderIcon },
