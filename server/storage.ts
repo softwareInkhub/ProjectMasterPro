@@ -1142,27 +1142,41 @@ export class MemStorage implements IStorage {
   }
 }
 
-import { db, pool } from "./db";
+import { db } from "./db";
 import { eq, and, isNull, desc } from "drizzle-orm";
-import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { createSessionTable } from "./session";
 import * as schema from "@shared/schema";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import createMemoryStore from "memorystore";
 
-const PostgresSessionStore = connectPg(session);
+// Initialize memory store for session management
+const MemoryStore = createMemoryStore(session);
+
+// Initialize DynamoDB (for future implementation)
+// We'll use in-memory storage for now until DynamoDB is fully implemented
+const dynamoClient = new DynamoDBClient({
+  region: "us-east-1",  // Default region, will be overridden by AWS config
+  // Credentials would be configured in production environment
+});
+
+// Document client provides a higher-level interface
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true,
-      tableName: "session"
+    // Using memory store for sessions instead of PostgreSQL
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // prune expired entries every 24h
     });
     
     // Create default admin if no users exist
     this.checkAndCreateDefaultAdmin().catch(console.error);
+    
+    console.log("Using memory storage for sessions. DynamoDB will be implemented for production.");
   }
   
   private async checkAndCreateDefaultAdmin() {

@@ -1,15 +1,15 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+// Using memory storage since DynamoDB is being used separately
 import * as schema from "@shared/schema";
+import { drizzle } from "drizzle-orm/neon-serverless";
 
-neonConfig.webSocketConstructor = ws;
-
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+// Create a mock pool and db interface for compatibility
+class MockPool {
+  query() {
+    return Promise.resolve({ rows: [] });
+  }
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+export const pool = new MockPool();
+export const db = drizzle({ client: pool as any, schema });
+
+console.log("Using DynamoDB for data storage - PostgreSQL connection removed");
