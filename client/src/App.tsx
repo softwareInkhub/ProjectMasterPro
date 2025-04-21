@@ -5,6 +5,8 @@ import Dashboard from "@/pages/dashboard";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/[id]";
 import NewProjectPage from "@/pages/projects/new";
+import SprintsPage from "@/pages/sprints";
+import BacklogPage from "@/pages/backlog";
 import TasksPage from "@/pages/tasks";
 import TaskDetailPage from "@/pages/tasks/[id]";
 import NewTaskPage from "@/pages/tasks/new";
@@ -319,6 +321,24 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <ProjectsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Sprint routes */}
+        <Route path="/sprints">
+          <ProtectedRoute>
+            <Layout>
+              <SprintsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Backlog routes */}
+        <Route path="/backlog">
+          <ProtectedRoute>
+            <Layout>
+              <BacklogPage />
             </Layout>
           </ProtectedRoute>
         </Route>
