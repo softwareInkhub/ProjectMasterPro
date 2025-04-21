@@ -47,9 +47,10 @@ The application employs a modern, scalable architecture:
 - **State Management**: TanStack Query for server state, React context for local state
 - **Routing**: Wouter for lightweight client-side routing
 - **Backend**: Express server with RESTful API endpoints
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
+- **Database**: DynamoDB for NoSQL data persistence (migrated from PostgreSQL)
 - **Authentication**: JWT tokens for stateless authentication
 - **Data Validation**: Zod schemas for end-to-end type safety
+- **Real-time Updates**: WebSocket server for instant notifications and updates
 
 ## Data Model
 
@@ -837,7 +838,7 @@ Permission checks are implemented at both the API and UI levels to ensure consis
 
 1. **Prerequisites**
    - Node.js 18+ and npm
-   - PostgreSQL 14+
+   - AWS account with DynamoDB access (or local DynamoDB for development)
    - Git
 
 2. **Installation Steps**
@@ -851,22 +852,21 @@ Permission checks are implemented at both the API and UI levels to ensure consis
 
    # Configure environment variables
    cp .env.example .env
-   # Edit .env with your database credentials and settings
-
-   # Initialize the database
-   npm run db:push
+   # Edit .env with your AWS credentials and application settings
+   
+   # Required environment variables:
+   # AWS_REGION=us-east-1
+   # AWS_ACCESS_KEY_ID=your-access-key
+   # AWS_SECRET_ACCESS_KEY=your-secret-key
+   # SESSION_SECRET=your-session-secret
+   # JWT_SECRET=your-jwt-secret
+   # JWT_EXPIRATION=24h
 
    # Start the development server
    npm run dev
    ```
-
-3. **Environment Variables**
-   ```
-   DATABASE_URL=postgresql://user:password@localhost:5432/project_db
-   PORT=5000
-   JWT_SECRET=your_jwt_secret_key
-   JWT_EXPIRY=24h
-   ```
+   
+3. **For detailed deployment instructions, refer to the [Deployment Guide](README_DEPLOYMENT.md)**
 
 ### Folder Structure
 
@@ -988,9 +988,9 @@ project-management-system/
    - Ensure cookies are properly configured for secure operations
 
 2. **Database Connectivity**
-   - Verify DATABASE_URL in environment variables
-   - Check PostgreSQL service is running
-   - Ensure database user has proper permissions
+   - Verify AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION)
+   - Check AWS permissions for DynamoDB access
+   - Ensure proper network connectivity to AWS services
 
 3. **API Errors**
    - Check server logs for detailed error messages
@@ -1012,7 +1012,8 @@ project-management-system/
 2. **Backend Debugging**
    - Winston logger for structured server logs
    - Postman for API endpoint testing
-   - Database inspection with pgAdmin
+   - AWS DynamoDB console for database inspection and queries
+   - AWS CloudWatch for monitoring DynamoDB operations
 
 3. **Performance Monitoring**
    - Lighthouse for frontend performance
