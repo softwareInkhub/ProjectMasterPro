@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,24 +19,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 
 // Create a schema for the form
 const sprintFormSchema = z.object({
-  name: z.string().min(1, "Sprint name is required"),
-  goal: z.string().optional(),
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  startDate: z.date(),
+  endDate: z.date(),
+  status: z.enum(["PLANNING", "ACTIVE", "COMPLETED", "CANCELLED"]),
   projectId: z.string().min(1, "Project is required"),
-  teamId: z.string().min(1, "Team is required"),
-  scrumMasterId: z.string().optional(),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
-  capacity: z.string().optional(),
-  status: z.enum(["PLANNING", "ACTIVE", "REVIEW", "COMPLETED"]).default("PLANNING"),
-  notes: z.string().optional(),
+  teamId: z.string().optional(),
+  goals: z.array(z.string()).optional(),
 });
 
 type SprintFormValues = z.infer<typeof sprintFormSchema>;
@@ -44,24 +44,17 @@ type SprintFormValues = z.infer<typeof sprintFormSchema>;
 export default function NewSprintPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [goals, setGoals] = useState<string[]>(['']);
 
-  // Get projects for the dropdown
+  // Fetch projects for the dropdown
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ["/api/projects"],
     retry: 1,
   });
 
-  // Get teams for the dropdown
+  // Fetch teams for the dropdown
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/teams"],
-    retry: 1,
-  });
-
-  // Get users for the scrum master dropdown
-  const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ["/api/users"],
     retry: 1,
   });
 
@@ -70,16 +63,37 @@ export default function NewSprintPage() {
     resolver: zodResolver(sprintFormSchema),
     defaultValues: {
       name: "",
-      goal: "",
+      description: "",
       status: "PLANNING",
-      capacity: "",
-      notes: "",
+      startDate: new Date(),
+      endDate: new Date(new Date().setDate(new Date().getDate() + 14)), // Default 2 weeks
+      goals: [],
     },
   });
+
+  // Helper functions for goals
+  const addGoal = () => {
+    setGoals([...goals, '']);
+  };
+
+  const removeGoal = (index: number) => {
+    if (goals.length > 1) {
+      setGoals(goals.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateGoal = (index: number, value: string) => {
+    const updated = [...goals];
+    updated[index] = value;
+    setGoals(updated);
+  };
 
   // Mutation to create a new sprint
   const createSprintMutation = useMutation({
     mutationFn: async (data: SprintFormValues) => {
+      // Add goals to the data
+      data.goals = goals.filter(goal => goal.trim() !== '');
+      
       const response = await apiRequest("POST", "/api/sprints", data);
       return response.json();
     },
@@ -102,13 +116,7 @@ export default function NewSprintPage() {
   });
 
   const onSubmit = (data: SprintFormValues) => {
-    // Make sure dates are in the correct format before submitting
-    const formattedData = {
-      ...data,
-      startDate: data.startDate ? data.startDate.toISOString() : undefined,
-      endDate: data.endDate ? data.endDate.toISOString() : undefined,
-    };
-    createSprintMutation.mutate(formattedData as any);
+    createSprintMutation.mutate(data);
   };
 
   return (
@@ -124,24 +132,109 @@ export default function NewSprintPage() {
         <CardHeader>
           <CardTitle>Sprint Details</CardTitle>
           <CardDescription>
-            Create a new sprint for your project. Provide all necessary details.
+            Create a new sprint. Fill in all the necessary details below.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sprint Name*</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Sprint 1 - Initial Setup" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Give your sprint a clear, descriptive name.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="startDate"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sprint Name*</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Sprint 1 - Authentication" {...field} />
-                      </FormControl>
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Start Date*</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <FormDescription>
-                        Give your sprint a descriptive name.
+                        The date when the sprint begins.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>End Date*</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                            disabled={(date) => date < form.getValues("startDate")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        The date when the sprint ends. Must be after the start date.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -153,7 +246,7 @@ export default function NewSprintPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>Status*</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
@@ -167,12 +260,12 @@ export default function NewSprintPage() {
                         <SelectContent>
                           <SelectItem value="PLANNING">Planning</SelectItem>
                           <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="REVIEW">Review</SelectItem>
                           <SelectItem value="COMPLETED">Completed</SelectItem>
+                          <SelectItem value="CANCELLED">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Current status of the sprint.
+                        The current status of the sprint.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -216,9 +309,9 @@ export default function NewSprintPage() {
                   name="teamId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Team*</FormLabel>
+                      <FormLabel>Team</FormLabel>
                       <Select
-                        value={field.value}
+                        value={field.value || ""}
                         onValueChange={field.onChange}
                         disabled={teamsLoading}
                       >
@@ -228,6 +321,7 @@ export default function NewSprintPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="">None</SelectItem>
                           {teams?.map((team: any) => (
                             <SelectItem key={team.id} value={team.id}>
                               {team.name}
@@ -236,141 +330,7 @@ export default function NewSprintPage() {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        The team working on this sprint.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="scrumMasterId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Scrum Master</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={usersLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a scrum master" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {users?.map((user: any) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.firstName} {user.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        The scrum master for this sprint.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="capacity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Capacity (Story Points)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 20" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Planned capacity for this sprint in story points.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Start Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className="w-full pl-3 text-left font-normal"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span className="text-muted-foreground">Pick a date</span>
-                              )}
-                              <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <CalendarComponent
-                            mode="single"
-                            selected={field.value}
-                            onSelect={(date) => {
-                              field.onChange(date);
-                              setStartDate(date);
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormDescription>
-                        When the sprint starts.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className="w-full pl-3 text-left font-normal"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span className="text-muted-foreground">Pick a date</span>
-                              )}
-                              <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <CalendarComponent
-                            mode="single"
-                            selected={field.value}
-                            onSelect={(date) => {
-                              field.onChange(date);
-                              setEndDate(date);
-                            }}
-                            disabled={(date) => startDate ? date < startDate : false}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormDescription>
-                        When the sprint ends.
+                        The team responsible for this sprint.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -380,45 +340,63 @@ export default function NewSprintPage() {
 
               <FormField
                 control={form.control}
-                name="goal"
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Sprint Goal</FormLabel>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., Implement user authentication and registration functionality"
+                        placeholder="Enter a detailed description of the sprint purpose and focus"
                         {...field}
-                        rows={3}
+                        rows={5}
                       />
                     </FormControl>
                     <FormDescription>
-                      A clear, concise goal for this sprint.
+                      Provide a clear description of what the sprint aims to achieve.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Any additional information about this sprint"
-                        {...field}
-                        rows={3}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Sprint Goals</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Define what you aim to achieve during this sprint.
+                  </p>
+                  
+                  {goals.map((goal, index) => (
+                    <div key={`goal-${index}`} className="flex items-center gap-2 mb-2">
+                      <Input
+                        value={goal}
+                        onChange={(e) => updateGoal(index, e.target.value)}
+                        placeholder="e.g., Complete user authentication system"
+                        className="flex-1"
                       />
-                    </FormControl>
-                    <FormDescription>
-                      Additional notes, context, or instructions for the sprint.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeGoal(index)}
+                        disabled={goals.length <= 1}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addGoal}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add Goal
+                  </Button>
+                </div>
+              </div>
 
               <div className="flex justify-end space-x-2">
                 <Button

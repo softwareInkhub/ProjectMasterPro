@@ -364,7 +364,16 @@ function App() {
         <Route path="/sprints/:id">
           <ProtectedRoute>
             <Layout>
-              <dynamic import={() => import('./pages/sprints/[id]')} />
+              {(() => {
+                const SprintDetailPage = lazy(() => import('./pages/sprints/[id]'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <SprintDetailPage />
+                  </Suspense>
+                );
+              })()}
             </Layout>
           </ProtectedRoute>
         </Route>
@@ -380,14 +389,32 @@ function App() {
         <Route path="/backlog/new">
           <ProtectedRoute>
             <Layout>
-              <dynamic import={() => import('./pages/backlog/new')} />
+              {(() => {
+                const NewBacklogItemPage = lazy(() => import('./pages/backlog/new'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <NewBacklogItemPage />
+                  </Suspense>
+                );
+              })()}
             </Layout>
           </ProtectedRoute>
         </Route>
         <Route path="/backlog/:id">
           <ProtectedRoute>
             <Layout>
-              <dynamic import={() => import('./pages/backlog/[id]')} />
+              {(() => {
+                const BacklogItemDetailPage = lazy(() => import('./pages/backlog/[id]'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <BacklogItemDetailPage />
+                  </Suspense>
+                );
+              })()}
             </Layout>
           </ProtectedRoute>
         </Route>

@@ -3,11 +3,10 @@ import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Edit, Trash2, Calendar, Users, ListTodo, CheckCircle2, AlertCircle, BarChart } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +17,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Edit,
+  FileText,
+  ListChecks,
+  PlusCircle,
+  Trash2,
+  Users2,
+  BarChart,
+} from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,39 +37,60 @@ export default function SprintDetailPage() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const { data: sprint, isLoading: sprintLoading, error: sprintError } = useQuery({
+  // Fetch sprint data
+  const { data: sprint, isLoading, error } = useQuery({
     queryKey: ["/api/sprints", id],
     queryFn: () => apiRequest("GET", `/api/sprints/${id}`).then(res => res.json()),
   });
 
-  const { data: backlogItems, isLoading: backlogLoading } = useQuery({
+  // Fetch backlog items for this sprint
+  const { data: backlogItems } = useQuery({
     queryKey: ["/api/backlog-items", { sprintId: id }],
     queryFn: () => apiRequest("GET", `/api/backlog-items?sprintId=${id}`).then(res => res.json()),
-    enabled: !!sprint,
+    enabled: !!id,
   });
 
-  const { data: users } = useQuery({
-    queryKey: ["/api/users"],
-    enabled: !!sprint,
-  });
-
+  // Fetch projects for reference
   const { data: projects } = useQuery({
     queryKey: ["/api/projects"],
     enabled: !!sprint,
   });
 
+  // Fetch teams for reference
   const { data: teams } = useQuery({
     queryKey: ["/api/teams"],
     enabled: !!sprint,
   });
 
-  const deleteMutation = useMutation({
+  // Mutation to update sprint status
+  const updateStatusMutation = useMutation({
+    mutationFn: async (status: string) => {
+      const response = await apiRequest("PUT", `/api/sprints/${id}`, { status });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sprints", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sprints"] });
+      toast({
+        title: "Status Updated",
+        description: "The sprint status has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update the sprint status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to delete sprint
+  const deleteSprintMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/sprints/${id}`);
-      return response.ok;
+      await apiRequest("DELETE", `/api/sprints/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sprints"] });
@@ -70,61 +103,21 @@ export default function SprintDetailPage() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to delete the sprint. Please try again.",
+        description: "Failed to delete sprint. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  const completeMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("PUT", `/api/sprints/${id}`, { 
-        status: "COMPLETED" 
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sprints", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sprints"] });
-      toast({
-        title: "Sprint Completed",
-        description: "The sprint has been marked as completed.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to complete the sprint. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  const handleStatusChange = (status: string) => {
+    updateStatusMutation.mutate(status);
+  };
 
-  const activateMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("PUT", `/api/sprints/${id}`, { 
-        status: "ACTIVE" 
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sprints", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sprints"] });
-      toast({
-        title: "Sprint Activated",
-        description: "The sprint has been activated.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to activate the sprint. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  const handleDelete = () => {
+    deleteSprintMutation.mutate();
+  };
 
-  if (sprintLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
@@ -132,7 +125,7 @@ export default function SprintDetailPage() {
     );
   }
 
-  if (sprintError || !sprint) {
+  if (error || !sprint) {
     return (
       <div className="p-4">
         <Card>
@@ -155,7 +148,7 @@ export default function SprintDetailPage() {
     );
   }
 
-  // Helper functions to get names from IDs
+  // Helper functions
   const getProjectName = (projectId: string) => {
     if (!projects) return "Unknown Project";
     const project = projects.find((p: any) => p.id === projectId);
@@ -168,417 +161,401 @@ export default function SprintDetailPage() {
     return team ? team.name : "Unknown Team";
   };
 
-  const getUserName = (userId: string) => {
-    if (!users) return "Unknown User";
-    const user = users.find((u: any) => u.id === userId);
-    return user ? `${user.firstName} ${user.lastName}` : "Unknown User";
-  };
-
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
+      case "PLANNING": return "secondary";
       case "ACTIVE": return "default";
-      case "PLANNING": return "outline";
-      case "COMPLETED": return "secondary";
-      case "REVIEW": return "warning";
+      case "COMPLETED": return "success";
+      case "CANCELLED": return "destructive";
       default: return "outline";
     }
   };
 
-  const handleDeleteClick = () => {
-    setShowDeleteDialog(true);
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
-  const handleDelete = () => {
-    deleteMutation.mutate();
+  // Calculate sprint metrics
+  const calculateSprintMetrics = () => {
+    if (!backlogItems || backlogItems.length === 0) {
+      return {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        notStarted: 0,
+        completionPercentage: 0,
+      };
+    }
+
+    const total = backlogItems.length;
+    const completed = backlogItems.filter((item: any) => item.status === "DONE").length;
+    const inProgress = backlogItems.filter((item: any) => item.status === "IN_PROGRESS").length;
+    const notStarted = total - completed - inProgress;
+    const completionPercentage = Math.round((completed / total) * 100);
+
+    return {
+      total,
+      completed,
+      inProgress,
+      notStarted,
+      completionPercentage,
+    };
   };
 
-  const handleCompleteClick = () => {
-    completeMutation.mutate();
-  };
-
-  const handleActivateClick = () => {
-    activateMutation.mutate();
-  };
+  const metrics = calculateSprintMetrics();
 
   return (
     <div className="p-4 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="icon" onClick={() => setLocation("/sprints")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-bold">{sprint.name}</h1>
-          <Badge variant={getStatusBadgeVariant(sprint.status)}>
-            {sprint.status}
-          </Badge>
+          <div>
+            <h1 className="text-2xl font-bold">{sprint.name}</h1>
+            <div className="flex items-center space-x-2 mt-1">
+              <Badge variant={getStatusBadgeVariant(sprint.status)}>
+                {sprint.status}
+              </Badge>
+            </div>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          {sprint.status === "PLANNING" && (
-            <Button onClick={handleActivateClick}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Start Sprint
-            </Button>
-          )}
-          {sprint.status === "ACTIVE" && (
-            <Button onClick={handleCompleteClick}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Complete Sprint
+
+        <div className="flex space-x-2 self-end md:self-auto">
+          {sprint.status !== "COMPLETED" && (
+            <Button variant="outline" onClick={() => setLocation(`/sprints/retrospective/${id}`)}>
+              <BarChart className="mr-2 h-4 w-4" />
+              Retrospective
             </Button>
           )}
           <Button variant="outline" onClick={() => setLocation(`/sprints/${id}/edit`)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <Button variant="destructive" onClick={handleDeleteClick}>
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Sprint Progress</CardTitle>
-          <CardDescription>
-            Current completion: {sprint.completed || "0"} of {sprint.capacity || "0"} story points
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Progress value={parseInt(sprint.completed || "0") / parseInt(sprint.capacity || "1") * 100} className="h-2" />
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="backlog-items">Backlog Items</TabsTrigger>
-          <TabsTrigger value="metrics">Metrics</TabsTrigger>
-          <TabsTrigger value="retrospective">Retrospective</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center text-lg">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Start Date:</span>
-                    <span className="font-medium">
-                      {sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : "Not set"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">End Date:</span>
-                    <span className="font-medium">
-                      {sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : "Not set"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duration:</span>
-                    <span className="font-medium">
-                      {sprint.startDate && sprint.endDate
-                        ? `${Math.ceil(
-                            (new Date(sprint.endDate).getTime() - new Date(sprint.startDate).getTime()) /
-                              (1000 * 60 * 60 * 24)
-                          )} days`
-                        : "Not set"}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center text-lg">
-                  <Users className="mr-2 h-4 w-4" />
-                  Team & Project
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Project:</span>
-                    <span className="font-medium">
-                      {getProjectName(sprint.projectId)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Team:</span>
-                    <span className="font-medium">
-                      {getTeamName(sprint.teamId)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Scrum Master:</span>
-                    <span className="font-medium">
-                      {sprint.scrumMasterId ? getUserName(sprint.scrumMasterId) : "Not assigned"}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Sprint Goal</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{sprint.goal || "No sprint goal defined."}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{sprint.notes || "No notes available."}</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="backlog-items" className="mt-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Sprint Backlog Items</h3>
-            <Button onClick={() => setLocation(`/sprints/${id}/add-items`)}>Add Items to Sprint</Button>
-          </div>
-
-          {backlogLoading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-            </div>
-          ) : !backlogItems || backlogItems.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No Items</CardTitle>
-                <CardDescription>
-                  There are no backlog items in this sprint yet.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>Add items to this sprint to start tracking your work.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {backlogItems.map((item: any) => (
-                <Card key={item.id} className="hover:shadow-sm">
-                  <CardHeader className="p-4 pb-2">
-                    <div className="flex justify-between">
-                      <div>
-                        <CardTitle className="text-base">
-                          <span 
-                            className="cursor-pointer hover:underline"
-                            onClick={() => setLocation(`/backlog/${item.id}`)}
-                          >
-                            {item.title}
-                          </span>
-                        </CardTitle>
-                        <CardDescription>{item.type}</CardDescription>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Badge variant={
-                          item.priority === "HIGH" ? "destructive" : 
-                          item.priority === "MEDIUM" ? "default" : 
-                          "outline"
-                        }>
-                          {item.priority}
-                        </Badge>
-                        <Badge variant={
-                          item.status === "DONE" ? "default" : 
-                          item.status === "IN_PROGRESS" ? "secondary" : 
-                          "outline"
-                        }>
-                          {item.status.replace("_", " ")}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <div className="flex justify-between text-sm mt-2">
-                      <span>Estimate: {item.estimate || "Not set"}</span>
-                      {item.assigneeId && (
-                        <span>Assigned to: {getUserName(item.assigneeId)}</span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="metrics" className="mt-6 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Sprint Metrics</CardTitle>
-              <CardDescription>
-                Performance metrics for the current sprint
-              </CardDescription>
+              <CardTitle className="flex items-center text-lg">
+                <FileText className="mr-2 h-5 w-5" />
+                Description
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Story Points</h4>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-muted p-4 rounded-lg text-center">
-                      <p className="text-sm text-muted-foreground">Committed</p>
-                      <p className="text-2xl font-bold">{sprint.capacity || "0"}</p>
-                    </div>
-                    <div className="bg-muted p-4 rounded-lg text-center">
-                      <p className="text-sm text-muted-foreground">Completed</p>
-                      <p className="text-2xl font-bold">{sprint.completed || "0"}</p>
-                    </div>
-                    <div className="bg-muted p-4 rounded-lg text-center">
-                      <p className="text-sm text-muted-foreground">Velocity</p>
-                      <p className="text-2xl font-bold">
-                        {sprint.status === "COMPLETED" 
-                          ? (parseInt(sprint.completed || "0")).toFixed(1) 
-                          : "N/A"}
-                      </p>
-                    </div>
-                  </div>
+              <p className="text-muted-foreground whitespace-pre-line">
+                {sprint.description || "No description provided."}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Sprint progress */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg">
+                <CheckCircle2 className="mr-2 h-5 w-5" />
+                Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">{metrics.completionPercentage}% Complete</span>
+                  <span className="text-sm text-muted-foreground">
+                    {metrics.completed}/{metrics.total} items
+                  </span>
                 </div>
+                <Progress value={metrics.completionPercentage} className="h-2" />
+              </div>
 
-                <Separator />
-
-                <div>
-                  <h4 className="font-medium mb-2">Backlog Items Status</h4>
-                  <div className="grid grid-cols-4 gap-4">
-                    {!backlogItems ? (
-                      <div className="col-span-4 text-center py-4">Loading...</div>
-                    ) : (
-                      <>
-                        <div className="bg-muted p-4 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground">Total</p>
-                          <p className="text-2xl font-bold">{backlogItems.length}</p>
-                        </div>
-                        <div className="bg-muted p-4 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground">To Do</p>
-                          <p className="text-2xl font-bold">
-                            {backlogItems.filter((i: any) => i.status === "NEW" || i.status === "REFINED").length}
-                          </p>
-                        </div>
-                        <div className="bg-muted p-4 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground">In Progress</p>
-                          <p className="text-2xl font-bold">
-                            {backlogItems.filter((i: any) => i.status === "IN_PROGRESS").length}
-                          </p>
-                        </div>
-                        <div className="bg-muted p-4 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground">Done</p>
-                          <p className="text-2xl font-bold">
-                            {backlogItems.filter((i: any) => i.status === "DONE").length}
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </div>
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <div className="bg-blue-100 dark:bg-blue-900/20 p-3 rounded-lg">
+                  <div className="text-2xl font-bold">{metrics.notStarted}</div>
+                  <div className="text-xs text-muted-foreground">Not Started</div>
+                </div>
+                <div className="bg-amber-100 dark:bg-amber-900/20 p-3 rounded-lg">
+                  <div className="text-2xl font-bold">{metrics.inProgress}</div>
+                  <div className="text-xs text-muted-foreground">In Progress</div>
+                </div>
+                <div className="bg-green-100 dark:bg-green-900/20 p-3 rounded-lg">
+                  <div className="text-2xl font-bold">{metrics.completed}</div>
+                  <div className="text-xs text-muted-foreground">Completed</div>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="retrospective" className="mt-6 space-y-4">
+          {/* Backlog items in this sprint */}
           <Card>
-            <CardHeader>
-              <CardTitle>Sprint Retrospective</CardTitle>
-              <CardDescription>
-                Review and feedback for the sprint
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center text-lg">
+                <ListChecks className="mr-2 h-5 w-5" />
+                Sprint Backlog
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/backlog/new")}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Item
+              </Button>
             </CardHeader>
             <CardContent>
-              {sprint.status !== "COMPLETED" ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Retrospective Not Available</h3>
-                  <p className="text-muted-foreground">
-                    The retrospective will be available after the sprint is completed.
-                  </p>
-                </div>
-              ) : sprint.retrospective ? (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">What Went Well</h3>
-                    {sprint.retrospective.whatWentWell && sprint.retrospective.whatWentWell.length > 0 ? (
-                      <ul className="list-disc pl-5 space-y-1">
-                        {sprint.retrospective.whatWentWell.map((item: string, index: number) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground">No items recorded.</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">What Could Be Improved</h3>
-                    {sprint.retrospective.whatCouldBeImproved && sprint.retrospective.whatCouldBeImproved.length > 0 ? (
-                      <ul className="list-disc pl-5 space-y-1">
-                        {sprint.retrospective.whatCouldBeImproved.map((item: string, index: number) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground">No items recorded.</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">Action Items</h3>
-                    {sprint.retrospective.actionItems && sprint.retrospective.actionItems.length > 0 ? (
-                      <ul className="list-disc pl-5 space-y-1">
-                        {sprint.retrospective.actionItems.map((item: string, index: number) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground">No items recorded.</p>
-                    )}
-                  </div>
+              {!backlogItems || backlogItems.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  No backlog items in this sprint yet.
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <ListTodo className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No Retrospective Data</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Add retrospective data to capture learnings from this sprint.
-                  </p>
-                  <Button 
-                    onClick={() => setLocation(`/sprints/${id}/retrospective`)}
-                    disabled={sprint.status !== "COMPLETED"}
-                  >
-                    Add Retrospective
-                  </Button>
+                <div className="space-y-2">
+                  {backlogItems.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className="p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => setLocation(`/backlog/${item.id}`)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium">{item.title}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                            {item.description || "No description"}
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={
+                            item.status === "DONE" ? "success" : 
+                            item.status === "IN_PROGRESS" ? "default" : 
+                            "outline"
+                          }
+                          className="ml-2"
+                        >
+                          {item.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center mr-3">
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {item.type.replace("_", " ")}
+                          </span>
+                        </div>
+                        {item.estimate && (
+                          <div className="flex items-center mr-3">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {item.estimate} pts
+                          </div>
+                        )}
+                        {item.priority && (
+                          <div className="flex items-center">
+                            <span className={`px-2 py-0.5 rounded-full ${
+                              item.priority === "HIGH" || item.priority === "CRITICAL" ? 
+                              "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300" :
+                              item.priority === "MEDIUM" ? 
+                              "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" :
+                              "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+                            }`}>
+                              {item.priority}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
+            {backlogItems && backlogItems.length > 0 && (
+              <CardFooter>
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-center" 
+                  onClick={() => setLocation("/backlog")}
+                >
+                  View All Backlog Items
+                </Button>
+              </CardFooter>
+            )}
           </Card>
-        </TabsContent>
-      </Tabs>
 
-      {/* Delete Confirmation Dialog */}
+          {/* Retrospective section (if completed) */}
+          {sprint.retrospective && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-lg">
+                  <BarChart className="mr-2 h-5 w-5" />
+                  Sprint Retrospective
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {sprint.retrospective.whatWentWell && sprint.retrospective.whatWentWell.length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-2">What Went Well</h3>
+                    <ul className="space-y-1 list-disc list-inside text-muted-foreground">
+                      {sprint.retrospective.whatWentWell.map((item: string, index: number) => (
+                        <li key={`well-${index}`}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {sprint.retrospective.whatCouldBeImproved && sprint.retrospective.whatCouldBeImproved.length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-2">What Could Be Improved</h3>
+                    <ul className="space-y-1 list-disc list-inside text-muted-foreground">
+                      {sprint.retrospective.whatCouldBeImproved.map((item: string, index: number) => (
+                        <li key={`improve-${index}`}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {sprint.retrospective.actionItems && sprint.retrospective.actionItems.length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-2">Action Items</h3>
+                    <ul className="space-y-1 list-disc list-inside text-muted-foreground">
+                      {sprint.retrospective.actionItems.map((item: string, index: number) => (
+                        <li key={`action-${index}`}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <div className="flex justify-end pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setLocation(`/sprints/retrospective/${id}`)}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Retrospective
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="font-medium mb-1 flex items-center">
+                  <Calendar className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                  Timeline
+                </div>
+                <div className="text-sm grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-muted-foreground">Start Date</div>
+                    <div>{formatDate(sprint.startDate)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">End Date</div>
+                    <div>{formatDate(sprint.endDate)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="font-medium mb-1 flex items-center">
+                  <FileText className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                  Project
+                </div>
+                <div className="text-sm">
+                  {sprint.projectId ? getProjectName(sprint.projectId) : "Not assigned to a project"}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="font-medium mb-1 flex items-center">
+                  <Users2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                  Team
+                </div>
+                <div className="text-sm">
+                  {sprint.teamId ? getTeamName(sprint.teamId) : "Not assigned to a team"}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="font-medium mb-1">Status</div>
+                <Select
+                  value={sprint.status}
+                  onValueChange={handleStatusChange}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PLANNING">Planning</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="text-sm text-muted-foreground">
+                  <div className="mb-1">Created: {formatDate(sprint.createdAt)}</div>
+                  <div>Last Updated: {formatDate(sprint.updatedAt)}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Goals card */}
+          {sprint.goals && sprint.goals.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  Sprint Goals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                  {sprint.goals.map((goal: string, index: number) => (
+                    <li key={index}>{goal}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the sprint
-              and remove its data from the server.
+              and remove any associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={handleDelete}>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
