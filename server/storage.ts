@@ -4,11 +4,11 @@ import {
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
   Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
-  TimeEntry, InsertTimeEntry,
+  TimeEntry, InsertTimeEntry, Sprint, InsertSprint, BacklogItem, InsertBacklogItem,
   // Schema tables
   companies, departments, groups, users, teams, teamMembers, projects, epics,
   stories, tasks, comments, attachments, notifications, locations, devices,
-  timeEntries
+  timeEntries, sprints, backlogItems
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
@@ -135,6 +135,24 @@ export interface IStorage {
   createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry>;
   updateTimeEntry(id: string, timeEntry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
   deleteTimeEntry(id: string): Promise<boolean>;
+  
+  // Sprint operations
+  getSprints(projectId?: string, teamId?: string, status?: string): Promise<Sprint[]>;
+  getSprint(id: string): Promise<Sprint | undefined>;
+  createSprint(sprint: InsertSprint): Promise<Sprint>;
+  updateSprint(id: string, sprint: Partial<InsertSprint>): Promise<Sprint | undefined>;
+  deleteSprint(id: string): Promise<boolean>;
+  updateSprintCompletion(id: string, completed: string): Promise<boolean>;
+  
+  // Backlog operations
+  getBacklogItems(projectId?: string, epicId?: string, sprintId?: string, status?: string): Promise<BacklogItem[]>;
+  getBacklogItem(id: string): Promise<BacklogItem | undefined>;
+  createBacklogItem(backlogItem: InsertBacklogItem): Promise<BacklogItem>;
+  updateBacklogItem(id: string, backlogItem: Partial<InsertBacklogItem>): Promise<BacklogItem | undefined>;
+  deleteBacklogItem(id: string): Promise<boolean>;
+  moveBacklogItemToSprint(id: string, sprintId: string): Promise<BacklogItem | undefined>;
+  removeBacklogItemFromSprint(id: string): Promise<BacklogItem | undefined>;
+  updateBacklogItemRank(id: string, rank: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -154,6 +172,8 @@ export class MemStorage implements IStorage {
   private notifications: Map<string, Notification>;
   private locations: Map<string, Location>;
   private devices: Map<string, Device>;
+  private sprints: Map<string, Sprint>;
+  private backlogItems: Map<string, BacklogItem>;
 
   constructor() {
     this.companies = new Map();
@@ -172,6 +192,8 @@ export class MemStorage implements IStorage {
     this.notifications = new Map();
     this.locations = new Map();
     this.devices = new Map();
+    this.sprints = new Map();
+    this.backlogItems = new Map();
     
     // Create a default admin user for initial login
     this.createDefaultAdmin();
@@ -941,6 +963,182 @@ export class MemStorage implements IStorage {
     device.updatedAt = new Date().toISOString();
     this.devices.set(id, device);
     return device;
+  }
+  
+  // Sprint operations
+  async getSprints(projectId?: string, teamId?: string, status?: string): Promise<Sprint[]> {
+    let sprints = Array.from(this.sprints.values());
+    
+    if (projectId) {
+      sprints = sprints.filter(sprint => sprint.projectId === projectId);
+    }
+    
+    if (teamId) {
+      sprints = sprints.filter(sprint => sprint.teamId === teamId);
+    }
+    
+    if (status) {
+      sprints = sprints.filter(sprint => sprint.status === status);
+    }
+    
+    return sprints;
+  }
+
+  async getSprint(id: string): Promise<Sprint | undefined> {
+    return this.sprints.get(id);
+  }
+
+  async createSprint(sprint: InsertSprint): Promise<Sprint> {
+    const id = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    const newSprint: Sprint = {
+      id,
+      ...sprint,
+      completed: sprint.completed || "0",
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.sprints.set(id, newSprint);
+    return newSprint;
+  }
+
+  async updateSprint(id: string, sprintUpdate: Partial<InsertSprint>): Promise<Sprint | undefined> {
+    const existingSprint = this.sprints.get(id);
+    if (!existingSprint) return undefined;
+
+    const updatedSprint: Sprint = {
+      ...existingSprint,
+      ...sprintUpdate,
+      updatedAt: new Date().toISOString()
+    };
+    this.sprints.set(id, updatedSprint);
+    return updatedSprint;
+  }
+
+  async deleteSprint(id: string): Promise<boolean> {
+    // Remove sprint from all backlog items
+    Array.from(this.backlogItems.values())
+      .filter(item => item.sprintId === id)
+      .forEach(item => {
+        item.sprintId = undefined;
+        item.updatedAt = new Date().toISOString();
+        this.backlogItems.set(item.id, item);
+      });
+      
+    return this.sprints.delete(id);
+  }
+
+  async updateSprintCompletion(id: string, completed: string): Promise<boolean> {
+    const sprint = this.sprints.get(id);
+    if (!sprint) return false;
+    
+    sprint.completed = completed;
+    sprint.updatedAt = new Date().toISOString();
+    this.sprints.set(id, sprint);
+    return true;
+  }
+  
+  // Backlog operations
+  async getBacklogItems(projectId?: string, epicId?: string, sprintId?: string, status?: string): Promise<BacklogItem[]> {
+    let items = Array.from(this.backlogItems.values());
+    
+    if (projectId) {
+      items = items.filter(item => item.projectId === projectId);
+    }
+    
+    if (epicId) {
+      items = items.filter(item => item.epicId === epicId);
+    }
+    
+    if (sprintId) {
+      items = items.filter(item => item.sprintId === sprintId);
+    }
+    
+    if (status) {
+      items = items.filter(item => item.status === status);
+    }
+    
+    // Sort by rank
+    return items.sort((a, b) => a.rank.localeCompare(b.rank));
+  }
+
+  async getBacklogItem(id: string): Promise<BacklogItem | undefined> {
+    return this.backlogItems.get(id);
+  }
+
+  async createBacklogItem(backlogItem: InsertBacklogItem): Promise<BacklogItem> {
+    const id = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    
+    // If no rank is provided, generate one at the end
+    if (!backlogItem.rank) {
+      const items = Array.from(this.backlogItems.values());
+      // Find the highest rank if there are items, otherwise start at a base value
+      const highestRank = items.length > 0 
+        ? Math.max(...items.map(i => parseFloat(i.rank))) 
+        : 0;
+      backlogItem.rank = (highestRank + 1000).toString(); // Leave gaps for future items
+    }
+    
+    const newBacklogItem: BacklogItem = {
+      id,
+      ...backlogItem,
+      labels: backlogItem.labels || [],
+      acceptanceCriteria: backlogItem.acceptanceCriteria || [],
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.backlogItems.set(id, newBacklogItem);
+    return newBacklogItem;
+  }
+
+  async updateBacklogItem(id: string, backlogItemUpdate: Partial<InsertBacklogItem>): Promise<BacklogItem | undefined> {
+    const existingBacklogItem = this.backlogItems.get(id);
+    if (!existingBacklogItem) return undefined;
+
+    const updatedBacklogItem: BacklogItem = {
+      ...existingBacklogItem,
+      ...backlogItemUpdate,
+      updatedAt: new Date().toISOString()
+    };
+    this.backlogItems.set(id, updatedBacklogItem);
+    return updatedBacklogItem;
+  }
+
+  async deleteBacklogItem(id: string): Promise<boolean> {
+    return this.backlogItems.delete(id);
+  }
+
+  async moveBacklogItemToSprint(id: string, sprintId: string): Promise<BacklogItem | undefined> {
+    const backlogItem = this.backlogItems.get(id);
+    const sprint = this.sprints.get(sprintId);
+    
+    if (!backlogItem || !sprint) return undefined;
+    
+    backlogItem.sprintId = sprintId;
+    backlogItem.updatedAt = new Date().toISOString();
+    this.backlogItems.set(id, backlogItem);
+    return backlogItem;
+  }
+
+  async removeBacklogItemFromSprint(id: string): Promise<BacklogItem | undefined> {
+    const backlogItem = this.backlogItems.get(id);
+    if (!backlogItem) return undefined;
+    
+    backlogItem.sprintId = undefined;
+    backlogItem.updatedAt = new Date().toISOString();
+    this.backlogItems.set(id, backlogItem);
+    return backlogItem;
+  }
+
+  async updateBacklogItemRank(id: string, rank: string): Promise<boolean> {
+    const backlogItem = this.backlogItems.get(id);
+    if (!backlogItem) return false;
+    
+    backlogItem.rank = rank;
+    backlogItem.updatedAt = new Date().toISOString();
+    this.backlogItems.set(id, backlogItem);
+    return true;
   }
 }
 
@@ -1866,6 +2064,189 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.devices.id, id))
       .returning();
     return updatedDevice;
+  }
+
+  // Sprint operations
+  async getSprints(projectId?: string, teamId?: string, status?: string): Promise<Sprint[]> {
+    let query = db.select().from(schema.sprints);
+    
+    const conditions = [];
+    
+    if (projectId) {
+      conditions.push(eq(schema.sprints.projectId, projectId));
+    }
+    
+    if (teamId) {
+      conditions.push(eq(schema.sprints.teamId, teamId));
+    }
+    
+    if (status) {
+      conditions.push(eq(schema.sprints.status, status));
+    }
+    
+    if (conditions.length > 0) {
+      let condition = conditions[0];
+      for (let i = 1; i < conditions.length; i++) {
+        condition = and(condition, conditions[i]);
+      }
+      query = query.where(condition);
+    }
+    
+    return await query.orderBy(desc(schema.sprints.createdAt));
+  }
+
+  async getSprint(id: string): Promise<Sprint | undefined> {
+    const [sprint] = await db.select().from(schema.sprints).where(eq(schema.sprints.id, id));
+    return sprint;
+  }
+
+  async createSprint(sprint: InsertSprint): Promise<Sprint> {
+    const [newSprint] = await db.insert(schema.sprints).values(sprint).returning();
+    return newSprint;
+  }
+
+  async updateSprint(id: string, sprintUpdate: Partial<InsertSprint>): Promise<Sprint | undefined> {
+    const [updatedSprint] = await db
+      .update(schema.sprints)
+      .set({ ...sprintUpdate, updatedAt: new Date() })
+      .where(eq(schema.sprints.id, id))
+      .returning();
+    return updatedSprint;
+  }
+
+  async deleteSprint(id: string): Promise<boolean> {
+    // Update any backlog items to remove the sprint reference
+    await db
+      .update(schema.backlogItems)
+      .set({ 
+        sprintId: null,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.backlogItems.sprintId, id));
+      
+    const result = await db.delete(schema.sprints).where(eq(schema.sprints.id, id));
+    return !!result;
+  }
+
+  async updateSprintCompletion(id: string, completed: string): Promise<boolean> {
+    const result = await db
+      .update(schema.sprints)
+      .set({ 
+        completed,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.sprints.id, id));
+    return !!result;
+  }
+  
+  // Backlog operations
+  async getBacklogItems(projectId?: string, epicId?: string, sprintId?: string, status?: string): Promise<BacklogItem[]> {
+    let query = db.select().from(schema.backlogItems);
+    
+    const conditions = [];
+    
+    if (projectId) {
+      conditions.push(eq(schema.backlogItems.projectId, projectId));
+    }
+    
+    if (epicId) {
+      conditions.push(eq(schema.backlogItems.epicId, epicId));
+    }
+    
+    if (sprintId) {
+      conditions.push(eq(schema.backlogItems.sprintId, sprintId));
+    }
+    
+    if (status) {
+      conditions.push(eq(schema.backlogItems.status, status));
+    }
+    
+    if (conditions.length > 0) {
+      let condition = conditions[0];
+      for (let i = 1; i < conditions.length; i++) {
+        condition = and(condition, conditions[i]);
+      }
+      query = query.where(condition);
+    }
+    
+    return await query.orderBy(asc(schema.backlogItems.rank));
+  }
+
+  async getBacklogItem(id: string): Promise<BacklogItem | undefined> {
+    const [backlogItem] = await db.select().from(schema.backlogItems).where(eq(schema.backlogItems.id, id));
+    return backlogItem;
+  }
+
+  async createBacklogItem(backlogItem: InsertBacklogItem): Promise<BacklogItem> {
+    // If no rank is provided, generate one at the end
+    if (!backlogItem.rank) {
+      const items = await db.select({ rank: schema.backlogItems.rank })
+        .from(schema.backlogItems)
+        .where(eq(schema.backlogItems.projectId, backlogItem.projectId))
+        .orderBy(desc(schema.backlogItems.rank));
+      
+      // Find the highest rank or start at base value
+      const highestRank = items.length > 0 
+        ? Math.max(...items.map(i => parseFloat(i.rank))) 
+        : 0;
+      backlogItem.rank = (highestRank + 1000).toString(); // Leave gaps for future items
+    }
+    
+    const [newBacklogItem] = await db.insert(schema.backlogItems).values(backlogItem).returning();
+    return newBacklogItem;
+  }
+
+  async updateBacklogItem(id: string, backlogItemUpdate: Partial<InsertBacklogItem>): Promise<BacklogItem | undefined> {
+    const [updatedBacklogItem] = await db
+      .update(schema.backlogItems)
+      .set({ ...backlogItemUpdate, updatedAt: new Date() })
+      .where(eq(schema.backlogItems.id, id))
+      .returning();
+    return updatedBacklogItem;
+  }
+
+  async deleteBacklogItem(id: string): Promise<boolean> {
+    const result = await db.delete(schema.backlogItems).where(eq(schema.backlogItems.id, id));
+    return !!result;
+  }
+
+  async moveBacklogItemToSprint(id: string, sprintId: string): Promise<BacklogItem | undefined> {
+    // Check if sprint exists
+    const sprint = await this.getSprint(sprintId);
+    if (!sprint) return undefined;
+    
+    const [updatedBacklogItem] = await db
+      .update(schema.backlogItems)
+      .set({ 
+        sprintId,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.backlogItems.id, id))
+      .returning();
+    return updatedBacklogItem;
+  }
+
+  async removeBacklogItemFromSprint(id: string): Promise<BacklogItem | undefined> {
+    const [updatedBacklogItem] = await db
+      .update(schema.backlogItems)
+      .set({ 
+        sprintId: null,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.backlogItems.id, id))
+      .returning();
+    return updatedBacklogItem;
+  }
+
+  async updateBacklogItemRank(id: string, rank: string): Promise<boolean> {
+    const result = await db
+      .update(schema.backlogItems)
+      .set({ 
+        rank,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.backlogItems.id, id));
+    return !!result;
   }
 }
 
