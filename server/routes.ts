@@ -1783,6 +1783,279 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Sprint routes
+  apiRouter.get("/sprints", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { projectId, teamId, status } = req.query;
+      const sprints = await storage.getSprints(
+        projectId as string,
+        teamId as string,
+        status as string
+      );
+      return res.json(sprints);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.get("/sprints/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const sprint = await storage.getSprint(req.params.id);
+      if (!sprint) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      return res.json(sprint);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/sprints", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertSprintSchema.parse(req.body);
+      const sprint = await storage.createSprint(validatedData);
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.SPRINT_CREATED,
+        payload: sprint
+      });
+      
+      return res.status(201).json(sprint);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/sprints/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertSprintSchema.partial().parse(req.body);
+      const sprint = await storage.updateSprint(req.params.id, validatedData);
+      if (!sprint) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.SPRINT_UPDATED,
+        payload: sprint
+      });
+      
+      return res.json(sprint);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.delete("/sprints/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const sprintToDelete = await storage.getSprint(req.params.id);
+      if (!sprintToDelete) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      
+      const success = await storage.deleteSprint(req.params.id);
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.SPRINT_DELETED,
+        payload: { id: req.params.id }
+      });
+      
+      return res.status(204).send();
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/sprints/:id/completion", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const { completed } = req.body;
+      if (typeof completed !== 'string') {
+        return res.status(400).json({ message: "Completed value must be provided" });
+      }
+      
+      const success = await storage.updateSprintCompletion(req.params.id, completed);
+      if (!success) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      
+      const updatedSprint = await storage.getSprint(req.params.id);
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.SPRINT_UPDATED,
+        payload: updatedSprint
+      });
+      
+      return res.json(updatedSprint);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Backlog routes
+  apiRouter.get("/backlog-items", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { projectId, epicId, sprintId, status } = req.query;
+      const backlogItems = await storage.getBacklogItems(
+        projectId as string,
+        epicId as string,
+        sprintId as string,
+        status as string
+      );
+      return res.json(backlogItems);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.get("/backlog-items/:id", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const backlogItem = await storage.getBacklogItem(req.params.id);
+      if (!backlogItem) {
+        return res.status(404).json({ message: "Backlog item not found" });
+      }
+      return res.json(backlogItem);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/backlog-items", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertBacklogItemSchema.parse(req.body);
+      const backlogItem = await storage.createBacklogItem(validatedData);
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.BACKLOG_ITEM_CREATED,
+        payload: backlogItem
+      });
+      
+      return res.status(201).json(backlogItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/backlog-items/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const validatedData = insertBacklogItemSchema.partial().parse(req.body);
+      const backlogItem = await storage.updateBacklogItem(req.params.id, validatedData);
+      if (!backlogItem) {
+        return res.status(404).json({ message: "Backlog item not found" });
+      }
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.BACKLOG_ITEM_UPDATED,
+        payload: backlogItem
+      });
+      
+      return res.json(backlogItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.delete("/backlog-items/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const backlogItemToDelete = await storage.getBacklogItem(req.params.id);
+      if (!backlogItemToDelete) {
+        return res.status(404).json({ message: "Backlog item not found" });
+      }
+      
+      const success = await storage.deleteBacklogItem(req.params.id);
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.BACKLOG_ITEM_DELETED,
+        payload: { id: req.params.id }
+      });
+      
+      return res.status(204).send();
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/backlog-items/:id/move-to-sprint/:sprintId", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const backlogItem = await storage.moveBacklogItemToSprint(req.params.id, req.params.sprintId);
+      if (!backlogItem) {
+        return res.status(404).json({ message: "Backlog item or sprint not found" });
+      }
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.BACKLOG_ITEM_MOVED,
+        payload: backlogItem
+      });
+      
+      return res.json(backlogItem);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.post("/backlog-items/:id/remove-from-sprint", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const backlogItem = await storage.removeBacklogItemFromSprint(req.params.id);
+      if (!backlogItem) {
+        return res.status(404).json({ message: "Backlog item not found" });
+      }
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.BACKLOG_ITEM_MOVED,
+        payload: backlogItem
+      });
+      
+      return res.json(backlogItem);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  apiRouter.put("/backlog-items/:id/rank", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const { rank } = req.body;
+      if (typeof rank !== 'string') {
+        return res.status(400).json({ message: "Rank value must be provided" });
+      }
+      
+      const success = await storage.updateBacklogItemRank(req.params.id, rank);
+      if (!success) {
+        return res.status(404).json({ message: "Backlog item not found" });
+      }
+      
+      const updatedBacklogItem = await storage.getBacklogItem(req.params.id);
+      
+      // Broadcast event to connected clients
+      broadcastEvent({
+        type: EventType.BACKLOG_ITEM_RANKED,
+        payload: updatedBacklogItem
+      });
+      
+      return res.json(updatedBacklogItem);
+    } catch (error) {
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Reports routes
   apiRouter.get("/reports/summary", authenticateJwt, async (req: AuthRequest, res: Response) => {
     try {
