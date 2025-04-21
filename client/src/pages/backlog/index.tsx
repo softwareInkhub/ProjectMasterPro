@@ -16,14 +16,31 @@ export default function BacklogPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
+  // Define interface for backlog items and projects
+  interface BacklogItem {
+    id: string;
+    title: string;
+    description: string;
+    priority: 'HIGH' | 'MEDIUM' | 'LOW';
+    status: string;
+    projectId: string;
+    storyPoints: number;
+    createdAt: string;
+  }
+
+  interface Project {
+    id: string;
+    name: string;
+  }
+
   // Fetch backlog items data
-  const { data: backlogItems, isLoading, error } = useQuery({
+  const { data: backlogItems = [], isLoading, error } = useQuery<BacklogItem[]>({
     queryKey: ["/api/backlog-items"],
     retry: 1,
   });
 
   // Fetch projects data for filtering
-  const { data: projects } = useQuery({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
     retry: 1,
   });
@@ -37,8 +54,8 @@ export default function BacklogPage() {
 
   // Helper function to get project name
   const getProjectName = (projectId: string) => {
-    if (!projects) return "Unknown Project";
-    const project = projects.find((p: any) => p.id === projectId);
+    if (!projects.length) return "Unknown Project";
+    const project = projects.find((p: Project) => p.id === projectId);
     return project ? project.name : "Unknown Project";
   };
 
