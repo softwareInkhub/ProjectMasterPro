@@ -33,10 +33,13 @@ const sprintFormSchema = z.object({
   description: z.string().optional(),
   startDate: z.date(),
   endDate: z.date(),
-  status: z.enum(["PLANNING", "ACTIVE", "COMPLETED", "CANCELLED"]),
+  status: z.enum(["PLANNING", "ACTIVE", "REVIEW", "COMPLETED", "CANCELLED"]),
   projectId: z.string().min(1, "Project is required"),
-  teamId: z.string().optional(),
+  teamId: z.string().min(1, "Team is required"),
   goals: z.array(z.string()).optional(),
+  capacity: z.string().optional(),
+  scrumMasterId: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 type SprintFormValues = z.infer<typeof sprintFormSchema>;
@@ -67,7 +70,11 @@ export default function NewSprintPage() {
       status: "PLANNING",
       startDate: new Date(),
       endDate: new Date(new Date().setDate(new Date().getDate() + 14)), // Default 2 weeks
+      projectId: "",
+      teamId: "",
       goals: [],
+      capacity: "",
+      notes: "",
     },
   });
 
@@ -260,6 +267,7 @@ export default function NewSprintPage() {
                         <SelectContent>
                           <SelectItem value="PLANNING">Planning</SelectItem>
                           <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="REVIEW">Review</SelectItem>
                           <SelectItem value="COMPLETED">Completed</SelectItem>
                           <SelectItem value="CANCELLED">Cancelled</SelectItem>
                         </SelectContent>
@@ -309,9 +317,9 @@ export default function NewSprintPage() {
                   name="teamId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Team</FormLabel>
+                      <FormLabel>Team*</FormLabel>
                       <Select
-                        value={field.value || ""}
+                        value={field.value}
                         onValueChange={field.onChange}
                         disabled={teamsLoading}
                       >
@@ -321,7 +329,6 @@ export default function NewSprintPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
                           {teams?.map((team: any) => (
                             <SelectItem key={team.id} value={team.id}>
                               {team.name}

@@ -26,15 +26,18 @@ import { useToast } from "@/hooks/use-toast";
 const backlogItemFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  type: z.enum(["USER_STORY", "BUG", "TASK", "FEATURE", "EPIC"]),
-  status: z.enum(["TO_DO", "IN_PROGRESS", "DONE", "BLOCKED"]),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
-  estimate: z.number().min(0).optional(),
-  reporterId: z.string().optional(),
-  assigneeId: z.string().optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL", "UNASSIGNED"]),
+  type: z.enum(["USER_STORY", "BUG", "TASK", "EPIC", "FEATURE"]),
+  status: z.enum(["NEW", "REFINED", "READY", "IN_PROGRESS", "DONE"]),
+  projectId: z.string().min(1, "Project is required"),
+  epicId: z.string().optional(),
   sprintId: z.string().optional(),
-  projectId: z.string().optional(),
+  assigneeId: z.string().optional(),
+  reporterId: z.string().optional(),
+  estimate: z.string().optional(),
+  labels: z.array(z.string()).optional(),
   acceptanceCriteria: z.array(z.string()).optional(),
+  rank: z.string().min(1, "Rank is required"),
 });
 
 type BacklogItemFormValues = z.infer<typeof backlogItemFormSchema>;
@@ -42,11 +45,18 @@ type BacklogItemFormValues = z.infer<typeof backlogItemFormSchema>;
 export default function NewBacklogItemPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [criteria, setCriteria] = useState<string[]>(['']);
+  const [labels, setLabels] = useState<string[]>([]);
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<string[]>(['']);
 
-  // Fetch users for the dropdown
-  const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ["/api/users"],
+  // Fetch projects for the dropdown
+  const { data: projects, isLoading: projectsLoading } = useQuery({
+    queryKey: ["/api/projects"],
+    retry: 1,
+  });
+
+  // Fetch epics for the dropdown
+  const { data: epics, isLoading: epicsLoading } = useQuery({
+    queryKey: ["/api/epics"],
     retry: 1,
   });
 
@@ -56,9 +66,9 @@ export default function NewBacklogItemPage() {
     retry: 1,
   });
 
-  // Fetch projects for the dropdown
-  const { data: projects, isLoading: projectsLoading } = useQuery({
-    queryKey: ["/api/projects"],
+  // Fetch users for the dropdown
+  const { data: users, isLoading: usersLoading } = useQuery({
+    queryKey: ["/api/users"],
     retry: 1,
   });
 
@@ -68,36 +78,43 @@ export default function NewBacklogItemPage() {
     defaultValues: {
       title: "",
       description: "",
+      priority: "UNASSIGNED",
       type: "USER_STORY",
-      status: "TO_DO",
-      priority: "MEDIUM",
-      estimate: 0,
+      status: "NEW",
+      projectId: "",
+      epicId: "",
+      sprintId: "",
+      assigneeId: "",
+      reporterId: "",
+      estimate: "",
+      labels: [],
       acceptanceCriteria: [],
+      rank: "0",
     },
   });
 
   // Helper functions for acceptance criteria
   const addCriteria = () => {
-    setCriteria([...criteria, '']);
+    setAcceptanceCriteria([...acceptanceCriteria, '']);
   };
 
   const removeCriteria = (index: number) => {
-    if (criteria.length > 1) {
-      setCriteria(criteria.filter((_, i) => i !== index));
+    if (acceptanceCriteria.length > 1) {
+      setAcceptanceCriteria(acceptanceCriteria.filter((_, i) => i !== index));
     }
   };
 
   const updateCriteria = (index: number, value: string) => {
-    const updated = [...criteria];
+    const updated = [...acceptanceCriteria];
     updated[index] = value;
-    setCriteria(updated);
+    setAcceptanceCriteria(updated);
   };
 
   // Mutation to create a new backlog item
   const createBacklogItemMutation = useMutation({
     mutationFn: async (data: BacklogItemFormValues) => {
       // Add acceptance criteria to the data
-      data.acceptanceCriteria = criteria.filter(criterion => criterion.trim() !== '');
+      data.acceptanceCriteria = acceptanceCriteria.filter(criterion => criterion.trim() !== '');
       
       const response = await apiRequest("POST", "/api/backlog-items", data);
       return response.json();
@@ -202,10 +219,11 @@ export default function NewBacklogItemPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="TO_DO">To Do</SelectItem>
+                          <SelectItem value="NEW">New</SelectItem>
+                          <SelectItem value="REFINED">Refined</SelectItem>
+                          <SelectItem value="READY">Ready</SelectItem>
                           <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                           <SelectItem value="DONE">Done</SelectItem>
-                          <SelectItem value="BLOCKED">Blocked</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -233,6 +251,7 @@ export default function NewBacklogItemPage() {
                           <SelectItem value="MEDIUM">Medium</SelectItem>
                           <SelectItem value="HIGH">High</SelectItem>
                           <SelectItem value="CRITICAL">Critical</SelectItem>
+                          <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -251,11 +270,9 @@ export default function NewBacklogItemPage() {
                       <FormLabel>Estimate</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          min="0"
+                          type="text"
                           placeholder="e.g., 5"
                           {...field}
-                          onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
                         />
                       </FormControl>
                       <FormDescription>
@@ -268,78 +285,12 @@ export default function NewBacklogItemPage() {
 
                 <FormField
                   control={form.control}
-                  name="assigneeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assignee</FormLabel>
-                      <Select
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                        disabled={usersLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Unassigned" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
-                          {users?.map((user: any) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.firstName} {user.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        The person assigned to this backlog item.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="sprintId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sprint</FormLabel>
-                      <Select
-                        value={field.value ?? ""}
-                        onValueChange={field.onChange}
-                        disabled={sprintsLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Not assigned to a sprint" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">Backlog (No Sprint)</SelectItem>
-                          {sprints?.map((sprint: any) => (
-                            <SelectItem key={sprint.id} value={sprint.id}>
-                              {sprint.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        The sprint this backlog item belongs to.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project</FormLabel>
+                      <FormLabel>Project*</FormLabel>
                       <Select
-                        value={field.value ?? ""}
+                        value={field.value}
                         onValueChange={field.onChange}
                         disabled={projectsLoading}
                       >
@@ -349,7 +300,6 @@ export default function NewBacklogItemPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Not assigned to a project</SelectItem>
                           {projects?.map((project: any) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
@@ -367,12 +317,108 @@ export default function NewBacklogItemPage() {
 
                 <FormField
                   control={form.control}
+                  name="epicId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Epic</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={epicsLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an epic" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {epics?.map((epic: any) => (
+                            <SelectItem key={epic.id} value={epic.id}>
+                              {epic.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        The epic this backlog item belongs to.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sprintId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sprint</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={sprintsLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a sprint" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {sprints?.map((sprint: any) => (
+                            <SelectItem key={sprint.id} value={sprint.id}>
+                              {sprint.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        The sprint this backlog item belongs to.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="assigneeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assignee</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={usersLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an assignee" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users?.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        The person assigned to this backlog item.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="reporterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Reporter</FormLabel>
                       <Select
-                        value={field.value ?? ""}
+                        value={field.value}
                         onValueChange={field.onChange}
                         disabled={usersLoading}
                       >
@@ -382,10 +428,9 @@ export default function NewBacklogItemPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
                           {users?.map((user: any) => (
                             <SelectItem key={user.id} value={user.id}>
-                              {user.firstName} {user.lastName}
+                              {user.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -427,7 +472,7 @@ export default function NewBacklogItemPage() {
                     Define the conditions that must be met for this backlog item to be considered complete.
                   </p>
                   
-                  {criteria.map((criterion, index) => (
+                  {acceptanceCriteria.map((criterion, index) => (
                     <div key={`criteria-${index}`} className="flex items-center gap-2 mb-2">
                       <Input
                         value={criterion}
@@ -440,7 +485,7 @@ export default function NewBacklogItemPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => removeCriteria(index)}
-                        disabled={criteria.length <= 1}
+                        disabled={acceptanceCriteria.length <= 1}
                       >
                         <X className="h-4 w-4" />
                       </Button>
