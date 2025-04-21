@@ -1899,6 +1899,50 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Sprint retrospective endpoint
+  apiRouter.put("/sprints/:id/retrospective", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD", "DEVELOPER"]), async (req: AuthRequest, res: Response) => {
+    try {
+      const { whatWentWell, whatCouldBeImproved, actionItems, generalNotes } = req.body;
+      
+      // Validate the retrospective data
+      if (!Array.isArray(whatWentWell) || !Array.isArray(whatCouldBeImproved) || !Array.isArray(actionItems)) {
+        return res.status(400).json({ 
+          message: "Invalid retrospective data format. whatWentWell, whatCouldBeImproved, and actionItems must be arrays."
+        });
+      }
+      
+      // Create the retrospective object
+      const retrospective = {
+        whatWentWell,
+        whatCouldBeImproved,
+        actionItems,
+        generalNotes: generalNotes || undefined,
+        createdBy: req.user!.id,
+        createdAt: new Date().toISOString()
+      };
+      
+      // Update the sprint with the retrospective
+      const updatedSprint = await storage.updateSprint(req.params.id, { retrospective });
+      
+      if (!updatedSprint) {
+        return res.status(404).json({ message: "Sprint not found" });
+      }
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.SPRINT_UPDATED,
+        payload: updatedSprint
+      });
+      
+      return res.json(updatedSprint);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Backlog routes
   apiRouter.get("/backlog-items", authenticateJwt, async (req: AuthRequest, res: Response) => {
