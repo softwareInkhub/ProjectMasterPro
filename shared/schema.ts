@@ -61,6 +61,28 @@ export const ACTIVITY_TYPES = [
 
 export const ActivityTypeEnum = z.enum(ACTIVITY_TYPES);
 
+// Sprint statuses
+export const SPRINT_STATUSES = [
+  "PLANNING",
+  "ACTIVE",
+  "REVIEW",
+  "COMPLETED",
+  "CANCELLED"
+] as const;
+
+export const SprintStatusEnum = z.enum(SPRINT_STATUSES);
+
+// Backlog priorities to complement other priority enums
+export const BACKLOG_PRIORITIES = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "CRITICAL",
+  "UNASSIGNED"
+] as const;
+
+export const BacklogPriorityEnum = z.enum(BACKLOG_PRIORITIES);
+
 // Company schema
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -723,6 +745,177 @@ export interface DeviceWithStringDates {
   locationId?: string;
   lastAuditDate?: string;
   nextAuditDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Sprint schema
+export const sprints = pgTable("sprints", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  goal: text("goal"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  status: text("status", { 
+    enum: SPRINT_STATUSES 
+  }).default("PLANNING").notNull(),
+  projectId: uuid("project_id").notNull().references(() => projects.id),
+  teamId: uuid("team_id").notNull().references(() => teams.id),
+  capacity: text("capacity"),  // In story points
+  completed: text("completed").default("0"), // Story points completed
+  scrumMasterId: uuid("scrum_master_id").references(() => users.id),
+  notes: text("notes"),
+  retrospective: jsonb("retrospective"), // For storing retrospective data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSprintSchema = createInsertSchema(sprints)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Accept and transform string dates to Date objects
+    startDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    endDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    // Handle empty strings for user IDs
+    scrumMasterId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    // Optional typed fields for retrospective
+    retrospective: z.object({
+      whatWentWell: z.array(z.string()).optional(),
+      whatCouldBeImproved: z.array(z.string()).optional(),
+      actionItems: z.array(z.string()).optional(),
+    }).optional(),
+  });
+
+// Backlog Item schema
+export const backlogItems = pgTable("backlog_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: text("priority", { 
+    enum: BACKLOG_PRIORITIES 
+  }).default("UNASSIGNED").notNull(),
+  estimate: text("estimate"), // Story points or time estimate
+  type: text("type", { 
+    enum: ["USER_STORY", "BUG", "TASK", "EPIC", "FEATURE"] 
+  }).default("USER_STORY").notNull(),
+  status: text("status", { 
+    enum: ["NEW", "REFINED", "READY", "IN_PROGRESS", "DONE"] 
+  }).default("NEW").notNull(),
+  projectId: uuid("project_id").notNull().references(() => projects.id),
+  epicId: uuid("epic_id").references(() => epics.id),
+  sprintId: uuid("sprint_id").references(() => sprints.id),
+  assigneeId: uuid("assignee_id").references(() => users.id),
+  reporterId: uuid("reporter_id").references(() => users.id),
+  labels: jsonb("labels").default([]),
+  acceptanceCriteria: jsonb("acceptance_criteria").default([]),
+  rank: text("rank").notNull(), // For ordering in the backlog
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBacklogItemSchema = createInsertSchema(backlogItems)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Handle empty strings for nullable IDs
+    epicId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    sprintId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    assigneeId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    reporterId: z.preprocess(
+      (val) => {
+        if (val === undefined || val === null || val === '') return null;
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
+    // Optional arrays for labels and acceptance criteria
+    labels: z.array(z.string()).optional(),
+    acceptanceCriteria: z.array(z.string()).optional(),
+  });
+
+// Type definitions for Sprint and Backlog
+export type Sprint = typeof sprints.$inferSelect;
+export type InsertSprint = z.infer<typeof insertSprintSchema>;
+
+export type BacklogItem = typeof backlogItems.$inferSelect;
+export type InsertBacklogItem = z.infer<typeof insertBacklogItemSchema>;
+
+// Add string date interfaces for in-memory storage
+export interface SprintWithStringDates {
+  id: string;
+  name: string;
+  goal?: string;
+  startDate?: string;
+  endDate?: string;
+  status: 'PLANNING' | 'ACTIVE' | 'REVIEW' | 'COMPLETED' | 'CANCELLED';
+  projectId: string;
+  teamId: string;
+  capacity?: string;
+  completed?: string;
+  scrumMasterId?: string;
+  notes?: string;
+  retrospective?: {
+    whatWentWell?: string[];
+    whatCouldBeImproved?: string[];
+    actionItems?: string[];
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BacklogItemWithStringDates {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'UNASSIGNED';
+  estimate?: string;
+  type: 'USER_STORY' | 'BUG' | 'TASK' | 'EPIC' | 'FEATURE';
+  status: 'NEW' | 'REFINED' | 'READY' | 'IN_PROGRESS' | 'DONE';
+  projectId: string;
+  epicId?: string;
+  sprintId?: string;
+  assigneeId?: string;
+  reporterId?: string;
+  labels?: string[];
+  acceptanceCriteria?: string[];
+  rank: string;
   createdAt: string;
   updatedAt: string;
 }
