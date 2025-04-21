@@ -8,7 +8,8 @@ import {
   insertProjectSchema, insertEpicSchema, insertStorySchema,
   insertTaskSchema, insertCommentSchema, insertAttachmentSchema,
   insertNotificationSchema, registerUserSchema, InsertUser,
-  insertLocationSchema, insertDeviceSchema
+  insertLocationSchema, insertDeviceSchema, insertSprintSchema,
+  insertBacklogItemSchema
 } from "@shared/schema";
 import { generateToken, authenticateJwt, AuthRequest, authorize } from "./auth";
 import { z } from "zod";
