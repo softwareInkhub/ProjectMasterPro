@@ -86,15 +86,15 @@ export default function BacklogPage() {
   }
 
   // Filter by project if needed
-  const filteredItems = backlogItems?.filter((item: any) => {
+  const filteredItems = backlogItems.filter((item: BacklogItem) => {
     if (projectFilter === "all") return true;
     return item.projectId === projectFilter;
-  }) || [];
+  });
 
   // Sort items by priority
-  const sortedItems = [...filteredItems].sort((a: any, b: any) => {
+  const sortedItems = [...filteredItems].sort((a: BacklogItem, b: BacklogItem) => {
     // Priority values: HIGH(3), MEDIUM(2), LOW(1)
-    const priorityValues = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const priorityValues: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
     const priorityA = priorityValues[a.priority] || 0;
     const priorityB = priorityValues[b.priority] || 0;
     
@@ -128,7 +128,7 @@ export default function BacklogPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {projects?.map((project: any) => (
+                {projects.map((project: Project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
                   </SelectItem>
@@ -174,13 +174,13 @@ export default function BacklogPage() {
               <div className="flex justify-between">
                 <span>High Priority:</span>
                 <span className="font-medium">
-                  {filteredItems.filter((item: any) => item.priority === "HIGH").length}
+                  {filteredItems.filter((item: BacklogItem) => item.priority === "HIGH").length}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Ready for Sprint:</span>
                 <span className="font-medium">
-                  {filteredItems.filter((item: any) => item.status === "READY").length}
+                  {filteredItems.filter((item: BacklogItem) => item.status === "READY").length}
                 </span>
               </div>
             </div>
@@ -204,7 +204,7 @@ export default function BacklogPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {sortedItems.map((item: any) => (
+          {sortedItems.map((item: BacklogItem) => (
             <Card key={item.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
