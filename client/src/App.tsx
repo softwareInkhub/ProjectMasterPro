@@ -33,7 +33,10 @@ import NewLocationPage from "@/pages/locations/new";
 import DevicesPage from "@/pages/devices";
 import NewDevicePage from "@/pages/devices/new";
 import NotFound from "@/pages/not-found";
-import Layout from "@/components/layout/Layout";
+// Reimporting Layout to ensure latest version is used
+import Layout from "@/components/layout/Layout"; 
+// DEBUG: Log to confirm which Layout we're using
+console.log("Using Layout from @/components/layout/Layout");
 import { Loader2 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
@@ -325,7 +328,7 @@ function App() {
           </ProtectedRoute>
         </Route>
         
-        {/* Sprint routes */}
+        {/* Sprint routes in correct order */}
         <Route path="/sprints">
           <ProtectedRoute>
             <Layout>
@@ -334,7 +337,7 @@ function App() {
           </ProtectedRoute>
         </Route>
         
-        {/* Backlog routes */}
+        {/* Backlog routes in correct order */}
         <Route path="/backlog">
           <ProtectedRoute>
             <Layout>
