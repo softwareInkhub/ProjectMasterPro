@@ -43,12 +43,21 @@ export default function NewCompanyPage() {
   // Create company mutation
   const createCompanyMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      // Remove null or empty string values
-      const cleanedData = Object.fromEntries(
-        Object.entries(data).filter(([_, v]) => v !== null && v !== "")
-      );
+      // Convert empty strings to null for optional fields
+      const cleanedData = {
+        ...data,
+        description: data.description || null,
+        website: data.website || null
+      };
       
+      console.log("Sending company data:", JSON.stringify(cleanedData));
       const res = await apiRequest("POST", "/api/companies", cleanedData);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.message || "Failed to create company");
+      }
+      
       return res.json();
     },
     onSuccess: () => {
@@ -60,9 +69,10 @@ export default function NewCompanyPage() {
       navigate("/companies");
     },
     onError: (error: Error) => {
+      console.error("Company creation error:", error);
       toast({
         title: "Failed to create company",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     },

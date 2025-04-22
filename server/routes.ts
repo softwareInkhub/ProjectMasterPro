@@ -187,14 +187,33 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   
   apiRouter.post("/companies", authenticateJwt, authorize(["ADMIN"]), async (req: AuthRequest, res: Response) => {
     try {
+      console.log("Creating company with data:", JSON.stringify(req.body));
       const validatedData = insertCompanySchema.parse(req.body);
       const company = await storage.createCompany(validatedData);
+      
+      // Broadcast the event to connected clients
+      broadcastEvent({
+        type: EventType.COMPANY_CREATED,
+        payload: company
+      });
+      
       return res.status(201).json(company);
     } catch (error) {
+      console.error("Error creating company:", error);
+      
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Failed to create company", 
+          error: "Validation error", 
+          details: error.errors 
+        });
       }
-      return res.status(500).json({ message: "Internal server error" });
+      
+      return res.status(500).json({ 
+        message: "Failed to create company", 
+        error: "Internal server error", 
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
   
