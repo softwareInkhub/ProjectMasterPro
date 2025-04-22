@@ -32,6 +32,7 @@ import LocationsPage from "@/pages/locations";
 import NewLocationPage from "@/pages/locations/new";
 import DevicesPage from "@/pages/devices";
 import NewDevicePage from "@/pages/devices/new";
+import MarkdownPreviewPage from "@/pages/markdown-preview";
 import NotFound from "@/pages/not-found";
 // Reimporting Layout to ensure latest version is used
 import Layout from "@/components/layout/Layout"; 
@@ -607,6 +608,15 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <SettingsPage />
+            </Layout>
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Markdown Preview route */}
+        <Route path="/markdown-preview">
+          <ProtectedRoute>
+            <Layout>
+              <MarkdownPreviewPage />
             </Layout>
           </ProtectedRoute>
         </Route>

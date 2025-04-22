@@ -17,7 +17,8 @@ import {
   BookIcon,
   LogOutIcon,
   CalendarIcon,
-  ListIcon
+  ListIcon,
+  FileTextIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // Use direct localStorage manipulation for logout
@@ -51,6 +52,9 @@ const navItems: NavItem[] = [
   { name: "Users", href: "/users", icon: UserIcon },
   { name: "Reports", href: "/reports", icon: BarChart3Icon },
   { name: "Settings", href: "/settings", icon: SettingsIcon },
+  
+  // Utilities
+  { name: "Markdown Preview", href: "/markdown-preview", icon: FileTextIcon },
 ];
 
 export default function Sidebar() {
