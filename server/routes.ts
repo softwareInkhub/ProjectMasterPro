@@ -188,7 +188,25 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   apiRouter.post("/companies", authenticateJwt, authorize(["ADMIN"]), async (req: AuthRequest, res: Response) => {
     try {
       console.log("Creating company with data:", JSON.stringify(req.body));
-      const validatedData = insertCompanySchema.parse(req.body);
+      
+      // Make sure all fields are strings and not objects or null values
+      const sanitizedData = {
+        name: req.body.name ? String(req.body.name) : "",
+        description: req.body.description ? String(req.body.description) : undefined,
+        website: req.body.website ? String(req.body.website) : ""
+      };
+      
+      // If website is not a valid URL and not empty, prepend http://
+      if (sanitizedData.website && !sanitizedData.website.match(/^https?:\/\//)) {
+        sanitizedData.website = `http://${sanitizedData.website}`;
+      }
+      
+      console.log("Sanitized company data:", JSON.stringify(sanitizedData));
+      
+      // Use the updated schema (modified in shared/schema.ts)
+      const validatedData = insertCompanySchema.parse(sanitizedData);
+      console.log("Validated company data:", JSON.stringify(validatedData));
+      
       const company = await storage.createCompany(validatedData);
       
       // Broadcast the event to connected clients
@@ -202,6 +220,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("Error creating company:", error);
       
       if (error instanceof z.ZodError) {
+        console.error("Validation errors:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ 
           message: "Failed to create company", 
           error: "Validation error", 

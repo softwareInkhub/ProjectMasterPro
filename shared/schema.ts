@@ -93,11 +93,19 @@ export const companies = pgTable("companies", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertCompanySchema = createInsertSchema(companies).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertCompanySchema = createInsertSchema(companies)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Allow optional website, but validate URL format when provided
+    website: z.string()
+      .url({ message: "Invalid URL format. Please enter a valid website URL." })
+      .optional()
+      .or(z.literal('')) // Allow empty string
+  });
 
 // Department schema
 export const departments = pgTable("departments", {
