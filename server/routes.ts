@@ -1143,11 +1143,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Task routes
   apiRouter.get("/tasks", authenticateJwt, async (req: AuthRequest, res: Response) => {
     try {
-      const { storyId, assigneeId } = req.query;
-      const tasks = await storage.getTasks(
-        storyId as string,
-        assigneeId as string
-      );
+      const { storyId, assigneeId, parentTaskId } = req.query;
+      const tasks = await storage.getTasks({
+        storyId: storyId as string | undefined, 
+        assigneeId: assigneeId as string | undefined,
+        parentTaskId: parentTaskId as string | undefined
+      });
       return res.json(tasks);
     } catch (error) {
       return res.status(500).json({ message: "Internal server error" });
@@ -1163,6 +1164,59 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       return res.json(task);
     } catch (error) {
       return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Task Hierarchy Endpoint - Get task with all subtasks nested
+  apiRouter.get("/tasks/:id/hierarchy", authenticateJwt, async (req: AuthRequest, res: Response) => {
+    try {
+      const { getTaskWithSubtasks, calculateTaskProgress, calculateTaskStatus } = require("./task-utils");
+      
+      // Helper functions for calculating task hierarchy metrics
+      const countAllSubtasks = (task: any): number => {
+        return task.subtasks.reduce(
+          (count: number, subtask: any) => count + 1 + countAllSubtasks(subtask),
+          0
+        );
+      };
+      
+      const findMaxDepth = (task: any): number => {
+        if (task.subtasks.length === 0) {
+          return 0;
+        }
+        
+        const maxSubtaskDepth = Math.max(
+          ...task.subtasks.map((subtask: any) => findMaxDepth(subtask))
+        );
+        
+        return 1 + maxSubtaskDepth;
+      };
+      
+      // Get task with nested subtasks
+      const taskHierarchy = await getTaskWithSubtasks(req.params.id);
+      
+      if (!taskHierarchy) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Calculate aggregated metrics
+      const progress = calculateTaskProgress(taskHierarchy);
+      const effectiveStatus = calculateTaskStatus(taskHierarchy);
+      
+      // Return the task hierarchy with additional metadata
+      return res.json({
+        ...taskHierarchy,
+        progress,
+        effectiveStatus,
+        totalSubtasks: countAllSubtasks(taskHierarchy),
+        maxDepth: findMaxDepth(taskHierarchy)
+      });
+    } catch (error) {
+      console.error("Error fetching task hierarchy:", error);
+      return res.status(500).json({ 
+        message: "Internal server error",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
@@ -1263,28 +1317,31 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   apiRouter.delete("/tasks/:id", authenticateJwt, authorize(["ADMIN", "MANAGER", "TEAM_LEAD"]), async (req: AuthRequest, res: Response) => {
     try {
       const taskId = req.params.id;
-      console.log(`Deleting task: ${taskId}`);
+      console.log(`Deleting task and all subtasks for task ID: ${taskId}`);
       
       // First get the task for broadcasting
       const task = await storage.getTask(taskId);
-      
-      const success = await storage.deleteTask(taskId);
-      if (!success) {
+      if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
+
+      // Import task utility functions
+      const { deleteTaskRecursive } = require("./task-utils");
       
-      // If we had a task, broadcast the deletion
-      if (task) {
-        broadcastEvent({
-          type: EventType.TASK_DELETED,
-          payload: { 
-            id: taskId,
-            storyId: task.storyId,
-            epicId: task.epicId,
-            projectId: task.projectId
-          }
-        });
+      // Recursively delete the task and all its subtasks
+      const success = await deleteTaskRecursive(taskId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete task" });
       }
+      
+      // Broadcast the deletion event
+      broadcastEvent({
+        type: EventType.TASK_DELETED,
+        payload: { 
+          id: taskId,
+          storyId: task.storyId
+        }
+      });
       
       return res.status(204).send();
     } catch (error) {

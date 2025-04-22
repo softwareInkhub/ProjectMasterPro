@@ -79,7 +79,7 @@ export interface IStorage {
   deleteStory(id: string): Promise<boolean>;
 
   // Task operations
-  getTasks(storyId?: string, assigneeId?: string): Promise<Task[]>;
+  getTasks(options?: { storyId?: string, assigneeId?: string, parentTaskId?: string }): Promise<Task[]>;
   getTask(id: string): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
@@ -631,15 +631,21 @@ export class MemStorage implements IStorage {
   }
 
   // Task operations
-  async getTasks(storyId?: string, assigneeId?: string): Promise<Task[]> {
+  async getTasks(options?: { storyId?: string, assigneeId?: string, parentTaskId?: string }): Promise<Task[]> {
     let tasks = Array.from(this.tasks.values());
     
-    if (storyId) {
-      tasks = tasks.filter(task => task.storyId === storyId);
-    }
-    
-    if (assigneeId) {
-      tasks = tasks.filter(task => task.assigneeId === assigneeId);
+    if (options) {
+      if (options.storyId) {
+        tasks = tasks.filter(task => task.storyId === options.storyId);
+      }
+      
+      if (options.assigneeId) {
+        tasks = tasks.filter(task => task.assigneeId === options.assigneeId);
+      }
+      
+      if (options.parentTaskId !== undefined) {
+        tasks = tasks.filter(task => task.parentTaskId === options.parentTaskId);
+      }
     }
     
     return tasks;

@@ -589,20 +589,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Task operations
-  async getTasks(storyId?: string, assigneeId?: string): Promise<Task[]> {
+  async getTasks(options?: { storyId?: string, assigneeId?: string, parentTaskId?: string }): Promise<Task[]> {
     let query = db.select().from(tasks);
     
-    if (storyId && assigneeId) {
-      query = query.where(
-        and(
-          eq(tasks.storyId, storyId),
-          eq(tasks.assigneeId, assigneeId)
-        )
-      );
-    } else if (storyId) {
-      query = query.where(eq(tasks.storyId, storyId));
-    } else if (assigneeId) {
-      query = query.where(eq(tasks.assigneeId, assigneeId));
+    if (options) {
+      const conditions = [];
+      
+      if (options.storyId) {
+        conditions.push(eq(tasks.storyId, options.storyId));
+      }
+      
+      if (options.assigneeId) {
+        conditions.push(eq(tasks.assigneeId, options.assigneeId));
+      }
+      
+      if (options.parentTaskId !== undefined) {
+        if (options.parentTaskId === null) {
+          // For top-level tasks (no parent)
+          conditions.push(isNull(tasks.parentTaskId));
+        } else {
+          // For subtasks of a specific parent
+          conditions.push(eq(tasks.parentTaskId, options.parentTaskId));
+        }
+      }
+      
+      if (conditions.length === 1) {
+        query = query.where(conditions[0]);
+      } else if (conditions.length > 1) {
+        query = query.where(and(...conditions));
+      }
     }
     
     return await query;
