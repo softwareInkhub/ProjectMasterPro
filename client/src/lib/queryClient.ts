@@ -2,8 +2,26 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    try {
+      // First try to parse as JSON to get structured error
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const clone = res.clone(); // Clone to avoid consuming the original response
+        const errorData = await clone.json();
+        const errorMessage = errorData.message || errorData.details || res.statusText;
+        throw new Error(`${res.status}: ${errorMessage}`);
+      } else {
+        // Fallback to text if not JSON
+        const text = await res.text() || res.statusText;
+        throw new Error(`${res.status}: ${text}`);
+      }
+    } catch (e) {
+      // If JSON parsing fails, use the original error message
+      if (e instanceof Error && e.message !== `${res.status}: ${res.statusText}`) {
+        throw e;
+      }
+      throw new Error(`${res.status}: ${res.statusText}`);
+    }
   }
 }
 
@@ -36,33 +54,81 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: createHeaders(!!data),
-    body: data ? JSON.stringify(data) : undefined,
-  });
-
-  // Handle unauthorized error (redirect to login page)
-  if (res.status === 401) {
-    // If token is invalid or expired, clear it
-    localStorage.removeItem("authToken");
-    // Force redirect to login page
-    if (!window.location.pathname.includes('/login') && 
-        !window.location.pathname.includes('/auth') &&
-        !window.location.pathname.includes('/test-login')) {
-      window.location.href = "/login";
+  try {
+    // Ensure data is properly stringified and null values are handled correctly
+    let bodyData: string | undefined = undefined;
+    
+    if (data !== undefined) {
+      // Convert any null values to empty strings for fields that might cause issues
+      const processedData = data;
+      
+      if (typeof processedData === 'object' && processedData !== null) {
+        // Convert website null to empty string
+        if ('website' in processedData && processedData.website === null) {
+          (processedData as any).website = '';
+        }
+        
+        // Add protocol to website if missing
+        if ('website' in processedData && 
+            typeof (processedData as any).website === 'string' && 
+            (processedData as any).website && 
+            !(processedData as any).website.match(/^https?:\/\//)) {
+          (processedData as any).website = `http://${(processedData as any).website}`;
+        }
+      }
+      
+      try {
+        bodyData = JSON.stringify(processedData);
+        console.log("REQUEST DATA (stringified):", bodyData);
+      } catch (error) {
+        console.error("Error stringifying request data:", error);
+        throw new Error("Invalid request data");
+      }
     }
-  }
+    
+    // Build headers with content type for JSON data
+    const headers = createHeaders(bodyData !== undefined);
+    
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: bodyData,
+    });
 
-  await throwIfResNotOk(res);
-  return res;
+    // Handle unauthorized error (redirect to login page)
+    if (res.status === 401) {
+      // If token is invalid or expired, clear it
+      localStorage.removeItem("authToken");
+      // Force redirect to login page
+      if (!window.location.pathname.includes('/login') && 
+          !window.location.pathname.includes('/auth') &&
+          !window.location.pathname.includes('/test-login')) {
+        window.location.href = "/login";
+      }
+    }
+
+    // Create a clone before checking for errors to preserve the response body
+    const resClone = res.clone();
+    
+    try {
+      await throwIfResNotOk(res);
+    } catch (error) {
+      console.error(`API Response Error (${method} ${url}):`, error);
+      throw error;
+    }
+    
+    // Return the cloned response to ensure it can be consumed multiple times
+    return resClone;
+  } catch (error) {
+    console.error(`API Request Error (${method} ${url}):`, error);
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options?: {
+export const getQueryFn = <T,>(options?: {
   on401?: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  (options) =>
+}): QueryFunction<T> =>
   async ({ queryKey }) => {
     const unauthorizedBehavior = options?.on401 || "throw";
     const res = await fetch(queryKey[0] as string, {
@@ -82,14 +148,29 @@ export const getQueryFn: <T>(options?: {
       
       // Return null or throw based on the behavior parameter
       if (unauthorizedBehavior === "returnNull") {
-        return null;
+        return null as unknown as T;
       }
       
       throw new Error("Unauthorized: Please log in to continue");
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    
+    // Safely parse JSON response
+    try {
+      const text = await res.text();
+      
+      // If the response is empty, return an empty object
+      if (!text || text.trim() === '') {
+        return {} as any;
+      }
+      
+      // Try to parse the JSON
+      return JSON.parse(text) as any;
+    } catch (error) {
+      console.error("Error parsing JSON response:", error);
+      throw new Error("Failed to parse server response");
+    }
   };
 
 export const queryClient = new QueryClient({

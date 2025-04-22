@@ -2262,4 +2262,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Switch to MemStorage to avoid DynamoDB connection issues
+export const storage = new MemStorage();

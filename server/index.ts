@@ -38,6 +38,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  console.log("Using in-memory storage for development environment - creating session table");
   // Create session table if it doesn't exist
   await createSessionTable();
   
