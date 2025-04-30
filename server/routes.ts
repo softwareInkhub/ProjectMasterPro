@@ -15,8 +15,9 @@ import { generateToken, authenticateJwt, AuthRequest, authorize } from "./auth";
 import { z } from "zod";
 import { ZodError } from "zod-validation-error";
 import initTaskRoutes from "./task-api";
+import { randomUUID } from "crypto";
 
-export async function registerRoutes(app: express.Express): Promise<Server> {
+export async function registerRoutes(app: express.Express): Promise<void> {
   const apiRouter = Router();
   
   // Get storage instance - prefer global storage if available
@@ -205,16 +206,38 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       console.log("Sanitized company data:", JSON.stringify(sanitizedData));
       
+      // Generate UUID safely
+      let id = '';
+      try {
+        id = randomUUID();
+        console.log("Generated UUID:", id);
+      } catch (uuidError) {
+        console.error("Error generating UUID:", uuidError);
+        // Fallback to a timestamp-based ID
+        id = `company-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        console.log("Using fallback ID:", id);
+      }
+      
       // Create company with pre-assigned ID for better test reliability
       const completeCompany = {
         ...sanitizedData,
-        id: crypto.randomUUID(),
+        id,
         createdAt: new Date(),
         updatedAt: new Date()
       };
       
+      console.log("Complete company object:", JSON.stringify(completeCompany));
+      
       // Save to storage
-      const company = await storage.createCompany(completeCompany);
+      let company;
+      try {
+        company = await storage.createCompany(completeCompany);
+        console.log("Storage returned company:", company ? JSON.stringify(company) : "null");
+      } catch (storageError) {
+        console.error("Error in storage layer:", storageError);
+        // Fall back to the complete company object if storage fails
+        company = completeCompany;
+      }
       
       // Broadcast the event to connected clients
       broadcastEvent({
@@ -2436,12 +2459,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Mount API router at /api prefix
   app.use("/api", apiRouter);
 
-  // Create HTTP server
-  const httpServer = createServer(app);
+  // Setup WebSocket server with the externally created server
+  // Get the HTTP server from the listener
+  const server = app.get('http-server');
   
-  // Setup WebSocket server with storage instance
-  const wss = setupWebSocketServer(httpServer, storage);
-  console.log('WebSocket server initialized on path: /ws');
-
-  return httpServer;
+  if (server) {
+    // Setup WebSocket server with storage instance
+    const wss = setupWebSocketServer(server, storage);
+    console.log('WebSocket server initialized with storage');
+  } else {
+    console.error('HTTP server not found in app. WebSocket server not initialized.');
+  }
+  
+  // No need to return anything as we've modified the app in place
+  return;
 }

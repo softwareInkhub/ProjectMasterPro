@@ -52,6 +52,40 @@ The application employs a modern, scalable architecture:
 - **Data Validation**: Zod schemas for end-to-end type safety
 - **Real-time Updates**: WebSocket server for instant notifications and updates
 
+### Real-Time WebSocket System
+
+The application features a comprehensive real-time update system using WebSockets:
+
+#### Server-Side Implementation
+- WebSocket server operates on `/ws` path, separate from the HTTP server
+- Centralized event broadcasting system with standardized message format
+- Event types defined as enums to ensure consistency between client and server
+- Efficient client tracking with connection management
+
+#### Client-Side Implementation
+- `WebSocketContext` provides application-wide access to real-time updates
+- Automatic reconnection if connection is lost
+- Intelligent cache invalidation based on event types
+- Toast notifications for important events
+- Support for entity-specific event handling
+
+#### Event Types
+The system supports a wide range of event types for different entities:
+- Entity creation events (TASK_CREATED, SPRINT_CREATED, etc.)
+- Entity update events (TASK_UPDATED, SPRINT_UPDATED, etc.)
+- Entity deletion events (TASK_DELETED, SPRINT_DELETED, etc.)
+- Special events (TASK_ASSIGNED, COMMENT_ADDED, etc.)
+
+#### WebSocket Message Format
+```typescript
+interface WebSocketMessage {
+  type: EventType;
+  payload: any;
+}
+```
+
+This real-time system eliminates the need for page refreshes when data is updated, creating a seamless user experience across the application.
+
 ## Data Model
 
 The system uses a relational database model with the following core entities and relationships:
@@ -255,16 +289,96 @@ interface Story {
 ```typescript
 interface Task {
   id: string;
-  name: string;
+  taskId: string; // Human-readable ID like "TASK-123"
+  title: string;
   description: string | null;
-  status: "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
-  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  storyId: string;
-  assigneeId: string | null; // Reference to User
-  estimatedHours: string | null;
-  actualHours: string | null;
+  storyId: string | null;
+  projectId: string;
+  parentTaskId: string | null; // Support for recursive parent-child relationship
+  
+  // Status tracking
+  status: "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE" | "BLOCKED" | "CANCELLED" | "DEFERRED" | "REOPENED";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "URGENT" | "BLOCKER";
+  
+  // Assignment and ownership
+  assignedToId: string | null;
+  previousAssignees: Array<{ id: string, assignedAt: Date, unassignedAt: Date }> | null;
+  createdById: string;
+  
+  // Time tracking
+  plannedStartDate: Date | null;
+  plannedDueDate: Date | null;
+  actualStartDate: Date | null;
+  actualDueDate: Date | null;
+  plannedEffortHours: string | null;
+  estimatedEffortHours: string | null;
+  actualEffortHours: string | null;
+  slippageHours: string | null; // Calculated field for time overruns
+  
+  // Sprint association
+  sprintId: string | null;
+  
+  // Steps/checklist
+  steps: Array<{
+    id: string;
+    description: string;
+    isCompleted: boolean;
+    completedAt: Date | null;
+    completedById: string | null;
+    order: number;
+  }>;
+  
+  // Auditing
+  lastUpdatedById: string;
+  isSystemGenerated: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### Sprint
+```typescript
+interface Sprint {
+  id: string;
+  name: string;
+  goal: string | null;
   startDate: Date | null;
-  dueDate: Date | null;
+  endDate: Date | null;
+  status: "PLANNING" | "ACTIVE" | "REVIEW" | "COMPLETED" | "CANCELLED";
+  projectId: string;
+  teamId: string;
+  capacity: string | null; // In story points
+  completed: string | null; // Story points completed
+  scrumMasterId: string | null;
+  notes: string | null;
+  retrospective: {
+    whatWentWell?: string[];
+    whatCouldBeImproved?: string[];
+    actionItems?: string[];
+  } | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### BacklogItem
+```typescript
+interface BacklogItem {
+  id: string;
+  title: string;
+  description: string | null;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "UNASSIGNED";
+  estimate: string | null; // Story points or time estimate
+  type: "USER_STORY" | "BUG" | "TASK" | "EPIC" | "FEATURE";
+  status: "NEW" | "REFINED" | "READY" | "IN_PROGRESS" | "DONE";
+  projectId: string;
+  epicId: string | null;
+  sprintId: string | null;
+  assigneeId: string | null;
+  reporterId: string | null;
+  labels: string[];
+  acceptanceCriteria: string[];
+  rank: string; // For ordering in the backlog
   createdAt: Date;
   updatedAt: Date;
 }
@@ -500,13 +614,21 @@ The API follows RESTful principles with JSON responses. All endpoints are prefix
 
 ### Task Management Endpoints
 
-| Endpoint          | Method | Description              | Request Body                  | Response                    |
-|-------------------|--------|--------------------------|-------------------------------|----------------------------|
-| `/api/tasks`      | GET    | List all tasks           | -                             | `[ tasks ]`                |
-| `/api/tasks/:id`  | GET    | Get task by ID           | -                             | `{ task }`                 |
-| `/api/tasks`      | POST   | Create new task          | `{ taskData }`                | `{ task }`                 |
-| `/api/tasks/:id`  | PUT    | Update task              | `{ taskData }`                | `{ task }`                 |
-| `/api/tasks/:id`  | DELETE | Delete task              | -                             | `{ success: true }`        |
+| Endpoint                    | Method | Description              | Request Body                  | Response                    |
+|-----------------------------|--------|--------------------------|-------------------------------|----------------------------|
+| `/api/tasks`                | GET    | List all tasks           | -                             | `[ tasks ]`                |
+| `/api/tasks/:id`            | GET    | Get task by ID           | -                             | `{ task }`                 |
+| `/api/tasks`                | POST   | Create new task          | `{ taskData }`                | `{ task }`                 |
+| `/api/tasks/:id`            | PUT    | Update task              | `{ taskData }`                | `{ task }`                 |
+| `/api/tasks/:id`            | DELETE | Delete task              | -                             | `{ success: true }`        |
+| `/api/tasks/:id/comments`   | POST   | Add comment to task      | `{ text, parentCommentId? }` | `{ comment }`              |
+| `/api/tasks/:id/attachments`| POST   | Add attachment to task   | `{ attachmentData }`         | `{ attachment }`           |
+| `/api/tasks/:id/time-entries`| POST   | Add time entry to task   | `{ timeEntryData }`          | `{ timeEntry }`            |
+| `/api/tasks/:id/status`     | PUT    | Update task status       | `{ status, comment? }`       | `{ task }`                 |
+| `/api/tasks/:id/priority`   | PUT    | Update task priority     | `{ priority, comment? }`     | `{ task }`                 |
+| `/api/tasks/:id/steps`      | PUT    | Update task checklist    | `{ steps }`                  | `{ task }`                 |
+| `/api/tasks/:id/assign`     | POST   | Assign task to user      | `{ assignedToId, comment? }` | `{ task }`                 |
+| `/api/tasks/:id/subtasks`   | POST   | Create a subtask         | `{ taskData }`                | `{ task }`                 |
 
 ### Comment Endpoints
 
@@ -539,6 +661,36 @@ The API follows RESTful principles with JSON responses. All endpoints are prefix
 | `/api/devices/:id`               | DELETE | Delete device               | -                             | `{ success: true }`        |
 | `/api/devices/:id/assign/:userId` | POST  | Assign device to user       | -                             | `{ success: true }`        |
 | `/api/devices/:id/unassign`      | POST   | Unassign device from user   | -                             | `{ success: true }`        |
+
+### Sprint Management Endpoints
+
+| Endpoint                     | Method | Description                 | Request Body                  | Response                    |
+|------------------------------|--------|-----------------------------|-------------------------------|----------------------------|
+| `/api/sprints`               | GET    | List all sprints            | -                             | `[ sprints ]`              |
+| `/api/sprints/:id`           | GET    | Get sprint by ID            | -                             | `{ sprint }`               |
+| `/api/sprints`               | POST   | Create new sprint           | `{ sprintData }`              | `{ sprint }`               |
+| `/api/sprints/:id`           | PUT    | Update sprint               | `{ sprintData }`              | `{ sprint }`               |
+| `/api/sprints/:id`           | DELETE | Delete sprint               | -                             | `{ success: true }`        |
+| `/api/sprints/:id/status`    | PUT    | Update sprint status        | `{ status }`                  | `{ sprint }`               |
+| `/api/sprints/:id/retrospective` | PUT | Add sprint retrospective   | `{ retrospectiveData }`       | `{ sprint }`               |
+| `/api/sprints/:id/backlog-items` | GET | Get sprint backlog items   | -                             | `[ backlogItems ]`         |
+| `/api/sprints/:id/add-item/:itemId` | POST | Add item to sprint     | -                             | `{ success: true }`        |
+| `/api/sprints/:id/remove-item/:itemId` | POST | Remove item from sprint | -                         | `{ success: true }`        |
+
+### Backlog Management Endpoints
+
+| Endpoint                          | Method | Description                 | Request Body                  | Response                    |
+|-----------------------------------|--------|-----------------------------|-------------------------------|----------------------------|
+| `/api/backlog-items`              | GET    | List all backlog items      | -                             | `[ backlogItems ]`         |
+| `/api/backlog-items/:id`          | GET    | Get backlog item by ID      | -                             | `{ backlogItem }`          |
+| `/api/backlog-items`              | POST   | Create new backlog item     | `{ backlogItemData }`         | `{ backlogItem }`          |
+| `/api/backlog-items/:id`          | PUT    | Update backlog item         | `{ backlogItemData }`         | `{ backlogItem }`          |
+| `/api/backlog-items/:id`          | DELETE | Delete backlog item         | -                             | `{ success: true }`        |
+| `/api/backlog-items/:id/status`   | PUT    | Update item status          | `{ status }`                  | `{ backlogItem }`          |
+| `/api/backlog-items/:id/priority` | PUT    | Update item priority        | `{ priority }`                | `{ backlogItem }`          |
+| `/api/backlog-items/:id/assign`   | POST   | Assign item to user         | `{ assigneeId }`              | `{ backlogItem }`          |
+| `/api/backlog-items/reorder`      | POST   | Reorder backlog items       | `{ itemIds, ranks }`          | `{ success: true }`        |
+| `/api/projects/:id/backlog`       | GET    | Get project backlog items   | -                             | `[ backlogItems ]`         |
 
 ## UI Components
 

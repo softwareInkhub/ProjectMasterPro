@@ -1,6 +1,7 @@
 import { pgTable, text, serial, uuid, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 // Define common ENUM values that can be used across the application
 export const TEAM_MEMBER_ROLES = [
@@ -435,7 +436,7 @@ export const insertTaskSchema = createInsertSchema(tasks)
     
     // Steps/checklist support as array of step objects
     steps: z.array(z.object({
-      id: z.string().uuid().optional().default(() => crypto.randomUUID()),
+      id: z.string().uuid().optional().default(() => randomUUID()),
       description: z.string(),
       isCompleted: z.boolean().default(false),
       completedAt: z.date().nullable().optional(),

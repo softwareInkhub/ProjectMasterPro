@@ -8,7 +8,7 @@ import {
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import * as crypto from "crypto";
+import { randomUUID } from "crypto";
 
 // Interface for storage operations
 export interface IStorage {
@@ -231,7 +231,7 @@ export class MemStorage implements IStorage {
   }
 
   async createCompany(company: InsertCompany): Promise<Company> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newCompany: Company = {
       id,
@@ -274,7 +274,7 @@ export class MemStorage implements IStorage {
   }
 
   async createDepartment(department: InsertDepartment): Promise<Department> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newDepartment: Department = {
       id,
@@ -317,7 +317,7 @@ export class MemStorage implements IStorage {
   }
 
   async createGroup(group: InsertGroup): Promise<Group> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newGroup: Group = {
       id,
@@ -372,7 +372,7 @@ export class MemStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newUser: User = {
       id,
@@ -415,7 +415,7 @@ export class MemStorage implements IStorage {
   }
 
   async createTeam(team: InsertTeam): Promise<Team> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newTeam: Team = {
       id,
@@ -496,7 +496,7 @@ export class MemStorage implements IStorage {
   }
 
   async createProject(project: InsertProject): Promise<Project> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newProject: Project = {
       id,
@@ -550,7 +550,7 @@ export class MemStorage implements IStorage {
   }
 
   async createEpic(epic: InsertEpic): Promise<Epic> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newEpic: Epic = {
       id,
@@ -604,7 +604,7 @@ export class MemStorage implements IStorage {
   }
 
   async createStory(story: InsertStory): Promise<Story> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newStory: Story = {
       id,
@@ -659,7 +659,7 @@ export class MemStorage implements IStorage {
   }
 
   async createTask(task: InsertTask): Promise<Task> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newTask: Task = {
       id,
@@ -708,7 +708,7 @@ export class MemStorage implements IStorage {
   }
 
   async createTimeEntry(timeEntry: InsertTimeEntry): Promise<TimeEntry> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newTimeEntry: TimeEntry = {
       id,
@@ -750,7 +750,7 @@ export class MemStorage implements IStorage {
   }
 
   async createComment(comment: InsertComment): Promise<Comment> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newComment: Comment = {
       id,
@@ -792,7 +792,7 @@ export class MemStorage implements IStorage {
   }
 
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newAttachment: Attachment = {
       id,
@@ -818,7 +818,7 @@ export class MemStorage implements IStorage {
   }
 
   async createNotification(notification: InsertNotification): Promise<Notification> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newNotification: Notification = {
       id,
@@ -856,7 +856,7 @@ export class MemStorage implements IStorage {
   }
 
   async createLocation(location: InsertLocation): Promise<Location> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newLocation: Location = {
       id,
@@ -923,7 +923,7 @@ export class MemStorage implements IStorage {
   }
 
   async createDevice(device: InsertDevice): Promise<Device> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newDevice: Device = {
       id,
@@ -998,7 +998,7 @@ export class MemStorage implements IStorage {
   }
 
   async createSprint(sprint: InsertSprint): Promise<Sprint> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     const newSprint: Sprint = {
       id,
@@ -1076,7 +1076,7 @@ export class MemStorage implements IStorage {
   }
 
   async createBacklogItem(backlogItem: InsertBacklogItem): Promise<BacklogItem> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const timestamp = new Date().toISOString();
     
     // If no rank is provided, generate one at the end

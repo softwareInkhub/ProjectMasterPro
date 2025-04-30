@@ -4,6 +4,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { createSessionTable } from "./session";
 import { createStorage } from "./storage-factory";
 import { MemStorage, IStorage } from "./storage";
+import { createServer } from "http";
+import { setupWebSocketServer } from "./websocket";
 
 // Add global declaration for typescript
 declare global {
@@ -47,56 +49,71 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  console.log("Using in-memory storage for development environment - creating session table");
-  // Create session table if it doesn't exist
-  await createSessionTable();
-  
-  // Initialize storage with appropriate implementation
-  try {
-    console.log("Initializing storage...");
-    if (FORCE_MEM_STORAGE) {
-      console.log("Forcing in-memory storage for development environment");
-      // Set the global storage instance to MemStorage
-      global.storageInstance = new MemStorage();
-    } else {
-      await createStorage();
-    }
-    console.log("Storage initialization complete");
-  } catch (error) {
-    console.error("Error initializing storage:", error);
-    console.log("Falling back to in-memory storage");
-    global.storageInstance = new MemStorage();
-  }
-  
-  const server = await registerRoutes(app);
+// Create a global instance of MemStorage immediately to avoid timeout
+global.storageInstance = new MemStorage();
+console.log("Using in-memory storage for initial startup");
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+// Error handling middleware
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(status).json({ message });
+  throw err;
+});
 
-    res.status(status).json({ message });
-    throw err;
-  });
+// Create HTTP server directly
+const httpServer = createServer(app);
+const port = 3000;
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+// Store the server reference in the app for later use by WebSockets
+app.set('http-server', httpServer);
+
+// Start the server immediately without waiting for other initialization
+httpServer.listen(port, "0.0.0.0", () => {
+  log(`serving on port ${port}`);
+});
+
+// Setup routes asynchronously after server is started
+registerRoutes(app).then(() => {
+  // Initialize Vite immediately for faster UI loading
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    setupVite(app, httpServer).catch(error => {
+      console.error("Error setting up Vite:", error);
+    });
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 3000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 3000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  // Setup WebSocket server directly with the HTTP server
+  // This ensures the WebSocket server is initialized after routes are set up
+  const wss = setupWebSocketServer(httpServer, global.storageInstance);
+  console.log('WebSocket server initialized on path: /ws');
+});
+
+// Initialize storage after server is already running
+(async () => {
+  try {
+    console.log("Using in-memory storage for development environment - creating session table");
+    // Create session table if it doesn't exist
+    await createSessionTable();
+    
+    // Initialize storage with appropriate implementation
+    try {
+      console.log("Initializing storage...");
+      if (FORCE_MEM_STORAGE) {
+        console.log("Forcing in-memory storage for development environment");
+        // Set the global storage instance to MemStorage
+        global.storageInstance = new MemStorage();
+      } else {
+        await createStorage();
+      }
+      console.log("Storage initialization complete");
+    } catch (error) {
+      console.error("Error initializing storage:", error);
+      console.log("Falling back to in-memory storage");
+      global.storageInstance = new MemStorage();
+    }
+  } catch (error) {
+    console.error("Error during background initialization:", error);
+  }
 })();

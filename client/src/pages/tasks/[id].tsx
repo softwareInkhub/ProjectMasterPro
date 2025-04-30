@@ -203,7 +203,7 @@ export default function TaskDetailPage() {
         ...task.checklist,
         items: [
           ...task.checklist.items,
-          { id: crypto.randomUUID(), text, completed: false }
+          { id: crypto.randomUUID ? crypto.randomUUID() : `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, text, completed: false }
         ],
         total: task.checklist.total + 1
       };
