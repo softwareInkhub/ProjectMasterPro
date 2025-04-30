@@ -1151,29 +1151,8 @@ export class MemStorage implements IStorage {
   }
 }
 
-import { db } from "./db";
-import { eq, and, isNull, desc } from "drizzle-orm";
-import session from "express-session";
-import { createSessionTable } from "./session";
-import * as schema from "@shared/schema";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import createMemoryStore from "memorystore";
-
-// Initialize memory store for session management
-const MemoryStore = createMemoryStore(session);
-
-// Initialize DynamoDB with environment credentials
-const dynamoClient = new DynamoDBClient({
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ""
-  }
-});
-
-// Document client provides a higher-level interface
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
+// Implementation for DatabaseStorage class will be in database-storage.ts file
+// Left here for reference but not being used directly
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;

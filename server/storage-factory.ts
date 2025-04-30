@@ -22,51 +22,16 @@ function hasAwsCredentials(): boolean {
 
 /**
  * Creates and initializes the appropriate storage implementation
- * Falls back to MemStorage if DynamoDB fails
+ * Using MemStorage for development environment to avoid timeout issues
  */
 export async function createStorage(): Promise<IStorage> {
   if (storageInstance) {
     return storageInstance;
   }
 
-  // Always check for AWS credentials first
-  if (hasAwsCredentials()) {
-    try {
-      console.log("AWS credentials found, attempting to use DynamoDB storage");
-      
-      // Try to initialize DynamoDB tables (even if this fails, we'll handle it)
-      try {
-        await createAllTables();
-        console.log("Successfully created DynamoDB tables");
-      } catch (tableError) {
-        console.error("Error creating DynamoDB tables:", tableError);
-        // Continue anyway - tables might already exist
-      }
-      
-      // Try to create a DynamoDB storage instance
-      try {
-        console.log("Initializing DynamoDB storage...");
-        const dynamoDbStorage = new DynamoDBStorage();
-        
-        // Test connection by trying a simple operation
-        console.log("Testing DynamoDB connection...");
-        const companies = await dynamoDbStorage.getCompanies();
-        console.log(`DynamoDB connection successful, found ${companies.length} companies`);
-        
-        // If we get here, DynamoDB is working
-        storageInstance = dynamoDbStorage;
-        return storageInstance;
-      } catch (connectionError) {
-        console.error("Error connecting to DynamoDB:", connectionError);
-        console.log("Falling back to in-memory storage");
-      }
-    } catch (error) {
-      console.error("Error initializing DynamoDB storage:", error);
-      console.log("Falling back to in-memory storage");
-    }
-  } else {
-    console.log("No AWS credentials found, using in-memory storage");
-  }
+  // For development/demo purposes, always use in-memory storage
+  // This prevents timeout issues during startup
+  console.log("Using in-memory storage for development environment");
 
   // Default to in-memory storage if DynamoDB setup failed
   console.log("Initializing in-memory storage");

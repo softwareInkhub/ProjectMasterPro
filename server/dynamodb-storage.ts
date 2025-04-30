@@ -47,23 +47,45 @@ export class DynamoDBStorage implements IStorage {
   public sessionStore: session.Store;
 
   constructor() {
-    // Initialize DynamoDB client
-    this.client = new DynamoDBClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+    try {
+      // Initialize DynamoDB client - but only if we have real credentials
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+        console.log("Using real AWS credentials for DynamoDB");
+        this.client = new DynamoDBClient({
+          region: process.env.AWS_REGION || 'us-east-1',
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+          }
+        });
+      } else {
+        console.log("No valid AWS credentials provided, DynamoDB operations will fail");
+        // Create a dummy client that will throw errors - for type safety only
+        this.client = new DynamoDBClient({
+          region: 'us-east-1',
+          credentials: {
+            accessKeyId: 'dummy',
+            secretAccessKey: 'dummy'
+          }
+        });
       }
-    });
 
-    // Initialize session store for compatibility
-    const MemoryStore = createMemoryStore(session);
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-    });
+      // Initialize session store for compatibility
+      const MemoryStore = createMemoryStore(session);
+      this.sessionStore = new MemoryStore({
+        checkPeriod: 86400000, // prune expired entries every 24h
+      });
 
-    // Create default admin user
-    this.createDefaultAdmin();
+      // Skipping auto-creation of admin user for now
+      // this.createDefaultAdmin();
+    } catch (error) {
+      console.error("Error in DynamoDB constructor:", error);
+      // Initialize session store even if DynamoDB fails
+      const MemoryStore = createMemoryStore(session);
+      this.sessionStore = new MemoryStore({
+        checkPeriod: 86400000, // prune expired entries every 24h
+      });
+    }
   }
 
   private async createDefaultAdmin() {
