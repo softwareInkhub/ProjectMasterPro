@@ -14,15 +14,13 @@ import {
 import { generateToken, authenticateJwt, AuthRequest, authorize } from "./auth";
 import { z } from "zod";
 import { ZodError } from "zod-validation-error";
+import initTaskRoutes from "./task-api";
 
 export async function registerRoutes(app: express.Express): Promise<Server> {
   const apiRouter = Router();
   
   // Get storage instance - prefer global storage if available
   const storage = global.storageInstance || await getStorage();
-  
-  // Mount the API router on /api path
-  app.use('/api', apiRouter);
   
   // Auth routes
   apiRouter.post("/auth/login", async (req: Request, res: Response) => {
@@ -2430,6 +2428,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  // Register the enhanced task API routes
+  const taskRouter = initTaskRoutes();
+  apiRouter.use('/tasks', taskRouter);
 
   // Mount API router at /api prefix
   app.use("/api", apiRouter);

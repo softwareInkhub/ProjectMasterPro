@@ -354,24 +354,65 @@ export const insertStorySchema = createInsertSchema(stories)
     ),
   });
 
-// Task schema
+// Task priority levels
+export const TASK_PRIORITIES = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "CRITICAL",
+  "URGENT",
+  "BLOCKER"
+] as const;
+
+export const TaskPriorityEnum = z.enum(TASK_PRIORITIES);
+
+// Task status options
+export const TASK_STATUSES = [
+  "TODO",
+  "IN_PROGRESS", 
+  "IN_REVIEW", 
+  "DONE", 
+  "BLOCKED",
+  "CANCELLED",
+  "DEFERRED",
+  "REOPENED"
+] as const;
+
+export const TaskStatusEnum = z.enum(TASK_STATUSES);
+
+// Task schema with enhanced fields
 export const tasks = pgTable("tasks", {
   id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
+  taskId: text("task_id").notNull(), // For human-readable ID like "TASK-123"
+  title: text("title").notNull(),
   description: text("description"),
-  storyId: uuid("story_id").notNull().references(() => stories.id),
+  storyId: uuid("story_id").references(() => stories.id), // Optional - can be directly in project
+  projectId: uuid("project_id").references(() => projects.id),
+  // Support for recursive parent-child relationship
   parentTaskId: uuid("parent_task_id").references(() => tasks.id),
-  status: text("status", { 
-    enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "BLOCKED"] 
-  }).default("TODO").notNull(),
-  priority: text("priority", { 
-    enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] 
-  }).default("MEDIUM").notNull(),
-  assigneeId: uuid("assignee_id").references(() => users.id),
-  estimatedHours: text("estimated_hours"),
-  actualHours: text("actual_hours"),
-  startDate: timestamp("start_date"),
-  dueDate: timestamp("due_date"),
+  // Status tracking
+  status: text("status", { enum: TASK_STATUSES }).default("TODO").notNull(),
+  priority: text("priority", { enum: TASK_PRIORITIES }).default("MEDIUM").notNull(),
+  // Assignment and ownership
+  assignedToId: uuid("assigned_to_id").references(() => users.id),
+  previousAssignees: jsonb("previous_assignees"), // Array of previous assignee IDs with timestamps
+  createdById: uuid("created_by_id").references(() => users.id),
+  // Time tracking
+  plannedStartDate: timestamp("planned_start_date"),
+  plannedDueDate: timestamp("planned_due_date"),
+  actualStartDate: timestamp("actual_start_date"),
+  actualDueDate: timestamp("actual_due_date"),
+  plannedEffortHours: text("planned_effort_hours"),
+  estimatedEffortHours: text("estimated_effort_hours"),
+  actualEffortHours: text("actual_effort_hours"),
+  slippageHours: text("slippage_hours"), // Calculated field for time overruns
+  // Sprint association
+  sprintId: uuid("sprint_id").references(() => sprints.id),
+  // Steps/checklist
+  steps: jsonb("steps").default([]), // Array of step objects with completion status
+  // Auditing
+  lastUpdatedById: uuid("last_updated_by_id").references(() => users.id),
+  isSystemGenerated: text("is_system_generated").default("false"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -381,55 +422,91 @@ export const insertTaskSchema = createInsertSchema(tasks)
     id: true,
     createdAt: true,
     updatedAt: true,
+    slippageHours: true, // This is calculated
+    previousAssignees: true, // This is managed internally
   })
   .extend({
-    // Accept and transform string dates to Date objects
-    startDate: z.preprocess(
+    // Task ID with default auto-generated pattern or custom value
+    taskId: z.string().min(1).default(() => `TASK-${Math.floor(Math.random() * 10000)}`),
+    
+    // Status and priority with enums
+    status: TaskStatusEnum.optional().default("TODO"),
+    priority: TaskPriorityEnum.optional().default("MEDIUM"),
+    
+    // Steps/checklist support as array of step objects
+    steps: z.array(z.object({
+      id: z.string().uuid().optional().default(() => crypto.randomUUID()),
+      description: z.string(),
+      isCompleted: z.boolean().default(false),
+      completedAt: z.date().nullable().optional(),
+      completedById: z.string().uuid().nullable().optional(),
+      order: z.number().int().default(0)
+    })).optional().default([]),
+    
+    // Handle potential undefined values for all date fields
+    plannedStartDate: z.preprocess(
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
-    dueDate: z.preprocess(
+    plannedDueDate: z.preprocess(
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
-    // Create new schema definitions for the nullable UUID fields with preprocessing
-    // This handles empty strings by converting them to null
-    assigneeId: z.preprocess(
-      (val) => {
-        if (val === undefined || val === null || val === '') return null;
-        return val;
-      },
+    actualStartDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    actualDueDate: z.preprocess(
+      (val) => (val ? new Date(val as string) : null),
+      z.date().nullable().optional()
+    ),
+    
+    // Handle potential empty strings for all nullable UUID fields
+    assignedToId: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
+    createdById: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
+    lastUpdatedById: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
+    projectId: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
       z.string().uuid().nullable().optional()
     ),
     storyId: z.preprocess(
-      (val) => {
-        if (val === undefined || val === null || val === '') return null;
-        return val;
-      },
+      (val) => (val === undefined || val === null || val === '' ? null : val),
       z.string().uuid().nullable().optional()
     ),
     parentTaskId: z.preprocess(
-      (val) => {
-        if (val === undefined || val === null || val === '') return null;
-        return val;
-      },
+      (val) => (val === undefined || val === null || val === '' ? null : val),
       z.string().uuid().nullable().optional()
     ),
-    // Handle empty strings for hours
-    estimatedHours: z.preprocess(
-      (val) => {
-        if (val === undefined || val === null || val === '') return null;
-        return val;
-      },
+    sprintId: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
+    
+    // Handle potential empty strings for numeric fields
+    plannedEffortHours: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
       z.string().nullable().optional()
     ),
-    actualHours: z.preprocess(
-      (val) => {
-        if (val === undefined || val === null || val === '') return null;
-        return val;
-      },
+    estimatedEffortHours: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
       z.string().nullable().optional()
     ),
+    actualEffortHours: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? null : val),
+      z.string().nullable().optional()
+    ),
+    
+    // System flags
+    isSystemGenerated: z.boolean().optional().default(false),
   });
 
 // TimeEntry schema for tracking time spent on tasks
