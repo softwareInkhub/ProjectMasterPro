@@ -499,14 +499,32 @@ function App() {
         <Route path="/companies/new">
           <ProtectedRoute>
             <Layout>
-              <CompaniesPage new={true} />
+              {(() => {
+                const NewCompanyPage = lazy(() => import('./pages/companies/new'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <NewCompanyPage />
+                  </Suspense>
+                );
+              })()}
             </Layout>
           </ProtectedRoute>
         </Route>
         <Route path="/companies/:id">
           <ProtectedRoute>
             <Layout>
-              <CompaniesPage detail={true} />
+              {(() => {
+                const CompanyDetailPage = lazy(() => import('./pages/companies/[id]'));
+                return (
+                  <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>}>
+                    <CompanyDetailPage />
+                  </Suspense>
+                );
+              })()}
             </Layout>
           </ProtectedRoute>
         </Route>
