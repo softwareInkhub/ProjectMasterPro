@@ -11,6 +11,8 @@ import { setupWebSocketServer } from "./websocket";
 declare global {
   // eslint-disable-next-line no-var
   var storageInstance: IStorage | undefined;
+  // Flag to track if WebSocket server has been initialized
+  var webSocketInitialized: boolean;
 }
 
 // Force using memory storage for development to avoid DynamoDB errors
@@ -73,7 +75,7 @@ httpServer.listen(port, "0.0.0.0", () => {
   log(`serving on port ${port}`);
 });
 
-// Setup routes asynchronously after server is started
+// Setup routes asynchronously after server is started (without WebSocket initialization)
 registerRoutes(app).then(() => {
   // Initialize Vite immediately for faster UI loading
   if (app.get("env") === "development") {
@@ -83,11 +85,8 @@ registerRoutes(app).then(() => {
   } else {
     serveStatic(app);
   }
-
-  // Setup WebSocket server directly with the HTTP server
-  // This ensures the WebSocket server is initialized after routes are set up
-  const wss = setupWebSocketServer(httpServer, global.storageInstance);
-  console.log('WebSocket server initialized on path: /ws');
+  
+  // WebSocket is now initialized only in routes.ts, not here
 });
 
 // Initialize storage after server is already running

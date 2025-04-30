@@ -2459,15 +2459,17 @@ export async function registerRoutes(app: express.Express): Promise<void> {
   // Mount API router at /api prefix
   app.use("/api", apiRouter);
 
-  // Setup WebSocket server with the externally created server
+  // Setup WebSocket server with the externally created server, but only if needed
   // Get the HTTP server from the listener
   const server = app.get('http-server');
   
-  if (server) {
+  // Use global flag to ensure WebSocket server is only set up once
+  if (!global.webSocketInitialized && server) {
     // Setup WebSocket server with storage instance
     const wss = setupWebSocketServer(server, storage);
+    global.webSocketInitialized = true;
     console.log('WebSocket server initialized with storage');
-  } else {
+  } else if (!server) {
     console.error('HTTP server not found in app. WebSocket server not initialized.');
   }
   
