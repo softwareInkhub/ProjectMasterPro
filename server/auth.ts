@@ -50,14 +50,14 @@ export function authenticateJwt(req: AuthRequest, res: Response, next: NextFunct
   ];
   
   if (validDemoTokens.includes(token)) {
-    // For demo token, create a demo user
+    // For demo token, create a demo user with ID "1" to match MemStorage admin user
     req.user = {
-      id: "fd69920b-a214-477b-b7ec-80a97053c20e", // Valid UUID from the database
+      id: "1", // This matches the ID in MemStorage
       email: "admin@example.com",
       firstName: "Admin",
       lastName: "User",
       role: "ADMIN",
-      companyId: "1ef6b6f1-34b3-4ab5-ba94-8804f90903bf", // Valid UUID from the database
+      companyId: null, // No company in MemStorage yet
       password: "",
       status: "ACTIVE",
       departmentId: null,

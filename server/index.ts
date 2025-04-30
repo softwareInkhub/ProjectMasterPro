@@ -2,7 +2,17 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { createSessionTable } from "./session";
+import { createStorage } from "./storage-factory";
+import { MemStorage, IStorage } from "./storage";
 
+// Add global declaration for typescript
+declare global {
+  // eslint-disable-next-line no-var
+  var storageInstance: IStorage | undefined;
+}
+
+// Force using memory storage for development to avoid DynamoDB errors
+const FORCE_MEM_STORAGE = true;
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -41,6 +51,23 @@ app.use((req, res, next) => {
   console.log("Using in-memory storage for development environment - creating session table");
   // Create session table if it doesn't exist
   await createSessionTable();
+  
+  // Initialize storage with appropriate implementation
+  try {
+    console.log("Initializing storage...");
+    if (FORCE_MEM_STORAGE) {
+      console.log("Forcing in-memory storage for development environment");
+      // Set the global storage instance to MemStorage
+      global.storageInstance = new MemStorage();
+    } else {
+      await createStorage();
+    }
+    console.log("Storage initialization complete");
+  } catch (error) {
+    console.error("Error initializing storage:", error);
+    console.log("Falling back to in-memory storage");
+    global.storageInstance = new MemStorage();
+  }
   
   const server = await registerRoutes(app);
 

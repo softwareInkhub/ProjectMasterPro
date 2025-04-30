@@ -4,18 +4,15 @@ import {
   Project, InsertProject, Epic, InsertEpic, Story, InsertStory,
   Task, InsertTask, Comment, InsertComment, Attachment, InsertAttachment,
   Notification, InsertNotification, Location, InsertLocation, Device, InsertDevice,
-  TimeEntry, InsertTimeEntry, Sprint, InsertSprint, BacklogItem, InsertBacklogItem,
-  // Schema tables
-  companies, departments, groups, users, teams, teamMembers, projects, epics,
-  stories, tasks, comments, attachments, notifications, locations, devices,
-  timeEntries, sprints, backlogItems
+  TimeEntry, InsertTimeEntry, Sprint, InsertSprint, BacklogItem, InsertBacklogItem
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, and, desc, asc, isNull, or, sql } from "drizzle-orm";
-import * as bcrypt from "bcryptjs";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+import * as crypto from "crypto";
 
 // Interface for storage operations
 export interface IStorage {
+  sessionStore: session.Store;
   // Company operations
   getCompanies(): Promise<Company[]>;
   getCompany(id: string): Promise<Company | undefined>;
@@ -156,6 +153,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  sessionStore: session.Store;
   private companies: Map<string, Company>;
   private departments: Map<string, Department>;
   private groups: Map<string, Group>;
@@ -176,6 +174,11 @@ export class MemStorage implements IStorage {
   private backlogItems: Map<string, BacklogItem>;
 
   constructor() {
+    // Initialize session store with memorystore
+    const MemoryStore = createMemoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    });
     this.companies = new Map();
     this.departments = new Map();
     this.groups = new Map();
@@ -200,8 +203,8 @@ export class MemStorage implements IStorage {
   }
   
   private createDefaultAdmin() {
-    // Create admin user
-    const adminUser: UserWithStringDates = {
+    // Create admin user with string dates for compatibility
+    const adminUser: any = {
       id: "1",
       email: "admin@example.com",
       password: "$2b$10$8r5YLdRJxQi7R.2CrQHgDuux1S9LCDQo3QhNBNctKpQqvmvMQkGJq", // "password"
@@ -2264,5 +2267,7 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Switch to MemStorage to avoid DynamoDB connection issues
-export const storage = new MemStorage();
+import { DynamoDBStorage } from './dynamodb-storage';
+
+// Use DynamoDBStorage with AWS DynamoDB for production
+export const storage = new DynamoDBStorage();

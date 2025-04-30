@@ -1,8 +1,14 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
+import { IStorage } from './storage';
 
 // Track all active client connections
 const clients = new Map<string, WebSocket>();
+
+// Use global storage instance
+declare global {
+  var storageInstance: IStorage | undefined;
+}
 
 // Event types for real-time updates
 export enum EventType {
@@ -79,10 +85,13 @@ export interface WebSocketMessage {
   payload: any;
 }
 
-export function setupWebSocketServer(server: Server) {
+export function setupWebSocketServer(server: Server, storage: IStorage) {
   const wss = new WebSocketServer({ server, path: '/ws' });
+  
+  // Store the storage instance for use in WebSocket operations
+  storageInstance = storage;
 
-  console.log('WebSocket server initialized');
+  console.log('WebSocket server initialized with storage');
   
   wss.on('connection', (ws: WebSocket) => {
     const clientId = generateClientId();

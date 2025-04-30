@@ -1,6 +1,6 @@
 import express, { Router, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { getStorage } from "./storage-factory";
 import { setupWebSocketServer, broadcastEvent, EventType } from "./websocket";
 import { 
   loginUserSchema, insertUserSchema, insertCompanySchema, 
@@ -17,6 +17,9 @@ import { ZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: express.Express): Promise<Server> {
   const apiRouter = Router();
+  
+  // Get storage instance - prefer global storage if available
+  const storage = global.storageInstance || await getStorage();
   
   // Mount the API router on /api path
   app.use('/api', apiRouter);
@@ -2434,8 +2437,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
   
-  // Setup WebSocket server
-  const wss = setupWebSocketServer(httpServer);
+  // Setup WebSocket server with storage instance
+  const wss = setupWebSocketServer(httpServer, storage);
   console.log('WebSocket server initialized on path: /ws');
 
   return httpServer;
