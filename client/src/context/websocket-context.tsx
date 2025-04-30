@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, memo } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -56,9 +56,9 @@ interface WebSocketContextType {
   lastMessage: WebSocketMessage | null;
 }
 
-const WebSocketContext = createContext<WebSocketContextType | null>(null);
+export const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
-export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = memo(({ children }) => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
@@ -118,9 +118,55 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Invalidate queries based on the message type
     switch (message.type) {
       case EventType.COMPANY_CREATED:
-      case EventType.COMPANY_UPDATED:
-      case EventType.COMPANY_DELETED:
+        // Invalidate companies collection
         queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+        
+        // Show toast notification
+        toast({
+          title: "Company Created",
+          description: message.payload?.name 
+            ? `Company "${message.payload.name}" has been created`
+            : "A new company has been added",
+        });
+        break;
+        
+      case EventType.COMPANY_UPDATED:
+        // Invalidate companies collection
+        queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+        
+        // If we have a specific company ID, invalidate that specific company
+        if (message.payload?.id) {
+          queryClient.invalidateQueries({ queryKey: [`/api/companies/${message.payload.id}`] });
+          console.log(`Invalidating specific company: ${message.payload.id}`);
+        }
+        
+        // Show toast notification
+        toast({
+          title: "Company Updated",
+          description: message.payload?.name 
+            ? `Company "${message.payload.name}" has been updated`
+            : "Company information has been updated",
+        });
+        break;
+        
+      case EventType.COMPANY_DELETED:
+        // Invalidate companies collection
+        queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+        
+        // If we have a specific company ID, remove it from cache
+        if (message.payload?.id) {
+          queryClient.removeQueries({ queryKey: [`/api/companies/${message.payload.id}`] });
+          console.log(`Removing deleted company from cache: ${message.payload.id}`);
+        }
+        
+        // Show toast notification
+        toast({
+          title: "Company Deleted",
+          description: message.payload?.name 
+            ? `Company "${message.payload.name}" has been deleted`
+            : "A company has been removed from the system",
+          variant: "destructive",
+        });
         break;
         
       case EventType.DEPARTMENT_CREATED:
@@ -441,7 +487,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       {children}
     </WebSocketContext.Provider>
   );
-};
+});
 
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);

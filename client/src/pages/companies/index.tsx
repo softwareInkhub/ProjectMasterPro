@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -15,6 +15,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { Company } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { WebSocketContext, EventType } from "@/context/websocket-context";
 
 interface CompaniesPageProps {
   new?: boolean;
@@ -31,11 +32,79 @@ const CompanyList = () => {
   const [filterActive, setFilterActive] = useState("all");
   const { toast } = useToast();
 
+  // State to directly manage companies data
+  const [localCompanies, setLocalCompanies] = useState<Company[]>([]);
+  
   // Fetch companies data from API
-  const { data: companies = [], isLoading, error } = useQuery({
+  const { data: companies = [], isLoading, error, refetch } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
-    queryFn: getQueryFn()
+    queryFn: getQueryFn(),
   });
+  
+  // Get WebSocket context
+  const webSocketContext = useContext(WebSocketContext);
+  
+  // Sync local companies state with API data
+  useEffect(() => {
+    if (companies && companies.length > 0) {
+      console.log("Companies data loaded from API:", companies);
+      setLocalCompanies(companies);
+    }
+  }, [companies]);
+  
+  // Handle WebSocket messages for real-time updates
+  useEffect(() => {
+    if (!webSocketContext) return;
+    
+    const { lastMessage } = webSocketContext;
+    if (!lastMessage) return;
+    
+    console.log("WebSocket message received in CompanyList component:", lastMessage);
+    
+    // If we receive a company event, update UI accordingly
+    if (lastMessage.type === EventType.COMPANY_CREATED && lastMessage.payload) {
+      console.log("Directly updating UI with new company:", lastMessage.payload);
+      
+      // Add the new company to our local state
+      setLocalCompanies(prevCompanies => [...prevCompanies, lastMessage.payload]);
+      
+      // Show a toast notification
+      toast({
+        title: "Company Created",
+        description: lastMessage.payload?.name 
+          ? `Company "${lastMessage.payload.name}" has been created`
+          : "A new company has been added",
+      });
+    } 
+    else if (lastMessage.type === EventType.COMPANY_UPDATED && lastMessage.payload) {
+      console.log("Updating company in local state:", lastMessage.payload);
+      
+      // Update the company in our local state
+      setLocalCompanies(prevCompanies => 
+        prevCompanies.map(company => 
+          company.id === lastMessage.payload.id ? lastMessage.payload : company
+        )
+      );
+      
+      toast({
+        title: "Company Updated",
+        description: `Company "${lastMessage.payload.name}" has been updated`,
+      });
+    }
+    else if (lastMessage.type === EventType.COMPANY_DELETED && lastMessage.payload) {
+      console.log("Removing company from local state:", lastMessage.payload);
+      
+      // Remove the company from our local state
+      setLocalCompanies(prevCompanies => 
+        prevCompanies.filter(company => company.id !== lastMessage.payload.id)
+      );
+      
+      toast({
+        title: "Company Deleted",
+        description: `A company has been deleted`,
+      });
+    }
+  }, [webSocketContext?.lastMessage, toast]);
 
   // Delete company mutation
   const deleteCompanyMutation = useMutation({
@@ -71,7 +140,7 @@ const CompanyList = () => {
   };
 
   // Add status to companies if not present
-  const companiesWithStatus = companies.map((company: any) => ({
+  const companiesWithStatus = localCompanies.map((company) => ({
     ...company,
     status: company.status || "ACTIVE" // Default to ACTIVE if status is not present
   }));
@@ -79,7 +148,7 @@ const CompanyList = () => {
   // Filter companies based on active status filter
   const filteredCompanies = filterActive === "all" 
     ? companiesWithStatus 
-    : companiesWithStatus.filter((company: any) => 
+    : companiesWithStatus.filter((company) => 
         filterActive === "active" 
           ? company.status === "ACTIVE" 
           : company.status === "INACTIVE"
@@ -173,7 +242,7 @@ const CompanyList = () => {
       {/* Companies List */}
       {!isLoading && !error && filteredCompanies.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCompanies.map((company: any) => (
+          {filteredCompanies.map((company) => (
             <Card 
               key={company.id} 
               className="hover:shadow-md transition-shadow cursor-pointer" 
