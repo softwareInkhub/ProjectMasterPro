@@ -1160,11 +1160,13 @@ import createMemoryStore from "memorystore";
 // Initialize memory store for session management
 const MemoryStore = createMemoryStore(session);
 
-// Initialize DynamoDB (for future implementation)
-// We'll use in-memory storage for now until DynamoDB is fully implemented
+// Initialize DynamoDB with environment credentials
 const dynamoClient = new DynamoDBClient({
-  region: "us-east-1",  // Default region, will be overridden by AWS config
-  // Credentials would be configured in production environment
+  region: process.env.AWS_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ""
+  }
 });
 
 // Document client provides a higher-level interface
