@@ -44,10 +44,21 @@ import {
   User as UserIcon,
   MessageSquare,
   CheckSquare,
+  ClipboardCheck,
+  AlertCircle,
+  Check,
+  X,
   Tag,
   Briefcase,
   Clipboard,
   Trash2,
+  Image,
+  FileText,
+  Table,
+  Layout,
+  FileType,
+  Code,
+  Paperclip,
   Copy,
   Loader2,
   Timer
@@ -84,10 +95,14 @@ export default function TaskDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddCommentDialogOpen, setIsAddCommentDialogOpen] = useState(false);
   const [isAddSubtaskDialogOpen, setIsAddSubtaskDialogOpen] = useState(false);
+  const [isAddAttachmentDialogOpen, setIsAddAttachmentDialogOpen] = useState(false);
   const [isChangeAssigneeDialogOpen, setIsChangeAssigneeDialogOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [newSubtaskText, setNewSubtaskText] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentDescription, setAttachmentDescription] = useState("");
   const [selectedAssignee, setSelectedAssignee] = useState<User | null>(null);
   const [editTask, setEditTask] = useState<Partial<Task>>({});
 
@@ -121,6 +136,13 @@ export default function TaskDetailPage() {
   // Fetch comments for this task
   const { data: comments = [] } = useQuery({
     queryKey: [`/api/comments?entityType=task&entityId=${taskId}`],
+    queryFn: getQueryFn(),
+    enabled: !!taskId
+  });
+
+  // Fetch attachments for this task
+  const { data: attachments = [] } = useQuery({
+    queryKey: [`/api/attachments?entityType=TASK&entityId=${taskId}`],
     queryFn: getQueryFn(),
     enabled: !!taskId
   });
@@ -386,6 +408,118 @@ export default function TaskDetailPage() {
     updateTaskMutation.mutate(editTask);
   };
 
+  // Add attachment mutation
+  const addAttachmentMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const res = await fetch(`/api/tasks/${taskId}/attachments`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) throw new Error('Failed to upload attachment');
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/attachments?entityType=TASK&entityId=${taskId}`] });
+      setAttachmentFile(null);
+      setAttachmentName('');
+      setAttachmentDescription('');
+      setIsAddAttachmentDialogOpen(false);
+      toast({
+        title: "Attachment added",
+        description: "Your file has been attached to this task."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to add attachment",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete attachment mutation
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const res = await apiRequest('DELETE', `/api/attachments/${attachmentId}`);
+      return res.ok;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/attachments?entityType=TASK&entityId=${taskId}`] });
+      toast({
+        title: "Attachment deleted",
+        description: "The attachment has been removed from this task."
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete attachment",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Handle adding an attachment
+  const handleAddAttachment = () => {
+    if (!attachmentFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!attachmentName.trim()) {
+      setAttachmentName(attachmentFile.name);
+    }
+
+    const formData = new FormData();
+    formData.append('file', attachmentFile);
+    formData.append('name', attachmentName.trim() || attachmentFile.name);
+    formData.append('description', attachmentDescription);
+    formData.append('entityType', 'TASK');
+    formData.append('entityId', taskId as string);
+    
+    addAttachmentMutation.mutate(formData);
+  };
+
+  // Handle deleting an attachment
+  const handleDeleteAttachment = (attachmentId: string) => {
+    deleteAttachmentMutation.mutate(attachmentId);
+  };
+
+  // Format file size
+  const formatFileSize = (size: string) => {
+    const sizeInBytes = parseInt(size);
+    if (isNaN(sizeInBytes)) return size;
+
+    if (sizeInBytes < 1024) return `${sizeInBytes} B`;
+    if (sizeInBytes < 1024 * 1024) return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // File type icon component
+  const FileTypeIcon = ({ type }: { type: string }) => {
+    switch (type?.toUpperCase() || '') {
+      case 'IMAGE':
+        return <Image className="h-6 w-6" />;
+      case 'DOCUMENT':
+        return <FileText className="h-6 w-6" />;
+      case 'SPREADSHEET':
+        return <Table className="h-6 w-6" />;
+      case 'PRESENTATION':
+        return <Layout className="h-6 w-6" />;
+      case 'PDF':
+        return <FileType className="h-6 w-6" />;
+      case 'CODE':
+        return <Code className="h-6 w-6" />;
+      default:
+        return <Paperclip className="h-6 w-6" />;
+    }
+  };
+
   // Helper to get status badge color
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -540,7 +674,7 @@ export default function TaskDetailPage() {
           </Card>
           
           <Tabs defaultValue="checklist" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="checklist" className="text-xs sm:text-sm">
                 <CheckSquare className="h-3.5 w-3.5 mr-1 sm:mr-2" />
                 <span className="hidden xs:inline">Checklist</span>
@@ -551,6 +685,16 @@ export default function TaskDetailPage() {
                 <span className="hidden xs:inline">Comments</span>
                 <span className="xs:hidden">Chat</span> 
                 <span className="text-xs">({comments.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="review" className="text-xs sm:text-sm">
+                <ClipboardCheck className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Review</span>
+                <span className="xs:hidden">Review</span>
+              </TabsTrigger>
+              <TabsTrigger value="attachments" className="text-xs sm:text-sm">
+                <Paperclip className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Attachments</span>
+                <span className="xs:hidden">Files</span>
               </TabsTrigger>
               <TabsTrigger value="timetracking" className="text-xs sm:text-sm">
                 <Timer className="h-3.5 w-3.5 mr-1 sm:mr-2" />
@@ -638,6 +782,161 @@ export default function TaskDetailPage() {
                             </div>
                             <p className="text-gray-700 mt-1 text-sm">{comment.text}</p>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="review" className="mt-3 sm:mt-4">
+              <Card className="shadow-sm border-0">
+                <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-sm sm:text-base">Review & Approval</CardTitle>
+                    {task.status !== "IN_REVIEW" && (
+                      <Button 
+                        size="sm" 
+                        className="h-8 px-2 sm:px-3"
+                        onClick={() => {
+                          setEditTask({...editTask, status: "IN_REVIEW"});
+                          updateTaskMutation.mutate({...editTask, status: "IN_REVIEW"});
+                        }}
+                      >
+                        <ClipboardCheck className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                        <span className="text-xs sm:text-sm">Request Review</span>
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 px-4 sm:px-6">
+                  {task.status === "IN_REVIEW" ? (
+                    <div className="space-y-4">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                        <div className="flex">
+                          <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                          <div>
+                            <h3 className="text-sm font-medium text-yellow-800">Task Under Review</h3>
+                            <p className="text-sm text-yellow-700 mt-1">This task is currently being reviewed.</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 space-x-2 flex">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="border-green-500 text-green-600 hover:bg-green-50"
+                            onClick={() => {
+                              setEditTask({...editTask, status: "DONE"});
+                              updateTaskMutation.mutate({...editTask, status: "DONE"});
+                            }}
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                            Approve
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="border-red-500 text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              setEditTask({...editTask, status: "TODO"});
+                              updateTaskMutation.mutate({...editTask, status: "TODO"});
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium mb-2">Review Checklist</h3>
+                        <div className="space-y-2">
+                          <div className="flex items-start">
+                            <Checkbox id="check-complete" className="mt-1" />
+                            <label htmlFor="check-complete" className="ml-2 text-sm">
+                              All requirements are met
+                            </label>
+                          </div>
+                          <div className="flex items-start">
+                            <Checkbox id="check-tested" className="mt-1" />
+                            <label htmlFor="check-tested" className="ml-2 text-sm">
+                              Task has been properly tested
+                            </label>
+                          </div>
+                          <div className="flex items-start">
+                            <Checkbox id="check-reviewed" className="mt-1" />
+                            <label htmlFor="check-reviewed" className="ml-2 text-sm">
+                              Code/work has been reviewed
+                            </label>
+                          </div>
+                          <div className="flex items-start">
+                            <Checkbox id="check-documented" className="mt-1" />
+                            <label htmlFor="check-documented" className="ml-2 text-sm">
+                              Documentation is complete
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">
+                      <ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>This task hasn't been submitted for review yet.</p>
+                      <p className="text-xs mt-1">Click "Request Review" when you're ready for feedback.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="attachments" className="mt-3 sm:mt-4">
+              <Card className="shadow-sm border-0">
+                <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-sm sm:text-base">Files & Attachments</CardTitle>
+                    <Button 
+                      size="sm" 
+                      className="h-8 px-2 sm:px-3"
+                      onClick={() => setIsAddAttachmentDialogOpen(true)}
+                    >
+                      <PlusIcon className="h-3.5 w-3.5 mr-1 sm:mr-2" />
+                      <span className="text-xs sm:text-sm">Attach</span>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 px-4 sm:px-6">
+                  {!attachments || attachments.length === 0 ? (
+                    <div className="text-center py-6 text-gray-500">
+                      <Paperclip className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No attachments yet. Add files to this task.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {attachments.map((attachment) => (
+                        <div key={attachment.id} className="flex items-center p-2 border rounded-md">
+                          <div className="rounded-md bg-gray-100 p-2 mr-3">
+                            <FileTypeIcon type={attachment.fileType} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <a 
+                              href={attachment.fileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-blue-600 hover:underline truncate block"
+                            >
+                              {attachment.name}
+                            </a>
+                            <div className="flex items-center text-xs text-gray-500">
+                              <span>{formatFileSize(attachment.size)}</span>
+                              <span className="mx-1">•</span>
+                              <span>{formatDate(attachment.createdAt)}</span>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm" className="ml-2" onClick={() => handleDeleteAttachment(attachment.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -977,6 +1276,75 @@ export default function TaskDetailPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Add Subtask
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Attachment Dialog */}
+      <Dialog open={isAddAttachmentDialogOpen} onOpenChange={setIsAddAttachmentDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Attachment</DialogTitle>
+            <DialogDescription>
+              Attach a file to this task.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="file">Select File</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setAttachmentFile(e.target.files[0]);
+                    if (!attachmentName) {
+                      setAttachmentName(e.target.files[0].name);
+                    }
+                  }
+                }}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="attachmentName">Name</Label>
+              <Input
+                id="attachmentName"
+                value={attachmentName}
+                onChange={(e) => setAttachmentName(e.target.value)}
+                placeholder="Attachment name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="attachmentDescription">Description (optional)</Label>
+              <Textarea
+                id="attachmentDescription"
+                value={attachmentDescription}
+                onChange={(e) => setAttachmentDescription(e.target.value)}
+                placeholder="Brief description of this file"
+                rows={3}
+              />
+            </div>
+            {attachmentFile && (
+              <div className="p-2 border rounded-md mt-2">
+                <p className="text-sm font-medium">Selected file:</p>
+                <p className="text-sm text-muted-foreground">{attachmentFile.name}</p>
+                <p className="text-xs text-muted-foreground">{formatFileSize(attachmentFile.size.toString())}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddAttachmentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddAttachment}
+              disabled={addAttachmentMutation.isPending || !attachmentFile}
+            >
+              {addAttachmentMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Upload Attachment
             </Button>
           </DialogFooter>
         </DialogContent>

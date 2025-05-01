@@ -22,7 +22,7 @@ import { Project, InsertProject, Company, Department, Team } from "@shared/schem
 export default function NewProject() {
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<Partial<InsertProject>>({
+  const [formData, setFormData] = useState<Partial<InsertProject> & { startDate?: string, endDate?: string }>({
     name: "",
     description: "",
     status: "PLANNING",
@@ -161,10 +161,10 @@ export default function NewProject() {
   // Handle dates - directly pass ISO strings, as the schema will preprocess them
   // No need for explicit conversion since we're using z.preprocess now
   if (formData.startDate) {
-    dataToSubmit.startDate = formData.startDate as string;
+    dataToSubmit.startDate = formData.startDate;
   }
   if (formData.endDate) {
-    dataToSubmit.endDate = formData.endDate as string;
+    dataToSubmit.endDate = formData.endDate;
   }
     
     createProjectMutation.mutate(dataToSubmit);
@@ -358,7 +358,7 @@ export default function NewProject() {
                         </div>
                       ) : (
                         users.map((user: any) => (
-                          <SelectItem key={user.id} value={user.id}>
+                          <SelectItem key={user.id} value={user.id.toString()}>
                             {user.firstName} {user.lastName}
                           </SelectItem>
                         ))
@@ -421,8 +421,8 @@ export default function NewProject() {
                     name="startDate"
                     type="date"
                     value={
-                      formData.startDate && typeof formData.startDate === 'string' 
-                        ? formData.startDate.split('T')[0]  // Format ISO string to YYYY-MM-DD for date input
+                      formData.startDate && typeof formData.startDate === 'string'
+                        ? formData.startDate.split('T')[0]
                         : ""
                     }
                     onChange={handleInputChange}
@@ -436,8 +436,8 @@ export default function NewProject() {
                     name="endDate"
                     type="date"
                     value={
-                      formData.endDate && typeof formData.endDate === 'string' 
-                        ? formData.endDate.split('T')[0]  // Format ISO string to YYYY-MM-DD for date input
+                      formData.endDate && typeof formData.endDate === 'string'
+                        ? formData.endDate.split('T')[0]
                         : ""
                     }
                     onChange={handleInputChange}

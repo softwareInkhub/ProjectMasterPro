@@ -239,6 +239,25 @@ export const insertProjectSchema = createInsertSchema(projects)
       (val) => (val ? new Date(val as string) : null),
       z.date().nullable().optional()
     ),
+    // Handle projectManagerId validation - accept string ID and process if needed
+    projectManagerId: z.preprocess(
+      (val) => {
+        // If value is falsy or already a valid UUID, keep it as is
+        if (!val || typeof val !== 'string') return undefined;
+        // If the value is a valid UUID, return it directly
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(val)) return val;
+        
+        // For demo purposes: if the incoming ID is "1" (admin user), convert to a valid UUID format
+        // This is a special handling to make the app more user-friendly during development
+        if (val === "1") {
+          return "00000000-0000-0000-0000-000000000001";
+        }
+        
+        return val;
+      },
+      z.string().uuid().nullable().optional()
+    ),
     // Make progress optional with a default value provided in the route handler
     progress: z.object({ percentage: z.number() }).optional(),
   });
