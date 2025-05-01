@@ -22,16 +22,30 @@ function hasAwsCredentials(): boolean {
 
 /**
  * Creates and initializes the appropriate storage implementation
- * Using MemStorage for development environment to avoid timeout issues
  */
 export async function createStorage(): Promise<IStorage> {
   if (storageInstance) {
     return storageInstance;
   }
 
-  // For development/demo purposes, always use in-memory storage
-  // This prevents timeout issues during startup
-  console.log("Using in-memory storage for development environment");
+  // Check if AWS credentials are available
+  if (hasAwsCredentials()) {
+    try {
+      console.log("Using real AWS credentials for DynamoDB");
+      // First create all required tables if they don't exist
+      await createAllTables();
+      
+      // Initialize DynamoDB storage
+      console.log("Initializing DynamoDB storage");
+      storageInstance = new DynamoDBStorage();
+      return storageInstance;
+    } catch (error) {
+      console.error("Error setting up DynamoDB storage:", error);
+      console.log("Falling back to in-memory storage");
+    }
+  } else {
+    console.log("AWS credentials not found - using in-memory storage");
+  }
 
   // Default to in-memory storage if DynamoDB setup failed
   console.log("Initializing in-memory storage");

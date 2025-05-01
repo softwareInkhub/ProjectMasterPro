@@ -880,7 +880,7 @@ export async function registerRoutes(app: express.Express): Promise<void> {
       if (project) {
         broadcastEvent({
           type: EventType.PROJECT_DELETED,
-          payload: { id: projectId, ...project }
+          payload: { _id: projectId, ...project }
         });
       }
       
@@ -1028,7 +1028,7 @@ export async function registerRoutes(app: express.Express): Promise<void> {
       if (epic) {
         broadcastEvent({
           type: EventType.EPIC_DELETED,
-          payload: { id: epicId, ...epic }
+          payload: { _id: epicId, ...epic }
         });
       }
       
@@ -2384,7 +2384,7 @@ export async function registerRoutes(app: express.Express): Promise<void> {
         
         // Count completed tasks rate for all members
         for (const member of members) {
-          const memberTasks = await storage.getTasks(undefined, member.id);
+          const memberTasks = await storage.getTasks({ assigneeId: member.id });
           totalTasks += memberTasks.length;
           tasksCompleted += memberTasks.filter(t => t.status === "DONE").length;
         }
@@ -2464,14 +2464,21 @@ export async function registerRoutes(app: express.Express): Promise<void> {
   const server = app.get('http-server');
   
   // Use global flag to ensure WebSocket server is only set up once
-  if (!global.webSocketInitialized && server) {
-    // Setup WebSocket server with storage instance
-    const wss = setupWebSocketServer(server, storage);
-    global.webSocketInitialized = true;
-    console.log('WebSocket server initialized with storage');
-  } else if (!server) {
-    console.error('HTTP server not found in app. WebSocket server not initialized.');
-  }
+  // Set up WebSocket server asynchronously to not block startup
+  setTimeout(() => {
+    if (!global.webSocketInitialized && server) {
+      try {
+        // Setup WebSocket server with storage instance
+        const wss = setupWebSocketServer(server, storage);
+        global.webSocketInitialized = true;
+        console.log('WebSocket server initialized with storage');
+      } catch (error) {
+        console.error('Error initializing WebSocket server:', error);
+      }
+    } else if (!server) {
+      console.error('HTTP server not found in app. WebSocket server not initialized.');
+    }
+  }, 0); // Execute immediately but after current call stack
   
   // No need to return anything as we've modified the app in place
   return;

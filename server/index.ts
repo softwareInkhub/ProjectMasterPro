@@ -13,47 +13,37 @@ declare global {
   var storageInstance: IStorage | undefined;
   // Flag to track if WebSocket server has been initialized
   var webSocketInitialized: boolean;
+  // Flag to check if port has been opened
+  var portOpened: boolean;
 }
 
-// Force using memory storage for development to avoid DynamoDB errors
-const FORCE_MEM_STORAGE = true;
+// Use DynamoDB for storage
+const FORCE_MEM_STORAGE = false;
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
+// Use minimal middleware for faster startup
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
 // Create a global instance of MemStorage immediately to avoid timeout
 global.storageInstance = new MemStorage();
 console.log("Using in-memory storage for initial startup");
+
+// Initialize global flags
+global.webSocketInitialized = false;
+global.portOpened = false;
+
+// Simplified logging middleware to improve startup time
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
+    });
+  }
+  next();
+});
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -72,27 +62,25 @@ app.set('http-server', httpServer);
 
 // Start the server immediately without waiting for other initialization
 httpServer.listen(port, "0.0.0.0", () => {
+  // Signal that the port is open
+  global.portOpened = true;
   log(`serving on port ${port}`);
 });
 
-// Setup routes asynchronously after server is started (without WebSocket initialization)
-registerRoutes(app).then(() => {
-  // Initialize Vite immediately for faster UI loading
-  if (app.get("env") === "development") {
-    setupVite(app, httpServer).catch(error => {
-      console.error("Error setting up Vite:", error);
-    });
-  } else {
-    serveStatic(app);
-  }
-  
-  // WebSocket is now initialized only in routes.ts, not here
+// Run the most important parts of startup process in parallel
+Promise.all([
+  // Setup routes asynchronously
+  registerRoutes(app),
+  // Setup Vite in parallel (if in development)
+  app.get("env") === "development" ? setupVite(app, httpServer) : Promise.resolve(serveStatic(app))
+]).catch(error => {
+  console.error("Error during parallel initialization:", error);
 });
 
-// Initialize storage after server is already running
-(async () => {
+// Initialize storage in a non-blocking way after server is already running
+setTimeout(async () => {
   try {
-    console.log("Using in-memory storage for development environment - creating session table");
+    console.log("Creating session table for DynamoDB storage");
     // Create session table if it doesn't exist
     await createSessionTable();
     
@@ -115,4 +103,4 @@ registerRoutes(app).then(() => {
   } catch (error) {
     console.error("Error during background initialization:", error);
   }
-})();
+}, 0); // Execute immediately but after current call stack

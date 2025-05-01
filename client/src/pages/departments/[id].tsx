@@ -30,14 +30,67 @@ interface Department {
   updatedAt: string;
 }
 
+// Company type
+interface Company {
+  id: string;
+  name: string;
+  description: string | null;
+  website: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// User type
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  departmentId: string | null;
+  companyId: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Team type
+interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  parentTeamId: string | null;
+  companyId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Project type
+interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  status: string;
+  priority: string;
+  companyId: string;
+  teamId: string;
+  departmentId: string | null;
+  projectManagerId: string | null;
+  progress: { percentage: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Extended type to include related data for UI display
 interface DepartmentWithDetails extends Department {
   companyName: string;
-  manager: string;
+  manager: string | null;
   headCount: number;
-  budget: number;
-  teams: number;
-  projects: number;
+  teams: Team[];
+  projects: Project[];
+  users: User[];
 }
 
 export default function DepartmentDetailsPage() {
@@ -49,31 +102,96 @@ export default function DepartmentDetailsPage() {
   // Fetch department data
   const { 
     data: department, 
-    isLoading, 
-    error 
+    isLoading: isLoadingDepartment, 
+    error: departmentError
   } = useQuery({
     queryKey: ['/api/departments', departmentId],
     enabled: !!departmentId,
   });
+  
+  // Fetch company data if we have the department
+  const {
+    data: company,
+    isLoading: isLoadingCompany
+  } = useQuery({
+    queryKey: ['/api/companies', department?.companyId],
+    enabled: !!department?.companyId,
+  });
+  
+  // Fetch users in this department
+  const {
+    data: users,
+    isLoading: isLoadingUsers
+  } = useQuery({
+    queryKey: ['/api/users'],
+    enabled: !!departmentId,
+  });
+  
+  // Fetch teams
+  const {
+    data: teams,
+    isLoading: isLoadingTeams
+  } = useQuery({
+    queryKey: ['/api/teams'],
+    enabled: !!department?.companyId,
+  });
+  
+  // Fetch projects
+  const {
+    data: projects,
+    isLoading: isLoadingProjects
+  } = useQuery({
+    queryKey: ['/api/projects'],
+    enabled: !!departmentId,
+  });
 
-  // Mock enhanced department data
-  // In a real application, this would be fetched from the API or composed from multiple API calls
+  // Process and combine data
   const [departmentWithDetails, setDepartmentWithDetails] = useState<DepartmentWithDetails | null>(null);
 
   useEffect(() => {
-    if (department) {
-      // Enhance with additional data for UI
-      setDepartmentWithDetails({
-        ...department,
-        companyName: "Acme Corporation", // This would come from another API call in real app
-        manager: "John Doe", // This would be fetched from users API
-        headCount: 42,
-        budget: 2500000,
-        teams: 5,
-        projects: 8
+    try {
+      if (department && (!isLoadingCompany && !isLoadingUsers && !isLoadingTeams && !isLoadingProjects)) {
+        // Filter users belonging to this department
+        const departmentUsers = (users || []).filter((user: User) => user.departmentId === departmentId);
+        
+        // Find manager - assuming the first user with 'MANAGER' role or first user if none
+        const manager = departmentUsers.find((user: User) => user.role === 'MANAGER');
+        const managerName = manager 
+          ? `${manager.firstName} ${manager.lastName}` 
+          : (departmentUsers.length > 0 ? `${departmentUsers[0].firstName} ${departmentUsers[0].lastName}` : null);
+        
+        // Filter teams by company ID (ideally would filter by department)
+        const departmentTeams = (teams || []).filter((team: Team) => team.companyId === department.companyId);
+        
+        // Filter projects for this department
+        const departmentProjects = (projects || []).filter((project: Project) => 
+          project.departmentId === departmentId
+        );
+        
+        // Enhance with additional data
+        setDepartmentWithDetails({
+          ...department,
+          companyName: company?.name || 'Unknown Company',
+          manager: managerName,
+          headCount: departmentUsers.length,
+          teams: departmentTeams,
+          projects: departmentProjects,
+          users: departmentUsers
+        });
+      }
+    } catch (error) {
+      console.error('Error processing department data:', error);
+      toast({
+        title: 'Error',
+        description: 'There was an error processing department data. Please try again.',
+        variant: 'destructive'
       });
     }
-  }, [department]);
+  }, [department, company, users, teams, projects, isLoadingCompany, isLoadingUsers, isLoadingTeams, isLoadingProjects, departmentId, toast]);
+  
+  // Overall loading state
+  const isLoading = isLoadingDepartment || isLoadingCompany || isLoadingUsers || isLoadingTeams || isLoadingProjects;
+  const error = departmentError;
 
   // Format date helper
   const formatDate = (dateString: string) => {
@@ -225,16 +343,11 @@ export default function DepartmentDetailsPage() {
                     </div>
                   </div>
                   
-                  <div>
-                    <h3 className="text-sm text-gray-500">Annual Budget</h3>
-                    <p className="text-xl font-semibold mt-1">{formatCurrency(departmentWithDetails.budget)}</p>
-                  </div>
-                  
                   <div className="grid grid-cols-2 gap-4 pt-3">
                     <div className="p-3 bg-gray-50 rounded-lg text-center">
                       <div className="flex flex-col items-center">
                         <LayoutGridIcon className="h-5 w-5 text-gray-600 mb-2" />
-                        <span className="text-lg font-bold">{departmentWithDetails.teams}</span>
+                        <span className="text-lg font-bold">{departmentWithDetails.teams.length}</span>
                         <span className="text-xs text-gray-500">Teams</span>
                       </div>
                     </div>
@@ -242,7 +355,7 @@ export default function DepartmentDetailsPage() {
                     <div className="p-3 bg-gray-50 rounded-lg text-center">
                       <div className="flex flex-col items-center">
                         <BriefcaseIcon className="h-5 w-5 text-gray-600 mb-2" />
-                        <span className="text-lg font-bold">{departmentWithDetails.projects}</span>
+                        <span className="text-lg font-bold">{departmentWithDetails.projects.length}</span>
                         <span className="text-xs text-gray-500">Projects</span>
                       </div>
                     </div>
@@ -251,47 +364,42 @@ export default function DepartmentDetailsPage() {
               </CardContent>
             </Card>
             
-            {/* Activity Card */}
+            {/* Department Members Card */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Recent Activity</CardTitle>
+                <CardTitle className="text-lg">Department Members</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-1.5 bg-blue-100 rounded-full mt-0.5">
-                        <BriefcaseIcon className="h-3.5 w-3.5 text-blue-700" />
-                      </div>
-                      <div>
-                        <p className="text-sm">New project <span className="font-medium">Mobile App Redesign</span> was added</p>
-                        <p className="text-xs text-gray-500">2 days ago</p>
-                      </div>
+                  {departmentWithDetails.users.length > 0 ? (
+                    <div className="space-y-3">
+                      {departmentWithDetails.users.slice(0, 3).map((user) => (
+                        <div key={user.id} className="flex items-start gap-3">
+                          <div className="p-1.5 bg-purple-100 rounded-full mt-0.5">
+                            <UserIcon className="h-3.5 w-3.5 text-purple-700" />
+                          </div>
+                          <div>
+                            <p className="text-sm">
+                              <span className="font-medium">{user.firstName} {user.lastName}</span>
+                            </p>
+                            <p className="text-xs text-gray-500">{user.role}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="p-1.5 bg-green-100 rounded-full mt-0.5">
-                        <UsersIcon className="h-3.5 w-3.5 text-green-700" />
-                      </div>
-                      <div>
-                        <p className="text-sm"><span className="font-medium">Team Alpha</span> added 2 new members</p>
-                        <p className="text-xs text-gray-500">5 days ago</p>
-                      </div>
+                  ) : (
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-gray-500">No members assigned to this department yet</p>
                     </div>
-                    
-                    <div className="flex items-start gap-3">
-                      <div className="p-1.5 bg-purple-100 rounded-full mt-0.5">
-                        <UserIcon className="h-3.5 w-3.5 text-purple-700" />
-                      </div>
-                      <div>
-                        <p className="text-sm"><span className="font-medium">John Doe</span> was promoted to Department Manager</p>
-                        <p className="text-xs text-gray-500">2 weeks ago</p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                   
-                  <Button className="w-full" variant="outline" size="sm">
-                    View All Activity
+                  <Button 
+                    className="w-full" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLocation('/users?departmentId=' + departmentId)}
+                  >
+                    View All Members
                   </Button>
                 </div>
               </CardContent>
@@ -304,43 +412,50 @@ export default function DepartmentDetailsPage() {
               <TabsTrigger value="teams">Teams</TabsTrigger>
               <TabsTrigger value="projects">Projects</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
-              <TabsTrigger value="budget">Budget</TabsTrigger>
             </TabsList>
             
             <TabsContent value="teams" className="mt-4">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Teams ({departmentWithDetails.teams})</h3>
+                    <h3 className="text-lg font-semibold">Teams ({departmentWithDetails.teams.length})</h3>
                     <Button variant="outline" onClick={() => setLocation('/teams/new')}>
                       Create Team
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* This would be a map over actual teams data in a real app */}
-                    {Array(departmentWithDetails.teams).fill(0).map((_, i) => (
-                      <Card key={i} className="hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() => setLocation(`/teams/${i+1}`)}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <UsersIcon className="h-4 w-4 text-blue-700" />
+                  {departmentWithDetails.teams.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {departmentWithDetails.teams.map((team) => (
+                        <Card key={team.id} className="hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => setLocation(`/teams/${team.id}`)}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-blue-100 rounded-full">
+                                <UsersIcon className="h-4 w-4 text-blue-700" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium">{team.name}</h4>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {team.description || 'No description provided'}
+                                </p>
+                                <Badge variant="outline" className="mt-2 text-xs">
+                                  Created {formatDate(team.createdAt)}
+                                </Badge>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-medium">{["UX Team", "DevOps", "Frontend", "Backend", "Data Analytics"][i % 5]}</h4>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {Math.floor(Math.random() * 8) + 3} members
-                              </p>
-                              <Badge variant="outline" className="mt-2 text-xs">
-                                {Math.floor(Math.random() * 3) + 1} projects
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 border rounded-md">
+                      <p className="text-gray-500 mb-4">No teams found for this department</p>
+                      <Button variant="outline" onClick={() => setLocation('/teams/new')}>
+                        Create First Team
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -349,42 +464,57 @@ export default function DepartmentDetailsPage() {
               <Card>
                 <CardContent className="p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Projects ({departmentWithDetails.projects})</h3>
+                    <h3 className="text-lg font-semibold">Projects ({departmentWithDetails.projects.length})</h3>
                     <Button variant="outline" onClick={() => setLocation('/projects/new')}>
                       Create Project
                     </Button>
                   </div>
                   
-                  <div className="space-y-4">
-                    {Array(departmentWithDetails.projects).fill(0).map((_, i) => (
-                      <div key={i} className="p-4 border rounded-md hover:shadow-sm cursor-pointer"
-                           onClick={() => setLocation(`/projects/${i+1}`)}>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium">
-                              {["Website Redesign", "Mobile App", "API Integration", "Cloud Migration", 
-                                "CRM Implementation", "Data Warehouse", "Security Audit", "UI Refresh"][i % 8]}
-                            </h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {["In Progress", "Planning", "Completed", "On Hold"][i % 4]}
-                              {" • Due "}
-                              {new Date(Date.now() + 1000 * 60 * 60 * 24 * (i * 15 + 10)).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div>
-                            <Badge className={[
-                              "bg-blue-100 text-blue-800",
-                              "bg-amber-100 text-amber-800",
-                              "bg-green-100 text-green-800",
-                              "bg-gray-100 text-gray-800",
-                            ][i % 4]}>
-                              {["In Progress", "Planning", "Completed", "On Hold"][i % 4]}
-                            </Badge>
+                  {departmentWithDetails.projects.length > 0 ? (
+                    <div className="space-y-4">
+                      {departmentWithDetails.projects.map((project) => (
+                        <div 
+                          key={project.id} 
+                          className="p-4 border rounded-md hover:shadow-sm cursor-pointer"
+                          onClick={() => setLocation(`/projects/${project.id}`)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-medium">{project.name}</h4>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {project.status}
+                                {project.endDate && ` • Due ${new Date(project.endDate).toLocaleDateString()}`}
+                              </p>
+                              {project.description && (
+                                <p className="text-sm text-gray-500 mt-2">
+                                  {project.description.length > 100 
+                                    ? `${project.description.substring(0, 100)}...` 
+                                    : project.description}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <Badge className={
+                                project.status === 'IN_PROGRESS' ? "bg-blue-100 text-blue-800" :
+                                project.status === 'PLANNING' ? "bg-amber-100 text-amber-800" :
+                                project.status === 'COMPLETED' ? "bg-green-100 text-green-800" :
+                                "bg-gray-100 text-gray-800"
+                              }>
+                                {project.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 border rounded-md">
+                      <p className="text-gray-500 mb-4">No projects found for this department</p>
+                      <Button variant="outline" onClick={() => setLocation('/projects/new')}>
+                        Create First Project
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -392,52 +522,67 @@ export default function DepartmentDetailsPage() {
             <TabsContent value="members" className="mt-4">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Department Members ({departmentWithDetails.headCount})</h3>
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600">
-                      This section would show all members across teams in this department.
-                    </p>
-                    <Button onClick={() => setLocation('/users?departmentId=' + departmentId)}>
-                      View All Members
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Department Members ({departmentWithDetails.headCount})</h3>
+                    <Button variant="outline" onClick={() => setLocation('/users/new')}>
+                      Add Member
                     </Button>
                   </div>
+                  
+                  {departmentWithDetails.users.length > 0 ? (
+                    <div className="space-y-4">
+                      {departmentWithDetails.users.map((user) => (
+                        <div 
+                          key={user.id} 
+                          className="p-4 border rounded-md hover:shadow-sm cursor-pointer flex justify-between items-center"
+                          onClick={() => setLocation(`/users/${user.id}`)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-primary-100 text-primary-800 rounded-full flex items-center justify-center font-medium">
+                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="font-medium">{user.firstName} {user.lastName}</h4>
+                              <p className="text-sm text-gray-600">{user.email}</p>
+                            </div>
+                          </div>
+                          <div>
+                            <Badge className={
+                              user.role === 'ADMIN' ? "bg-purple-100 text-purple-800" :
+                              user.role === 'MANAGER' ? "bg-blue-100 text-blue-800" :
+                              user.role === 'TEAM_LEAD' ? "bg-green-100 text-green-800" :
+                              "bg-gray-100 text-gray-800"
+                            }>
+                              {user.role.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 border rounded-md">
+                      <p className="text-gray-500 mb-4">No members assigned to this department yet</p>
+                      <Button variant="outline" onClick={() => setLocation('/users/new')}>
+                        Add First Member
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {departmentWithDetails.users.length > 0 && (
+                    <div className="mt-4 text-center">
+                      <Button 
+                        variant="link" 
+                        onClick={() => setLocation('/users?departmentId=' + departmentId)}
+                      >
+                        View All Members
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
             
-            <TabsContent value="budget" className="mt-4">
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Budget Information</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center py-2 border-b">
-                      <span className="font-medium">Annual Budget</span>
-                      <span className="font-semibold">{formatCurrency(departmentWithDetails.budget)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b">
-                      <span className="font-medium">Quarterly Allocation</span>
-                      <span>{formatCurrency(departmentWithDetails.budget / 4)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b">
-                      <span className="font-medium">Per-Employee Average</span>
-                      <span>{formatCurrency(departmentWithDetails.budget / departmentWithDetails.headCount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b">
-                      <span className="font-medium">Equipment & Resources</span>
-                      <span>{formatCurrency(departmentWithDetails.budget * 0.35)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b">
-                      <span className="font-medium">Training & Development</span>
-                      <span>{formatCurrency(departmentWithDetails.budget * 0.15)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2">
-                      <span className="font-medium">Operational Expenses</span>
-                      <span>{formatCurrency(departmentWithDetails.budget * 0.1)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+            
           </Tabs>
         </div>
       ) : (
